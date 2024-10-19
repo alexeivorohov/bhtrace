@@ -1,6 +1,6 @@
 # Torch-based program for modeling images of compact objects
 
-![image](./results/RN_geod)
+![image](./results/Im_RN)
 
 ## Description
 
