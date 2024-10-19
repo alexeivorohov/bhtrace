@@ -1,4 +1,4 @@
-# Torch-based program for modeling images of compact objects
+# bhtrace - torch-based library for modeling images of compact objects
 
 ![image](./results/Im_RN.png)
 
