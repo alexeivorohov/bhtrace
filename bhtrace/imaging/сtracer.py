@@ -1,8 +1,9 @@
 import torch
 import torchode as tode
 
+# WIP
 
-class tracer:
+class CTracer:
 
   def __init__(self, dev='cpu',):
     pass
@@ -62,7 +63,6 @@ class tracer:
     sol = jit_solver.solve(tode.InitialValueProblem(y0=Y0, t_eval=t_eval))
     
     return sol
-
 
 # OK
 # Процесс трассировки

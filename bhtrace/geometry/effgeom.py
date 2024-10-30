@@ -3,21 +3,21 @@ from .spacetime import Spacetime
 
 def EffGeomSPH(Spacetime):
 
-    def __init__(self, SPc: Spacetime):
+    def __init__(self, Spacetime: Spacetime):
 
-        self.SPc = SPc
+        self.Spacetime = Spacetime
 
         pass
 
     def g(self, X):
 
-        g = self.SPc.g(X)
+        g = self.Spacetime.g(X)
 
         pass
 
     def ginv(self, X):
 
-        ginv = self.SPc.ginv(X)
+        ginv = self.Spacetime.ginv(X)
 
         pass
 

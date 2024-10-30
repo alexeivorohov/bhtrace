@@ -44,6 +44,8 @@ def net(type='square', rng=5, db=[-5,5,-5,5], D0 = 20, dth=0, dph=0):
     dth -
     dph 
     '''
+
+    # Coordinates
     yy = []
     zz = []
 
@@ -74,6 +76,7 @@ def net(type='square', rng=5, db=[-5,5,-5,5], D0 = 20, dth=0, dph=0):
     if type == 'hex':
       pass
 
+    # Velocities
     vx = - torch.ones_like(xx.view(-1,1))
     vy = torch.zeros_like(vx)
     vz = torch.zeros_like(vx)

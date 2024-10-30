@@ -1,10 +1,8 @@
-/notebooks/proto.ipynb
-/notebooks/model_class_bench.ipynb
-/notebooks/task_class_bench.ipynb
-/notebooks/solver_class_bench.ipynb
-/notebooks/trajectories.ipynb
-/hijacobi/__pycache__
 /.venv
 /.vscode
 /.pytest_cache
-/results/*.pickle
+/.vscode
+/*.pyc
+/tests/devscratch.py
+/tests/visibility_test.py
+/examples/*.pickle
