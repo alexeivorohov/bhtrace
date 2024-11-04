@@ -2,7 +2,7 @@
 /.vscode
 /.pytest_cache
 /.vscode
-/*.pyc
+*.pyc
 /tests/devscratch.py
 /tests/visibility_test.py
 /examples/*.pickle
