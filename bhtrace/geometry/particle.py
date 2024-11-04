@@ -42,16 +42,26 @@ class Particle(ABC):
         '''
         return None
 
-    @abstractmethod
-    def dHmlt_(self, X, P):
+    def dHmlt_(self, X, P, eps):
         '''
-        Hamiltonian gradient
+        Less effective, but type-independent method of differentiating particle hamiltonian
 
-        Returns $\partial^\mu H(x^u, p^u)$
-
-        Requires contravariant X and P as inputs!
+        Input:
+        - X: contravariant coordinate
+        - P: impulse (same as for hamiltonian)
         '''
-        return None
+
+        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))*eps
+
+        # H = self.Hmlt(X, P)
+        dH = torch.zeros_like(X)
+
+        dH[:, 0] = (self.Hmlt(X+dVec[:, 0, :], P) - self.Hmlt(X-dVec[:, 0, :], P))/eps/2
+        dH[:, 1] = (self.Hmlt(X+dVec[:, 1, :], P) - self.Hmlt(X-dVec[:, 1, :], P))/eps/2
+        dH[:, 2] = (self.Hmlt(X+dVec[:, 2, :], P) - self.Hmlt(X-dVec[:, 2, :], P))/eps/2
+        dH[:, 3] = (self.Hmlt(X+dVec[:, 3, :], P) - self.Hmlt(X-dVec[:, 3, :], P))/eps/2
+
+        return dH
 
     @abstractmethod
     def normp(self, X, P):
@@ -98,22 +108,6 @@ class Photon(Particle):
         outp = 0.5*torch.einsum('bmd,bi,dbij,bj->bm', self.ginv_, P, self.dgX_, P)
 
         return outp
-
-    def dHmlt_(self, X, P, dVec, eps):
-
-        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))*eps
-
-        # H = self.Hmlt(X, P)
-        self.ginv_ = self.Spacetime.ginv(X)
-
-        dH0 = (self.Hmlt(X+dVec[:, 0, :], P) - self.Hmlt(X-dVec[:, 0, :], P))/eps/2
-        dH1 = (self.Hmlt(X+dVec[:, 1, :], P) - self.Hmlt(X-dVec[:, 0, :], P))/eps/2
-        dH2 = (self.Hmlt(X+dVec[:, 2, :], P) - self.Hmlt(X-dVec[:, 0, :], P))/eps/2
-        dH3 = (self.Hmlt(X+dVec[:, 3, :], P) - self.Hmlt(X-dVec[:, 0, :], P))/eps/2
-
-        dH = torch.stack([dH0, dH1, dH2, dH3])
-
-        return torch.einsum('bmd,db->bm', self.ginv_, dH)
 
 
     # Problems when g_0k != 0

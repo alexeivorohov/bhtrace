@@ -25,7 +25,7 @@ tracer.particle_set(gma0)
 
 # Initial data
 
-Ni = 16
+Ni = 8
 D0 = 16
 db = 10
 
@@ -39,6 +39,8 @@ P0[:, 1] = -torch.ones(Ni)
 
 X0sph, P0sph = cart2sph(X0, P0)
 P0sph = gma0.normp(X0sph, P0sph)
+
+
 # Calculation
 
 Res0 = tracer.solve(X0sph, P0sph, 30, 100)

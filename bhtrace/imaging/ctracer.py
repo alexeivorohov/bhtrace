@@ -126,24 +126,21 @@ class CTracer():
 
       return full_path
 
-  # old method
+
   def __eq__(self, t, XP):
 
     X_, P_ = XP[:, 0:4], XP[:, 4:]
 
-    G = self.spacetime.dg(X_)
-    ginvX = self.spacetime.ginv(X_)
-
+    G = self.spacetime.conn(X_)
     dP = - torch.einsum('bmuv,bu,bv->bm', G, P_, P_)
 
-    # dP = torch.zeros_like(P_)
-    # for i in range(P_.shape[0]):
-    #   if True:
-    #     dP[i] = - G[i] @ P_[i] @ P_[i]
+    # dg_ = self.spacetime.dg(X_)
+    # ginvX = self.spacetime.ginv(X_)
+    # dP = - torch.einsum('bduv,bv,bu->bd', dg_, P_, P_)
 
     return torch.cat([P_, dP], axis=1)
 
-  # old method
+
   def solve(self, X0, P0, t_sim, n_steps, dev='cpu'):
 
     N_tr = X0.shape[0]

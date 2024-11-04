@@ -5,7 +5,7 @@ import os
 import sys
 sys.path.append('.')
 
-from bhtrace.geometry import MinkowskiSph, Photon
+from bhtrace.geometry import MinkowskiSph, SphericallySymmetric, Photon
 from bhtrace.functional import net, sph2cart, cart2sph
 from bhtrace.imaging import HTracer
 
@@ -13,21 +13,21 @@ from bhtrace.imaging import HTracer
 
 # Setting up tracer:
 
-schw = lambda r: 1 
-schw_r = lambda r: 0
+schw = lambda r: 1-2/r
+schw_r = lambda r: 2*torch.pow(r, -2)
 
-ST = MinkowskiSph()
+ST = SphericallySymmetric(schw, schw_r)
 
 Phot = Photon(ST)
 
-tracer = CTracer()
+tracer = HTracer()
 tracer.particle_set(Phot)
 
 
 # Initial Data
 
 Ni = 4
-D0 = 16
+D0 = 6
 db = 5
 
 X0, P0 = torch.zeros(Ni, 4), torch.zeros(Ni, 4)
@@ -36,7 +36,7 @@ X0[:, 1] = torch.ones(Ni)*D0
 X0[:, 2] = torch.linspace(-1, 1, Ni)*db
 
 P0[:, 0] = torch.ones(Ni)
-P0[:, 1] = torch.ones(Ni)
+P0[:, 1] = -torch.ones(Ni)
 
 # fig, ax = plt.subplots(1,1,figsize=(8,6))
 
@@ -50,7 +50,7 @@ P0sph = Phot.normp(X0sph, P0sph)
 
 
 # Tracing
-X_res, P_res = tracer.trace(X0sph, P0sph, 1e-5, 32, 4e-1)
+X_res, P_res = tracer.trace(X0sph, P0sph, 1e-5, 64, 1e-1)
 
 
 # Imaging - spherical

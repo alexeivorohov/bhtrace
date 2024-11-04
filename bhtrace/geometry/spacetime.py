@@ -47,7 +47,7 @@ class Spacetime(ABC):
 
     # Connections:
 
-    def dg(self, X, eps=1e-5):
+    def dg(self, X, eps=2e-5):
         '''
         Numerical derviative of the metric
 
@@ -57,20 +57,18 @@ class Spacetime(ABC):
 
         ## Output
 
-        - dg: torch.Tensor of shape [d, b, 4, 4]
+        - dg: torch.Tensor of shape [b, d, 4, 4]
         '''
 
-        gX = self.g(X)
+        # gX = self.g(X)
+        dgX = torch.zeros(X.shape[0], 4, 4, 4)
 
-        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))
+        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))*eps
 
-        dg0 = (self.g(X+dVec[:, 0, :]*eps) - gX)/eps
-        dg1 = (self.g(X+dVec[:, 1, :]*eps) - gX)/eps
-        dg2 = (self.g(X+dVec[:, 2, :]*eps) - gX)/eps
-        dg3 = (self.g(X+dVec[:, 3, :]*eps) - gX)/eps
-
-        dgX = torch.cat([dg0, dg1, dg2, dg3], axis=1)
-
+        dgX[:, 0, :, :] = (self.g(X+dVec[:, 0, :]) - self.g(X-dVec[:, 0, :]))/eps/2
+        dgX[:, 1, :, :] = (self.g(X+dVec[:, 1, :]) - self.g(X-dVec[:, 1, :]))/eps/2
+        dgX[:, 2, :, :] = (self.g(X+dVec[:, 2, :]) - self.g(X-dVec[:, 2, :]))/eps/2
+        dgX[:, 3, :, :] = (self.g(X+dVec[:, 3, :]) - self.g(X-dVec[:, 3, :]))/eps/2
 
         return dgX
 
@@ -90,8 +88,15 @@ class Spacetime(ABC):
         Evaluation of connection symbols by numerical differentiation
         X: torch.Tensor() - coordinates
         '''
+        g_duv = self.dg(X)
+        ginv_ = self.ginv(X)    
 
-        return None
+        dg0 = torch.einsum('bmd,bduv->bmuv', ginv_, g_duv)
+        dg1 = torch.einsum('bmv,bduv->bmdv', ginv_, g_duv)
+        dg2 = torch.einsum('bmu,bduv->bmud', ginv_, g_duv)
+
+
+        return 0.5*( - dg0 + dg1 + dg2)
 
 
 class SphericallySymmetric(Spacetime):

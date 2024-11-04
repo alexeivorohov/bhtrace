@@ -2,6 +2,7 @@ import torch
 import torchode as tode
 import os
 import pickle
+import time
 
 from ..geometry import Particle
 
@@ -56,10 +57,11 @@ class HTracer():
     
     def __step__(self,  X: torch.Tensor, P: torch.Tensor, dt):
 
-        dH = self.pcle.dHmlt(X, P)
-
-        dP = - dH*dt
+        dP = - self.pcle.dHmlt_(X, P, 1e-5)*dt
         dX = P*dt
+        
+        ginvX = self.spc.ginv(X)
+        dP = torch.einsum('buv,bu->bv', ginvX, dP)
 
         P += dP
         X += dX
@@ -100,18 +102,21 @@ class HTracer():
     # old method
     def __eq__(self, t, XP):
 
+        t1 = time.time()
         X_, P_ = XP[:, 0:4], XP[:, 4:]
 
-        # G = self..conn(X_)
+        G = self.pcle.Spacetime.conn_(X_)
 
-        dP = self.pcle.dHmlt_(X_, P_, self.DVec, self.eps) 
+        # dP = - self.pcle.dHmlt_(X_, P_, self.DVec, self.eps) 
 
-        # dP = torch.einsum('bmuv,bu,bv->bm', G, P_, P_)
+        dP = torch.einsum('bmuv,bu,bv->bm', G, P_, P_)
 
         # dP = torch.zeros_like(P_)
         # for i in range(P_.shape[0]):
         #   if True:
         #     dP[i] = - G[i] @ P_[i] @ P_[i]
+        t2 = time.time()
+        print(t2-t1)
 
         return torch.cat([P_, dP], axis=1)
 

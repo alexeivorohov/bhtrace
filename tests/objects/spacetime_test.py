@@ -1,14 +1,15 @@
 import torch
+import time
 
 import sys
 sys.path.append('.')
-from bhtrace.geometry import Spacetime, SphericallySymmetric
+from bhtrace.geometry import Spacetime, SphericallySymmetric, MinkowskiSph
 
 # Generating test points
 
 ts = [0]
 rs = [5]
-ths = [0.1,]
+ths = [0.1, 3]
 phs = [3]
 N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
 
@@ -28,12 +29,13 @@ for t in ts:
 schw = lambda r: 1 - 2/r
 schw_r = lambda r: 2*torch.pow(r, -2)
 
-SchwST = SphericallySymmetric(f=schw, f_r=schw_r)
+ST = SphericallySymmetric(f=schw, f_r=schw_r)
+# ST = MinkowskiSph()
 
 # Eye test
 
-g = SchwST.g(X)
-ginv = SchwST.ginv(X)
+g = ST.g(X)
+ginv = ST.ginv(X)
 
 eye_test = g@ginv
 eye = torch.eye(4)
@@ -51,8 +53,21 @@ dgX = FlatST.dg(X)
 
 print(dgX)
 print(dgX.shape)
-# Seems correct
 
-dgX = SchwST.dg(X)
+
+# Seems correct
+dgX = ST.dg(X)
 print(dgX)
 print(dgX.shape)
+
+# Connections
+
+t0 = time.time()
+gma = ST.conn(X)
+t1 = time.time()
+gma_ = ST.conn_(X)
+t2 = time.time()
+
+print(t1-t0)
+print(t2-t1)
+

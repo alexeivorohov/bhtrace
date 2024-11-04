@@ -7,4 +7,5 @@ Submodule with different imaging procedures, including:
 
 from .htracer import HTracer
 from .ctracer import CTracer
+from .ntracer import NTracer
 # from .ktracer import KTracer

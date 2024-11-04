@@ -22,7 +22,7 @@ tracer.spacetime_set(ST)
 
 # Initial data
 
-Ni = 16
+Ni = 8
 D0 = 16
 db = 10
 
