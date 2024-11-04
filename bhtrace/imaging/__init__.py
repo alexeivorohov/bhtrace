@@ -1,5 +1,5 @@
 '''
-Submodule with different imaging procedurs, including:
+Submodule with different imaging procedures, including:
 - Hamiltonian ray-tracing algorithm (htracer)
 - Connection ray-tracing algorithm (ctracer)
 - Keplerian disks imagig algorihm (ktracer)

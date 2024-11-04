@@ -1,39 +1,79 @@
+# This file contains some essential routines
+
 import torch
 
-# This file contains simple routines, that are essential for code to work 
+# Cooridnate transformations, OK
+def cart2sph(inX, inP):
 
-def cart2sph(XP):
+    shape = inX.shape
+    X = inX.view(-1, 4)
+    P = inP.view(-1, 4)
 
-    X, Y, Z, vX, vY, vZ = XP[0], XP[1], XP[2], XP[3], XP[4], XP[5]
-    X2Y2 = X**2 + Y**2
-    R = torch.sqrt(X2Y2 + Z**2)
-    TH = torch.arccos(Z/R)
-    PH = torch.arctan2(Y, X)
+    T0, X0, Y0, Z0 = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
+    vT, vX, vY, vZ = P[:, 0], P[:, 1], P[:, 2], P[:, 3]
 
-    print(vX.shape, R.shape)
+    X2Y2 = X0**2 + Y0**2
+    R = torch.sqrt(X2Y2 + Z0**2)
+    TH = torch.arccos(Z0/R)
+    PH = torch.arctan2(Y0, X0)
 
     vR = torch.sin(TH)*(torch.cos(PH)*vX + torch.sin(PH)*vY) + torch.cos(TH)*vZ
     vTH = (torch.cos(TH)*(torch.cos(PH)*vX+torch.sin(PH)*vY) - torch.sin(TH)*vZ)/R
     vPH = (-torch.sin(PH)*vX+torch.cos(PH)*vY)/R*torch.sin(TH)
 
-    return R, TH, PH, vR, vTH, vPH
+    outX = torch.zeros_like(X)
+    outP = torch.zeros_like(P)
 
+    outX[:, 0], outX[:, 1], outX[:, 2], outX[:, 3] = T0, R, TH, PH
+    outP[:, 0], outP[:, 1], outP[:, 2], outP[:, 3] = vT, vR, vTH, vPH
 
-def sph2cart(XP):
-    R, TH, PH, vR, vTH, vPH = XP[0], XP[1], XP[2], XP[3], XP[4], XP[5]
-    X = R*torch.sin(TH)*torch.cos(PH)
-    Y = R*torch.sin(TH)*torch.sin(PH)
-    Z = R*torch.cos(TH)
+    return outX.view(shape), outP.view(shape)
 
-    vX = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.cos(PH) \
+def sph2cart(inX, inP):
+
+    shape = inX.shape
+    X = inX.view(-1, 4)
+    P = inP.view(-1, 4)
+
+    T, R, TH, PH,  = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
+    vT, vR, vTH, vPH = P[:, 0], P[:, 1], P[:, 2], P[:, 3]
+
+    outX = torch.zeros_like(X)
+    outP = torch.zeros_like(P)
+
+    outX[:, 0] = T
+    outX[:, 1] = R*torch.sin(TH)*torch.cos(PH)
+    outX[:, 2] = R*torch.sin(TH)*torch.sin(PH)
+    outX[:, 3] = R*torch.cos(TH)
+
+    outP[:, 0] = vT
+    outP[:, 1] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.cos(PH) \
         - R*torch.sin(PH)*torch.sin(TH)*vPH
-    vY = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.sin(PH) \
+    outP[:, 2] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.sin(PH) \
         + R*torch.cos(PH)*torch.sin(TH)*vPH
-    vZ = vR*torch.cos(TH)-R*torch.sin(TH)*vTH
+    outP[:, 3] = vR*torch.cos(TH)-R*torch.sin(TH)*vTH
 
-    return X, Y, Z, vX, vY, vZ
+    return outX.view(shape), outP.view(shape)
 
+# Points generating:
 
+def points_generate(ts, rs, ths, phs):
+
+    N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
+
+    X = torch.zeros(N_test_p, 4)
+
+    i = 0
+    for t in ts:
+        for r in rs:
+            for th in ths:
+                for ph in phs:
+                    X[i, :] = torch.Tensor([t, r, th, ph])
+                    i += 1
+
+    return X
+
+# Should be remaked or removed
 def net(type='square', rng=5, db=[-5,5,-5,5], D0 = 20, dth=0, dph=0):
     '''
     Function for generation of initial photons grid on observer's sky
@@ -103,7 +143,7 @@ def net(type='square', rng=5, db=[-5,5,-5,5], D0 = 20, dth=0, dph=0):
 
     return xx.reshape(-1, 1), yy.reshape(-1, 1), zz.reshape(-1, 1), vx, vy, vz
 
-
+# Works?
 def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, tol=1e-4, maxiter=100):
     '''
     eq: callable X
@@ -149,7 +189,7 @@ def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: tor
 
         return outp
 
-
+# Works?
 def def_fspace(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, alpha=0.5, maxiter=100):
     '''
     eq: callable X

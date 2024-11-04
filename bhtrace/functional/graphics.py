@@ -1,23 +1,8 @@
 
-
 import matplotlib.pyplot as plt
 
 
-def Image2d:
+# Add pre-set color generators
 
-    def __init__():
-
-
-
-    def AddTrajectories():
-
-    def AddObj():
-
-
-def Image3d:
-
-    def __init__():
-
-        pass
 
     

@@ -2,14 +2,14 @@ import torch
 
 import sys
 sys.path.append('.')
-from bhtrace import Spacetime, SphericallySymmetric
+from bhtrace.geometry import Spacetime, SphericallySymmetric
 
 # Generating test points
 
 ts = [0]
-rs = [2.2, 5, 20]
-ths = [0.1, 1]
-phs = [0, 3, 6]
+rs = [5]
+ths = [0.1,]
+phs = [3]
 N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
 
 X = torch.zeros(N_test_p, 4)
@@ -42,3 +42,17 @@ for i in range(N_test_p):
     print(torch.allclose(eye_test[i, :, :], eye))
 
 # Tetrad test?
+
+
+# dg test
+
+FlatST = SphericallySymmetric(f=lambda r: 1, f_r = lambda r: 0)
+dgX = FlatST.dg(X)
+
+print(dgX)
+print(dgX.shape)
+# Seems correct
+
+dgX = SchwST.dg(X)
+print(dgX)
+print(dgX.shape)

@@ -3,21 +3,20 @@ from abc import ABC, abstractmethod
 
 import torch
 
-class Spacetime(torch.nn.Module):
+class Spacetime(ABC):
     '''
     Base class for handling different spacetimes.
 
     Required methods:
-    - g(X) - evaluating metric function
+    - g(X): expression for metric function
+    - ginv(X): expression for inverse metric function
     
     Optional methods:
-    - conn(X) - evaluating connections
+    - conn(X): Connection symbols $\Gamma^p_uv$
 
-    may be moved to particle class:
-    ? uR(X), uTh(X), iTh(X) and etc
     '''
 
-    # Метрика
+    # Metrics
     @abstractmethod
     def g(self, X):
         '''
@@ -46,7 +45,35 @@ class Spacetime(torch.nn.Module):
         pass
 
 
-    # Связность:
+    # Connections:
+
+    def dg(self, X, eps=1e-5):
+        '''
+        Numerical derviative of the metric
+
+        ## Input:
+        - X: torch.Tensor of shape [b, 4] - points in which to evaluate
+        - eps: float (1e-5 default)
+
+        ## Output
+
+        - dg: torch.Tensor of shape [d, b, 4, 4]
+        '''
+
+        gX = self.g(X)
+
+        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))
+
+        dg0 = (self.g(X+dVec[:, 0, :]*eps) - gX)/eps
+        dg1 = (self.g(X+dVec[:, 1, :]*eps) - gX)/eps
+        dg2 = (self.g(X+dVec[:, 2, :]*eps) - gX)/eps
+        dg3 = (self.g(X+dVec[:, 3, :]*eps) - gX)/eps
+
+        dgX = torch.cat([dg0, dg1, dg2, dg3], axis=1)
+
+
+        return dgX
+
     @abstractmethod
     def conn(self, X):
         '''
@@ -67,106 +94,6 @@ class Spacetime(torch.nn.Module):
         return None
 
 
-    # Потенциалы
-    @abstractmethod
-    def uR(self, r: torch.Tensor, l_s: torch.Tensor, q_s: torch.Tensor):
-        '''
-        Radial potential, as appears in the equations
-
-        ## Input:
-        r - tensor: evaluation points;
-
-        l_s, q_s  - tensors of same shape: particle impulses
-
-        ## Output:
-        uR - tensor, r.shape x l_s.shape
-        '''
-        pass
-
-
-    def uR_(self, r, l, q):
-
-        outp = [self.uR(r_, l, q) for r_ in r]
-
-        return torch.stack(outp)
-
-    @abstractmethod
-    def uTh(self, th: torch.Tensor | float, l_s: torch.Tensor | float, q_s: torch.Tensor | float):
-        '''
-        Polar potential, as figuring in equations
-
-        ## Input:
-        th - tensor: evaluation points;
-
-        l_s, q_s  - tensors of same shape: particle impulses
-
-        ## Output:
-        uTh - tensor, r.shape x l_s.shape
-        '''
-        pass
-
-
-    def uTh_(self, th, l, q):
-
-        outp = [self.uTh(th_, l, q) for th_ in th]
-
-        return torch.stack(outp)
-
-    # Интегралы
-    def useCustomIth(self, X: bool):
-        '''
-        Directive to use custom expression for polar potential integrals
-        ... solver integration routine
-        '''
-        self.CustomIth = X
-
-
-    def useCustomIr(self, X: bool):
-        '''
-        Directive to use custom expression for radial potential integrals
-        ... solver integration routine
-        '''
-        self.CustomIr = X
-
-    @abstractmethod
-    def Ith(self, th: torch.Tensor | list, l_s: torch.Tensor, q_s: torch.Tensor):
-        '''
-        Integral of polar potential, as seen in equation on motion constants
-
-        '''
-        pass
-
-    @abstractmethod
-    def Ith_t(self, th, l_s: float, q_s: float):
-        '''
-        Integral of polar potential, as seen in equation on motion constants,
-        second lim is th_turn
-        '''
-        pass
-
-    @abstractmethod
-    def Ir(self, r, l_s, q_s):
-        '''
-        Integral of radial potential, as seen in equation on motion constants
-
-        '''
-        pass
-
-    @abstractmethod
-    def turning_Th(self, l_s, q_s):
-        '''
-        Turning points along th axis
-        '''
-        return torch.nan
-
-    @abstractmethod
-    def turning_R(self, l_s, q_s):
-        '''
-        Turning points along r axis
-        '''
-        return torch.nan
-
-
 class SphericallySymmetric(Spacetime):
 
     def __init__(self, f, f_r):
@@ -179,9 +106,7 @@ class SphericallySymmetric(Spacetime):
         '''
         self.f = f
         self.df = f_r
-        self.useCustomIr(False)
-        self.useCustomIth(False)
-
+        
     def g(self, X):
         
         outp = torch.zeros([X.shape[0], 4, 4])
@@ -208,6 +133,7 @@ class SphericallySymmetric(Spacetime):
         outp[:, 3, 3] = torch.pow(X[:, 1]*torch.sin(X[:, 2]), -2)
 
         return outp
+
 
     def conn(self, X):
         
@@ -244,77 +170,103 @@ class SphericallySymmetric(Spacetime):
 
         return outp
 
-  # Радиальный потенциал
-    def uR(self, r, l_s, q_s):
 
-        # outp = [r_**2*(r_**2 - self.f(r_)*(l_s**2 + q_s**2)) for r_ in r]
-    
-        return r**2*(r**2 - self.f(r)*(l_s**2 + q_s**2))
-    
-    
-  # Полярный потенциал
-    def uTh(self, th, l_s, q_s):
-        #xi = l_s/q_s
-        outp = [q_s-torch.pow(l_s/torch.tan(th_), 2) for th_ in th]
+class MinkowskiCart(Spacetime):
 
-        return torch.stack(outp)
-  
+    def __init__(self):
+        pass
 
-    def turning_Th(self, l_s, q_s):
-        '''
-        Returns turning point for given (l, q)
-        '''
+    def g(self, X):
+
+        outp = torch.zeros([X.shape[0], 4, 4])
+
+        outp[:, 0, 0] = -1
+        outp[:, 1, 1] = 1
+        outp[:, 2, 2] = 1
+        outp[:, 3, 3] = 1
+
+        return outp
+
+    def ginv(self, X):
+
+        outp = torch.zeros([X.shape[0], 4, 4])
+
+        outp[:, 0, 0] = -1
+        outp[:, 1, 1] = 1
+        outp[:, 2, 2] = 1
+        outp[:, 3, 3] = 1
+
+        return outp
+
+    def conn(self, X):
+
+        pass
+
+
+class MinkowskiSph(Spacetime):
+
+    def __init__(self):
+
+        pass
+
+
+    def g(self, X):
         
-        outp = torch.abs(torch.arctan(l_s/q_s))
-    
-        return outp    
+        outp = torch.zeros([X.shape[0], 4, 4])
 
-  # Известное точное выражение для интеграла полярного потенциала
-    def Ith(self, th, l_s, q_s):
-        '''
-        Precise exspression for 1/\sqrt(Uth) integral over interval 
-        without turning points, if exists
-        '''
+        outp[:, 0, 0] = -1
+        outp[:, 1, 1] = 1
+        outp[:, 2, 2] = torch.pow(X[:, 1], 2)
+        outp[:, 3, 3] = torch.pow(X[:, 1]*torch.sin(X[:, 2]), 2)
 
-        xi2 = (l_s/q_s)**2
+        return outp
 
-        invmodulusLQ = torch.pow(l_s**2 + q_s**2, -0.5)
- 
-  
-        if abs(th[0]) == torch.pi/2:
-            outp0 = torch.zeros_like(q_s)
-        else:
-            tanth = torch.tan(th[0])
-            arg = torch.sqrt((1+xi2)/(tanth**2-xi2))*torch.sign(tanth)
-            outp0 = -invmodulusLQ*torch.atan(arg)
 
-        if abs(th[1]) == torch.pi/2:
-            outp1 = torch.zeros_like(q_s)
-        else:
-            tanth = torch.tan(th[1])
-            arg = torch.sqrt((1+xi2)/(tanth**2-xi2))*torch.sign(tanth)
-            outp1 = -invmodulusLQ*torch.atan(arg)
-        
-        return (outp1 - outp0)
-     
-    
-    def Ith_t(self, th, l_s: float, q_s: float):
-        '''
-        Computes I_th(th, theta_turn)
-        '''
-        invmodulusLQ = torch.pow(l_s**2 + q_s**2, -0.5)
+    def ginv(self, X):
 
-        outp1 = -invmodulusLQ*torch.pi/2
+        outp = torch.zeros([X.shape[0], 4, 4])
 
-        if abs(th) == torch.pi/2:
-            outp0 = torch.zeros_like(q_s)
-        else:
-            xi2 = (l_s/q_s)**2
-            tanth = torch.tan(th)
-            arg = torch.sqrt((1+xi2)/(tanth**2-xi2))*torch.sign(tanth)
-            outp0 = -invmodulusLQ*torch.atan(arg)
+        outp[:, 0, 0] = -1
+        outp[:, 1, 1] = 1
+        outp[:, 2, 2] = torch.pow(X[:, 1], -2)
+        outp[:, 3, 3] = torch.pow(X[:, 1]*torch.sin(X[:, 2]), -2)
 
-        return (outp1 - outp0)
+        return outp
+
+
+    def conn(self, X):
+
+        r = X[:, 1]
+        th = X[:, 2]
+        phi = X[:, 3]
+
+        outp = torch.zeros([X.shape[0], 4, 4, 4])
+
+        f_ = 1
+        df_ = 1
+
+        # t
+        # outp[:, 0, 1, 0] = df_/2/f_
+        outp[:, 0, 0, 1] = outp[:, 0, 1, 0]
+
+        # r
+        # outp[:, 1, 0, 0] = f_*df_/2
+        outp[:, 1, 1, 1] = -outp[:, 0, 1, 0]
+        outp[:, 1, 2, 2] = -r
+        outp[:, 1, 3, 3] = outp[:, 1, 2, 2]*torch.sin(th)**2
+
+        # th
+        outp[:, 2, 1, 2] = 1/r
+        outp[:, 2, 2, 1] = outp[:, 2, 1, 2]
+        outp[:, 2, 3, 3] = -0.5*torch.sin(2*th)
+
+        #phi
+        outp[:, 3, 3, 1] = 1/r
+        outp[:, 3, 1, 3] = outp[:, 3, 3, 1]
+        outp[:, 3, 3, 2] = 1/torch.tan(th)
+        outp[:, 3, 2, 3] = outp[:, 3, 3, 2]
+
+        return outp
 
 
 class Kerr(Spacetime):
