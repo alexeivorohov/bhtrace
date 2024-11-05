@@ -31,6 +31,7 @@ class Particle(ABC):
         '''
         return None
 
+
     @abstractmethod
     def dHmlt(self, X, P):
         '''
@@ -41,6 +42,7 @@ class Particle(ABC):
         Requires contravariant X and P as inputs!
         '''
         return None
+
 
     def dHmlt_(self, X, P, eps):
         '''
@@ -63,6 +65,7 @@ class Particle(ABC):
 
         return dH
 
+
     @abstractmethod
     def normp(self, X, P):
         '''
@@ -79,52 +82,3 @@ class Particle(ABC):
         return None
 
 
-class Photon(Particle):
-
-    def __init__(self, Spacetime: Spacetime):
-        '''
-        Create a photon.
-        No parameters required.
-        '''
-        self.Spacetime = Spacetime
-        self.mu = 0
-        pass
-
-
-    def Hmlt(self, X, P):
-
-        self.gX_ = self.Spacetime.g(X)
-
-        H = 0.5*torch.einsum('bi,bij,bj->b', P, self.gX_, P)
-
-        return H
-
-
-    def dHmlt(self, X, P, dVec, eps):
-
-        self.dgX_ = self.Spacetime.dg(X, eps=eps)
-        self.ginv_ = self.Spacetime.ginv(X)
-
-        outp = 0.5*torch.einsum('bmd,bi,dbij,bj->bm', self.ginv_, P, self.dgX_, P)
-
-        return outp
-
-
-    # Problems when g_0k != 0
-    def normp(self, X, P):
-
-        gX = self.Spacetime.g(X)
-
-        V = P[:, 1:3]
-        gs = gX[:, 1:3, 1:3] 
-        g00 = gX[:, 0, 0]
-        v2 = torch.einsum('bi,bij,bj->b', V, gs, V)
-        v_inv = torch.pow(v2, -0.5)
-
-        P_ = torch.zeros_like(P)
-        P_[:, 0] = torch.pow(-g00, -0.5)
-        P_[:, 1] = P[:, 1] * v_inv
-        P_[:, 2] = P[:, 2] * v_inv
-        P_[:, 3] = P[:, 3] * v_inv
-
-        return P_
