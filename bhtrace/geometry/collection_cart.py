@@ -107,6 +107,8 @@ class KerrSchild0(Spacetime):
         self.m = m
         self.Q = Q
 
+        self.cr_r = 0.0
+
 
     def g(self, X):
 
@@ -121,6 +123,7 @@ class KerrSchild0(Spacetime):
         rho = p@p - a2
         r2 = 0.5*(rho + torch.sqrt(rho**2 + 4.0*a2*p[2]**2))
         r = torch.sqrt(r2)
+        self.r = r
         r2a2 = r2 + a2
 
         k = torch.zeros(4)

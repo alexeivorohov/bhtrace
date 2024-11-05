@@ -7,7 +7,7 @@ from ..geometry import Spacetime, Particle
 
 class PTracer():
 
-    def __init__(self):
+    def __init__(self, r_max=40, e_tol=0.1):
 
         self.solv = 'PTracer'
         self.m_param = None
@@ -20,8 +20,11 @@ class PTracer():
         self.P = None
         self.X0 = None
         self.P0 = None
+        self.r_max = r_max
+        self.e_tol = e_tol
 
         pass
+
 
     def particle_set(self, particle: Particle):
         '''
@@ -39,6 +42,14 @@ class PTracer():
 
 
         pass
+
+    def evnt_check(self, X, P):
+
+        fwd0 = torch.greater(abs(self.spc.r-self.spc.cr_r), self.e_tol)
+        fwd1 = torch.less(self.spc.r, self.r_max)
+        fwd2 = torch.all(torch.less(abs(P[1:]), 3))
+
+        return fwd0*fwd1*fwd2
     
 
 
@@ -50,11 +61,6 @@ class PTracer():
         X +=  dt * self.spc.ginv(X) @ P
 
         return X, P
-
-
-    def evnt_check(self, X, P):
-
-        pass
 
 
     def trace(self, X0, P0, eps=1e-3, nsteps=128, dt=0.15):
@@ -81,9 +87,13 @@ class PTracer():
 
                 X, P = self.__step__(X, P, dt=dt, eps=eps)
 
-                # event_check(X, P)
+                if self.evnt_check(X, P):
+                    self.X[i+1, n, :] = X
+                    self.P[i+1, n, :] = P
+                else:
+                    self.X[i+1, n:, :] = X
+                    self.P[i+1, n:, :] = P
+                    break
 
-                self.X[i+1, n, :] = X
-                self.P[i+1, n, :] = P
 
         return self.X, self.P

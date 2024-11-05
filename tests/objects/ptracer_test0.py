@@ -26,7 +26,7 @@ db = 30
 X0, P0 = torch.zeros(Ni, 4), torch.zeros(Ni, 4)
 
 X0[:, 1] = torch.ones(Ni)*D0
-X0[:, 2] = torch.linspace(0, -1, Ni)*db
+X0[:, 2] = torch.linspace(0, 1, Ni)*db
 
 P0[:, 0] = torch.ones(Ni)
 P0[:, 1] = -torch.ones(Ni)
@@ -34,7 +34,7 @@ P0[:, 1] = -torch.ones(Ni)
 
 # Calculation
 
-X_res, P_res = tracer.trace(X0, P0)
+X_res, P_res = tracer.trace(X0, P0, dt=0.3)
 
 
 # Imaging - cartesian
