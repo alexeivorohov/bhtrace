@@ -53,14 +53,17 @@ class PTracer():
     
 
 
-    def __step__(self, X, P, dt, eps):
+    def __term__(self, XP):
 
-        dt = 0.15
+        
+        X, P = []
     
+        dX = 
+        dP
         P += - dt * self.particle.dHmlt(X, P, eps)
         X +=  dt * self.spc.ginv(X) @ P
 
-        return X, P
+        return dXP
 
 
     def trace(self, X0, P0, eps=1e-3, nsteps=128, dt=0.15):

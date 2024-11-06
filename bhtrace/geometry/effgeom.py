@@ -17,7 +17,7 @@ def EffGeomSPH(Spacetime):
 
     def ginv(self, X):
 
-        ginv = self.Spacetime.ginv(X)
+        # ginv = self.Spacetime.ginv(X)
 
         pass
 
