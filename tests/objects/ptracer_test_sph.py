@@ -37,9 +37,10 @@ X0, P0 = cart2sph(X0, P0)
 for i in range(Ni):
     P0[i, :] = gma0.GetNullMomentum(X0[i, :], P0[i, 1:])
 
+
 # Calculation
 
-X_res, P_res = tracer.trace(X0, P0, nsteps=128, dt=0.3)
+X_res, P_res = tracer.trace(X0, P0, nsteps=8, T=10)
 
 
 # Imaging - cartesian

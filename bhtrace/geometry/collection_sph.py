@@ -10,7 +10,7 @@ class MinkowskiSph(Spacetime):
 
     def g(self, X):
         
-        outp = torch.zeros([X.shape[0], 4, 4])
+        outp = torch.zeros([4, 4])
 
         outp[0, 0] = -1
         outp[1, 1] = 1
@@ -22,7 +22,7 @@ class MinkowskiSph(Spacetime):
 
     def ginv(self, X):
 
-        outp = torch.zeros([X.shape[0], 4, 4])
+        outp = torch.zeros([4, 4])
 
         outp[0, 0] = -1
         outp[1, 1] = 1
@@ -66,6 +66,10 @@ class MinkowskiSph(Spacetime):
 
         return outp
 
+    def crit(self, X):
+        
+        return abs(X[1])
+
 
 class SphericallySymmetric(Spacetime):
 
@@ -79,6 +83,9 @@ class SphericallySymmetric(Spacetime):
         '''
         self.f = f
         self.df = f_r
+
+        self.cr_r = 2.0
+
 
     def __init__(self):
 
@@ -100,11 +107,12 @@ class SphericallySymmetric(Spacetime):
 
         return outp
 
+
     def ginv(self, X):
 
-        outp = torch.zeros([X.shape[0], 4, 4])
+        outp = torch.zeros([4, 4])
 
-        f_ = self.f(X[:, 1])
+        f_ = self.f(X[1])
 
         outp[0, 0] = -1/f_
         outp[1, 1] = f_
@@ -148,3 +156,9 @@ class SphericallySymmetric(Spacetime):
         outp[3, 2, 3] = outp[3, 3, 2]
 
         return outp
+
+
+    def crit(self, X):
+
+        return abs(self.f(X[1]))
+

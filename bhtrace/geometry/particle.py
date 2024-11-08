@@ -81,4 +81,9 @@ class Particle(ABC):
         '''
         return None
 
+    
+    def crit(self, X, P):
+
+        return None
+
 

@@ -2,7 +2,7 @@ import torch
 from .spacetime import Spacetime
 
 
-class Kerr(Spacetime):
+class KerrAx(Spacetime):
 
     def __init__(self, a: float):
         '''

@@ -9,11 +9,13 @@ def EffGeomSPH(Spacetime):
 
         pass
 
+
     def g(self, X):
 
         g = self.Spacetime.g(X)
 
         pass
+    
 
     def ginv(self, X):
 

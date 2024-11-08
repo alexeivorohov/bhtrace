@@ -8,3 +8,4 @@ Submodule for hanlding several routines:
 '''
 
 from .routines import *
+from .odeint import *

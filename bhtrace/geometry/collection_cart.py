@@ -78,10 +78,14 @@ class KerrSchild(Spacetime):
         return torch.inverse(self.g(X))
 
 
-    def lmbda(self, X):
+    def crit(self, X):
 
+        p = X[1:]
+        rho = p@p - a2
+        r2 = 0.5*(rho + torch.sqrt(rho**2 + 4.0*a2*p[2]**2))
+        r = torch.sqrt(r2)
 
-        pass
+        return r
         
 
     def conn(self, X):
