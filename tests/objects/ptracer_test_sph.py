@@ -20,7 +20,7 @@ tracer.particle_set(gma0)
 
 # Initial data
 
-Ni = 16
+Ni = 4
 D0 = 16
 db = 20
 
@@ -40,7 +40,7 @@ for i in range(Ni):
 
 # Calculation
 
-X_res, P_res = tracer.trace(X0, P0, nsteps=8, T=10)
+X_res, P_res = tracer.trace(X0, P0, nsteps=128, T=10)
 
 
 # Imaging - cartesian
@@ -48,7 +48,7 @@ fig2, ax2 = plt.subplots(1,1,figsize=(8,6))
 
 # X_plt, P_plt = X_res, P_res
 X_plt, P_plt = sph2cart(X_res, P_res)
-
+print(X_res[:, 0, :])
 # ax2.quiver(X_plt[:, :, 1], X_plt[:, :, 2], P_plt[:, :, 1], P_plt[:, :, 2])
 ax2.plot(X_plt[:, :, 1], X_plt[:, :, 2])
 ax2.set_xlabel('Y')

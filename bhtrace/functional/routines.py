@@ -220,3 +220,20 @@ def def_fspace(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: to
         x_max[xmask1] = resX
 
         return x_min, x_max
+
+
+def levi_civita_tensor(dim):
+    # Create a tensor to hold the Levi-Civita symbol
+    outp = torch.zeros((dim,) * dim)  # Create a dim-dimensional tensor filled with zeros
+    
+    # Generate all permutations of dimensions
+    for perm in torch.permutations(torch.arange(dim)):
+        # Calculate the sign of the permutation
+        sign = 1 if perm[0].item() < perm[1].item() else -1
+        for i in range(dim):
+            for j in range(i + 1, dim):
+                if perm[i] > perm[j]:
+                    sign *= -1
+        arr[tuple(perm)] = sign  # Assign the sign to the appropriate position in the tensor
+    
+    return outp

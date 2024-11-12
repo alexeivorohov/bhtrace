@@ -3,20 +3,29 @@ import os
 import pickle
 
 from ..geometry import Spacetime, Particle
-from ..functional import RKF23
+from ..functional import RKF23b, Euler
 
 
 class PTracer():
 
-    def __init__(self, r_max=40, e_tol=0.1, method='irk2'):
+    def __init__(self, r_max=40, e_tol=0.1, method='Euler'):
 
         self.solv = 'PTracer'
         self.m_param = None
-        self.s_param = {'':}
+        # self.s_param = {'':}
 
         self.Ni = 0
         self.Nt = 0
         self.t = 0
+
+        if method == 'Euler':
+            self.odeint = Euler()
+        elif method == 'RKF23b':
+            self.odeint = RKF23b()
+        elif method == 'RKF23bv':
+            self.odeint = RKF23b(varistep = True)
+        else:
+            raise NameError("ODE scheme {} is not known".format(method))
 
         self.X = None
         self.P = None
@@ -24,15 +33,6 @@ class PTracer():
         self.P0 = None
         self.r_max = r_max
         self.e_tol = e_tol
-
-        if method=='rkf23b':
-            self.ode = RKF23()
-        elif method=='rkf45':
-            self.ode = None
-        else:
-            'O'
-    
-        pass
 
 
     def particle_set(self, particle: Particle):
@@ -69,7 +69,6 @@ class PTracer():
         dX = self.spc.ginv(XP[:4]) @ XP[4: ]
         dP = - self.particle.dHmlt(XP[:4], XP[4: ], self.eps)
 
-
         return torch.cat((dX, dP))
 
 
@@ -93,33 +92,17 @@ class PTracer():
 
         for n in range(self.Ni):
 
-            # X, P = X0[n, :], P0[n, :]
-
-            # for i in range(nsteps-1):
-
-            #     X, P = self.__step__(X, P, dt=dt, eps=eps)
-
-            #     if self.evnt_check(X, P):
-            #         self.X[i+1, n, :] = X
-            #         self.P[i+1, n, :] = P
-            #     else:
-            #         self.X[i+1, n:, :] = X
-            #         self.P[i+1, n:, :] = P
-            #         break
-
             XP0 = torch.cat((X0[n], P0[n]))
 
-            event_t, sol = odeint(
-                self.__term__, 
-                XP0, 
-                T0, 
-                # event_fn=self.evnt,
-                atol=1e-6,
-                rtol=1e-6,
-                method="adaptive_heun"
+            sol = self.odeint.forward(
+                term=self.__term__, 
+                X0=XP0, 
+                T = (0.0, 20),
+                nsteps=nsteps
                 )
 
-            self.X
+            self.X[:, n, :] = sol['X'][:, :4]
+            self.P[:, n, :] = sol['X'][:, 4:]
 
 
         return self.X, self.P
