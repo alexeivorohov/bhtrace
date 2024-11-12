@@ -73,7 +73,7 @@ class MinkowskiSph(Spacetime):
 
 class SphericallySymmetric(Spacetime):
 
-    def __init__(self, f, f_r):
+    def __init__(self, f=None, f_r=None):
         '''
         Class for handling spherically-symmetric spacetimes 
 
@@ -81,16 +81,15 @@ class SphericallySymmetric(Spacetime):
         f - callable: metric function
         f_r - it's derivative wrt r
         '''
-        self.f = f
-        self.df = f_r
+        if f == None:
+            self.f = lambda r: 1.0 - 2.0/r
+            self.f_r = lambda r: 2.0*torch.pow(r, -2)
+            self.cr_r = 2.0
+        else:
+            self.f = f
+            self.df = f_r
 
-        self.cr_r = 2.0
-
-
-    def __init__(self):
-
-        self.f = lambda r: 1 - 2/r
-        self.f_r = lambda r: 2*torch.pow(r, -2)
+        
 
         
     def g(self, X):

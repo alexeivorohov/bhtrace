@@ -1,4 +1,5 @@
-from .electrodymamics import ED_F
+from .electrodynamics import ED_F
+import torch
 
 class Maxwell(ED_F):
 
@@ -6,18 +7,18 @@ class Maxwell(ED_F):
 
         # mu_0 = 4*pi
         # eps_0 = 1/(4*pi)
-        self.L = lambda F: 0.25*F
-        self.L_F = lambda F: 0.25
-        self.L_FF = lambda F: 0
-        self.U = torch.Tensor([1, 0, 0, 0])
+        w = 1/(4*torch.pi)
 
-        super.__init__(L_F, L_FF)
+        super().__init__()
+        self.L = lambda F: -w*0.25*F
+        self.L_F = lambda F: -w*0.25
+        self.L_FF = lambda F: 0
+        self.U = lambda X: torch.Tensor([1, 0, 0, 0])
+
+        
         pass
 
 
-    def __compute__(self, X):
-
-        self.Tuv = 0.25 * self.L * 
 
     
 

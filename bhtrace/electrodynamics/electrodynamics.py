@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from ..geometry import Spacetime
-from ..functional import levi_civita_tensor
+# from ..functional import levi_civita_tensor
 
 import torch
 
@@ -14,39 +14,30 @@ class Electrodynamics(ABC):
     def __init__(self):
         '''
         Serves as base interface for all ED models
-        '''
-        self.base =  None   
-        self.lct4 = levi_civita_tensor(4) # e^{pquv}
+        ''' 
+        # self.lct4 = levi_civita_tensor(4) # e^{pquv}
         self.U = lambda X: torch.Tensor([1, 0, 0, 0])
         self.Fuv = self.__Fuv_s__
-    
-
-    @abstractmethod
-    def __precompute__(self, X):
-        pass
-
-
-    @abstractmethod
-    def __compute__(self, X):
-        # Tuv
-        pass
-
-
-    def attach_st(self, spacetime: Spacetime)
-
-        self.base = spacetime
 
 
     def compute(self, *args, **kwargs):
 
-        self.__precompute__(*args, **kwargs)
-        self.__compute__(*args, **kwargs)
         pass
 
+    def attach_fields(self, E, B):
+
+        self.E = E
+        self.B = B
+
+        pass
+
+
+    # F^{uv}
     def __Fuv__(self):
 
         pass
 
+    # faster method for a case B=0
     def __Fuv_s__(self):
 
         f1 = torch.outer(self._E, self._U)
@@ -65,6 +56,7 @@ class ED_F(Electrodynamics):
         - L_F: callable(F) - derivative of Lagrangian w.r.t. invariant F
         - L_FF: callable(F) - second derivatife of L w.r.t. ivariant F
         '''
+        super().__init__()
         self.L = L
         self.L_F = L_F
         self.L_FF = L_FF
@@ -72,7 +64,7 @@ class ED_F(Electrodynamics):
         pass
 
 
-    def __precompute__(self, X):
+    def compute(self, X, gX, ginvX):
         '''
         - X: torch.Tensor (4) - point in space-time
         '''
@@ -82,16 +74,14 @@ class ED_F(Electrodynamics):
         self._U = self.U(X)
         self._Fuv = self.Fuv()
 
-        self._gX = self.base.g(X)
-        self._ginvX = self.base.ginv(X)
 
-        self._F = 2*(self._gX @ self._B @ self._B - self._gX @ self._E @ self._E)
+        self._F = 2*(gX @ self._B @ self._B - gX @ self._E @ self._E)
         self._L = self.L(self._F)
         self._L_F = self.L_F(self._F)
         self._L_FF = self.L_FF(self._F)
         
         # T^{uv}
-        self._Tuv = self._L*self._ginvX + 
+        self._Tuv = self._L*ginvX - 4*self._L_F*torch.einsum('up,pq,qv->uv', self._Fuv, gX, self._Fuv)
 
         pass
 
@@ -101,7 +91,7 @@ class ED_F(Electrodynamics):
 class ED_FG(Electrodynamics):
 
     def __init__(self, L, L_F, L_FF):
-        super.__init__()
+        super().__init__()
         self.L = L
         self.L_F = L_F
         self.L_FF = L_FF
@@ -109,8 +99,7 @@ class ED_FG(Electrodynamics):
         pass
 
 
-    def __compute__(self, X):
+    def compute(self, X):
 
-        self.
 
         pass

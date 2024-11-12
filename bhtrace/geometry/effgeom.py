@@ -2,6 +2,8 @@ from .spacetime import Spacetime
 from .collection_sph import SphericallySymmetric
 from ..electrodynamics import Electrodynamics
 
+import torch
+
 
 class EffGeomSPH(Spacetime):
 
@@ -18,26 +20,28 @@ class EffGeomSPH(Spacetime):
         '''
 
         self.base = SphericallySymmetric(f, f_r)
-        ED.attach_st(self.base)
-
-        self.E = E
-        self.B = B
+        self.ED = ED
+        self.ED.attach_fields(E, B)
 
         pass
 
 
     def g(self, X):
 
-        g = self.ginv()
+        ginvX = self.ginv(X)
 
-        pass
+        return torch.inverse(ginvX)
     
 
     def ginv(self, X):
 
-        ginv = self.base.ginv(X)
+        ginvX = self.base.ginv(X)
+        gX = self.base.g(X)
+        self.ED.compute(X, gX, ginvX)
+        ginv = (self.ED._L_F + self.ED._L*self.ED._L_FF/self.ED._L_F)*ginvX \
+            + self.ED._L_FF/self.ED._L_F*self.ED._Tuv
 
-        pass
+        return ginv
 
 
     def conn(self, X):
