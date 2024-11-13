@@ -80,8 +80,8 @@ class ED_F(Electrodynamics):
         self._L_F = self.L_F(self._F)
         self._L_FF = self.L_FF(self._F)
         
-        # T^{uv}
-        self._Tuv = self._L*ginvX - 4*self._L_F*torch.einsum('up,pq,qv->uv', self._Fuv, gX, self._Fuv)
+        # F{ua}F{v, a}
+        self._uFFv = torch.einsum('up,pq,qv->uv', self._Fuv, gX, self._Fuv)
 
         pass
 

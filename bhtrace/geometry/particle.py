@@ -18,7 +18,7 @@ class Particle(ABC):
         self.g_ = None
         self.ginv_ = None
         self.dgX_ = None
-
+        self.r_max = torch.Tensor([30.0])
         pass
 
 
@@ -81,9 +81,25 @@ class Particle(ABC):
         '''
         return None
 
-    
-    def crit(self, X, P):
+    def GetNullMomentum(self, X, v):
 
-        return None
+        v_inv = torch.pow(v@v, -0.5)
+        v = v*v_inv
+
+        gX = self.spacetime.g(X)
+
+        return gX @ torch.Tensor([v_inv, v[0], v[1], v[2]])
+
+
+    def GetDirection(self, X, P):
+
+        v = self.spacetime.ginv(X) @ P
+        return v[1:]
+
+
+    def MomentumNorm(self, X, P):
+        
+        pass
+
 
 

@@ -1,16 +1,36 @@
 
-from ..imagung import HTracer
+from ..imaging import PTracer
 from ..geometry import Particle
 from ..functional import sph2cart, cart2sph
 
 import torch
 
-def slice_bs(
-    particle: Particle, bs: torch.Tensor, Nsteps, T,
-    D0 = 10, dPhi = 0, dTh = 0, V0=1,
-    trajstyle=None, showic=False):
+def D2_several_b_sph(
+    particle: Particle,
+    bs: torch.Tensor, 
+    nsteps = 128, 
+    T=10.0,
+    D0 = 10.0, 
+    dPhi = 0.0, 
+    dTh = 0.0,
+    trajstyle=None, 
+    showic=False,
+    save_as=None
+    ):
     '''
-    Example scenario
+    Example scenario.
+
+    Works for particles in spherically-symmetric metrics.
+
+    Draws 
+
+    ### Inputs:
+    - particle: Particle() - particle to be traced
+    - b_s: torch.Tensor() - impact parameters
+    - nsteps: int - number of steps (128):
+    - T: float - final time (10 by default)
+    - D0: float initial distance from the center (10 by default)
+    - dPhi: float
     '''
     assert len(bs.shape) == 1
 
@@ -28,10 +48,22 @@ def slice_bs(
     tracer.particle_set(Phot)
 
     if linestyle == None:
-        trajsty = ''
+        trajstyle = ''
 
 
     plt.show
 
+    if save_as != None:
+        # saving routine
+        pass
+
+def flat_axes():
 
 
+
+    pass
+
+def flat_plot():
+
+
+    pass

@@ -83,7 +83,7 @@ class ODEint(torch.nn.Module):
         # Solving loop
         for nt in range(nsteps-1):
             t, dt = self.step_control(nt)
-            if self.event_control(nt):
+            if self.event_control(t=t, XP=self.outX[nt, :]):
                 event_T = self.t_s[nt]
                 break
             self.outX[nt+1, :], self.LTE[nt+1, :] =\
@@ -93,6 +93,7 @@ class ODEint(torch.nn.Module):
         sol = {'X': self.outX, 'T': self.t_s, 'LTE': self.LTE, 'event_T': event_T}
 
         return sol
+
 
     @abstractmethod
     def __step__(self, term, t, X, dt):
@@ -124,7 +125,7 @@ class ODEint(torch.nn.Module):
         return self.t_s[nt], dt
 
 
-    def event_control(self, nt):
+    def event_control(self, t, X):
 
         return False
 

@@ -8,3 +8,5 @@
 /examples/*.pickle
 /bhtrace/geometry/arxv
 __pycache__/
+/application/*
+/application

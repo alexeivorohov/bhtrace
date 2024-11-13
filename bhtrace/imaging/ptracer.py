@@ -8,7 +8,7 @@ from ..functional import RKF23b, Euler
 
 class PTracer():
 
-    def __init__(self, r_max=40, e_tol=0.1, method='Euler'):
+    def __init__(self, r_max=30.0, e_tol=0.1, method='Euler'):
 
         self.solv = 'PTracer'
         self.m_param = None
@@ -59,9 +59,9 @@ class PTracer():
     def evnt(self, t, XP):
 
         cr1 = self.particle.crit(XP[:4], XP[4:])
-        cr2 = torch.heaviside(self.r_max-XP[1], torch.Tensor([0.0]))
+        # cr2 = torch.greater(self.r_max, abs(XP[1]))
 
-        return cr1*cr2
+        return ~cr1
     
 
     def __term__(self, t, XP):
@@ -97,8 +97,9 @@ class PTracer():
             sol = self.odeint.forward(
                 term=self.__term__, 
                 X0=XP0, 
-                T = (0.0, 20),
-                nsteps=nsteps
+                T = (0.0, T),
+                nsteps=nsteps,
+                event_fn=self.evnt
                 )
 
             self.X[:, n, :] = sol['X'][:, :4]

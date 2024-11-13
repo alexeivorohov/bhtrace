@@ -1,1 +1,1 @@
-from 
+from .image_pix import ImagePix

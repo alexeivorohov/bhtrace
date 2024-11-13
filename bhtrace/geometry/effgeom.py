@@ -1,5 +1,5 @@
 from .spacetime import Spacetime
-from .collection_sph import SphericallySymmetric
+from .collection_sph import SphericallySymmetric, MinkowskiSph
 from ..electrodynamics import Electrodynamics
 
 import torch
@@ -7,7 +7,7 @@ import torch
 
 class EffGeomSPH(Spacetime):
 
-    def __init__(self, f, f_r, ED: Electrodynamics, E=None, B=None):
+    def __init__(self, ED: Electrodynamics, f=None, f_r=None, E=None, B=None):
         '''
         Spherically-symmetric effective geometry
 
@@ -19,7 +19,11 @@ class EffGeomSPH(Spacetime):
         - B: callable(X/r?) - magnetic field in spherical coordinates
         '''
 
-        self.base = SphericallySymmetric(f, f_r)
+        if f==None:
+            self.base = MinkowskiSph()
+        else:
+            self.base = SphericallySymmetric(f, f_r)
+
         self.ED = ED
         self.ED.attach_fields(E, B)
 
@@ -38,8 +42,7 @@ class EffGeomSPH(Spacetime):
         ginvX = self.base.ginv(X)
         gX = self.base.g(X)
         self.ED.compute(X, gX, ginvX)
-        ginv = (self.ED._L_F + self.ED._L*self.ED._L_FF/self.ED._L_F)*ginvX \
-            + self.ED._L_FF/self.ED._L_F*self.ED._Tuv
+        ginv = ginvX - 4*self.ED._L_FF/self.ED._L_F*self.ED._uFFv
 
         return ginv
 

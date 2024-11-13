@@ -50,11 +50,6 @@ class Photon(Particle):
         v = self.spacetime.ginv(X) @ P
         return v[1:]
 
-    
-    def crit(self, X, P):
-
-        return self.spacetime.crit(X)
-
 
     def MomentumNorm(self, X, P):
 

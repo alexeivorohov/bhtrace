@@ -22,12 +22,12 @@ tracer.particle_set(gma0)
 
 Ni = 4
 D0 = 16
-db = 20
+db = 10
 
 X0, P0 = torch.zeros(Ni, 4), torch.zeros(Ni, 4)
 
 X0[:, 1] = torch.ones(Ni)*D0
-X0[:, 2] = torch.linspace(0.5, 1, Ni)*db
+X0[:, 2] = torch.linspace(0, db, Ni)
 
 P0[:, 0] = torch.ones(Ni)
 P0[:, 1] = -torch.ones(Ni)
@@ -40,7 +40,7 @@ for i in range(Ni):
 
 # Calculation
 
-X_res, P_res = tracer.trace(X0, P0, nsteps=128, T=10)
+X_res, P_res = tracer.trace(X0, P0, nsteps=256, T=30)
 
 
 # Imaging - cartesian

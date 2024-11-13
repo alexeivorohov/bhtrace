@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 
 
-# Add pre-set color generators
+# todo:
+# - Add pre-set line coloring routines
 
 
-    
