@@ -1,4 +1,4 @@
-# bhtrace - torch-based library for modeling images of compact objects
+# bhtrace - a python library for modeling observational data for compact objects in effective geometry, sourced by nonlinear electrodynamics/
 
 ![image](./results/Im_RN.png)
 
