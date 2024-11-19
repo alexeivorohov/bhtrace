@@ -16,7 +16,3 @@ The library incorporates thre approaches for imaging compact objects:
 - The first approach follows standard ray-tracing procedure, which involves integration of well-known geodesic equations for photons int terms of Christoffel connection symbols. 
 - The second approach employs Hamiltonian mechanics, where  Hamilton's equations are solved to obtain trajectories of light and particles in a given spacetime.
 - [WIP] Source-Observer Task. This approach addresses the source-observer problem, utilizing this solution to reconstruct images through strong gravitational lensing.
-
-
-
-  
