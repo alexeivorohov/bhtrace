@@ -1,15 +1,8 @@
 import torch
+import torch.jit as jit
 
 from abc import ABC, abstractmethod
 
-# Features to implement now:
-# - Solving on a fixed time grid and for fixed steps (for variable step methods)
-# - Event tracking for both cases
-
-# Constant (or grid) dt: - function calls just one time
-# else - can be called multiple times at each step
-
-ODE_SCHEMES = ['RKF23b', 'Euler']
 
 class ODEint(torch.nn.Module):
 
@@ -22,10 +15,10 @@ class ODEint(torch.nn.Module):
 
         pass
 
-    
+
     def forward(self, term, X0, T=None, tspan=None,\
         dt=0.15, nsteps=128, eps=1e-3, event_fn=None,\
-        step_fn=None, variable_step=False):
+        step_fn=None, variable_step=False, reg=None):
         '''
         Solving ODE, defined by f(t, x) = x' for (X0, T0)
 
@@ -66,6 +59,10 @@ class ODEint(torch.nn.Module):
         else:
             raise NotImplementedError('Can not establish task: time configuration not supported')
 
+        # update regularizing function:
+        if reg != None:
+            self.reg = reg
+
         # Read event_fn
         if event_fn == None:
             pass
@@ -84,8 +81,10 @@ class ODEint(torch.nn.Module):
         for nt in range(nsteps-1):
             t, dt = self.step_control(nt)
             if self.event_control(t=t, XP=self.outX[nt, :]):
+                self.outX[nt:, :] = self.outX[nt, :]
                 event_T = self.t_s[nt]
                 break
+            self.outX[nt, :] = self.reg(t, self.outX[nt, :])
             self.outX[nt+1, :], self.LTE[nt+1, :] =\
             self.__step__(term=term, t=t, X=self.outX[nt, :], dt=dt)
                 
@@ -99,6 +98,11 @@ class ODEint(torch.nn.Module):
     def __step__(self, term, t, X, dt):
 
         pass
+
+    
+    def reg(self, X):
+
+        return X
 
 
     def __NullState__(self):
@@ -138,7 +142,7 @@ class ODEint(torch.nn.Module):
 class Euler(ODEint):
 
     def __init__(self):
-
+        super().__init__()
         pass
 
 
@@ -162,6 +166,8 @@ class RKF23b(ODEint):
 
     def __init__(self, N=5, varistep=False):
 
+
+        super().__init__()
         self.C = torch.Tensor([0.0, 0.25, 27/40, 1.0])
         self.A = torch.Tensor([
                 [0.0, 0.0, 0.0, 0.0],
@@ -245,11 +251,16 @@ class Verlet(ODEint):
         
 
         pass
-    
-
-
-
-    
 
 
 # class ODEX(ODEint):
+
+
+ODE_SCHEMES = {'RKF23b': RKF23b, 'Euler': Euler}
+
+def ODE(name='Euler', *args, **kwargs):
+
+    if name in ODE_SCHEMES:
+        return ODE_SCHEMES[name](*args, **kwargs)
+    else:
+        raise ValueError("ODE scheme {} is not known".format(name))

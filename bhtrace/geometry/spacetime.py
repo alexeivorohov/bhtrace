@@ -44,15 +44,13 @@ class Spacetime(ABC):
         '''
         pass
 
-
     # Connections:
-
     def dg(self, X, eps=2e-5):
         '''
         Numerical derviative of the metric
 
         ## Input:
-        - X: torch.Tensor of shape [b, 4] - points in which to evaluate
+        - X: torch.Tensor of shape [b, 4] - points for which to evaluate
         - eps: float (1e-5 default)
 
         ## Output
@@ -75,9 +73,13 @@ class Spacetime(ABC):
     @abstractmethod
     def conn(self, X):
         '''
-        Exact calculation of connection symbols, if possible.
-        Output in sta
-        X: torch.Tensor() - coordinates
+        Compute connection symbols by 
+        
+        ### Inputs:
+        - X: torch.Tensor [4] - evaluation point
+        ### Outputs:
+        - G: torch.Tensor [4, 4, 4] - connection symbols
+        First index is contravariant, others are covariant.
         '''
 
         return None
@@ -85,8 +87,14 @@ class Spacetime(ABC):
 
     def conn_(self, X):
         '''
-        Evaluation of connection symbols by numerical differentiation
-        X: torch.Tensor() - coordinates
+        Evaluate connection symbols by numerical differentiation. 
+        Relies on method dg(X) in computing derivatives of the metric/
+
+        ### Inputs:
+        - X: torch.Tensor [4] - coordinates
+        ### Outputs:
+        - G: torch.Tensor [4, 4, 4] - connection symbols
+        First index is contravariant, others are covariant.
         '''
         g_duv = self.dg(X)
         ginv_ = self.ginv(X)    

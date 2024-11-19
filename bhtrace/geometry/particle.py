@@ -7,18 +7,20 @@ import torch
 class Particle(ABC):
  
 
-    def __init__(self, Spacetime: Spacetime):
+    def __init__(self, spacetime: Spacetime):
         '''
         Base class for handling different particles
         '''
 
-        self.Spacetime = Spacetime
+        self.spacetime = spacetime
         self.mu = None #dedicated p^mu p_mu
 
         self.g_ = None
         self.ginv_ = None
         self.dgX_ = None
         self.r_max = torch.Tensor([30.0])
+        self.gtol = torch.Tensor([1e-6, 1e6])
+
         pass
 
 
@@ -98,8 +100,18 @@ class Particle(ABC):
 
 
     def MomentumNorm(self, X, P):
-        
+
         pass
+
+
+    def crit(self, X, P):
+
+        detgX = torch.abs(torch.det(self.spacetime.g(X)))
+        cr1 = torch.less(detgX, self.gtol[0])
+        cr2 = torch.greater(detgX, self.gtol[1])
+
+        # return False to continue
+        return cr1 + cr2
 
 
 

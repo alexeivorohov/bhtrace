@@ -1,5 +1,5 @@
-# Several data-operating routines are planned, including support of hdf5 format, but for now
-# reading and storing results is possible with pickle:
+# Several data-operating routines are planned, including support of hdf5 format,
+# but for now reading and storing results is possible with pickle.
 
 # Trajectories (ray-tracing output) stored in dictionaries in next format:
 
@@ -22,7 +22,7 @@
 
 # class TrajData():
 
-#     def __init__(self, X):
+#     def __init__(self):
 
 #         pass
 

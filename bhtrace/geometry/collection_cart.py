@@ -40,6 +40,7 @@ class KerrSchild(Spacetime):
     def __init__(self, a=0.6, m=1, Q=0):
 
         self.a = a
+        self.a2 = a*a
         self.m = m
         self.Q = Q
 
@@ -51,7 +52,7 @@ class KerrSchild(Spacetime):
         # X: [bm]
         # Kerr-Newman metric
         a = self.a
-        a2 = a*a
+        a2 = self.a2
         m = self.m
         Q = self.Q
 
@@ -70,7 +71,7 @@ class KerrSchild(Spacetime):
 
         f = r2*(2.0*m*r - Q*Q)/(r2*r2+(a*p[2])**2)
 
-        return f*torch.einsum('i,j->ij', k, k) + torch.diag(torch.Tensor([-1, 1, 1, 1]))
+        return f*torch.outer(k, k) + torch.diag(torch.Tensor([-1, 1, 1, 1]))
 
 
     def ginv(self, X):  

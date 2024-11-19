@@ -1,15 +1,16 @@
 import torch
 import time
 import unittest
+import matplotlib.pyplot as plt
 
 import sys
 sys.path.append('.')
 from bhtrace.geometry import EffGeomSPH, MinkowskiSph
 from bhtrace.electrodynamics import Maxwell, EulerHeisenberg
-from bhtrace.imaging import PTracer
+from bhtrace.tracing import PTracer
 from bhtrace.functional import cart2sph, sph2cart
 
-import matplotlib.pyplot as plt
+
 
 # Setting up
 

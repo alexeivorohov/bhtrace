@@ -41,8 +41,6 @@ def D2_several_b_sph(
     Y0 = bs
     Z0 = torch.zeros(Ni)
 
-    Pt0
-
 
     tracer = HTracer()
     tracer.particle_set(Phot)

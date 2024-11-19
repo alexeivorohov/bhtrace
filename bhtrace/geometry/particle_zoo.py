@@ -4,12 +4,12 @@ from .spacetime import Spacetime
 
 class Photon(Particle):
 
-    def __init__(self, Spacetime: Spacetime):
+    def __init__(self, spacetime: Spacetime):
         '''
         Create a photon.
         No parameters required.
         '''
-        self.spacetime = Spacetime
+        super().__init__(spacetime=spacetime)
         self.mu = 0
         pass
 
@@ -53,8 +53,12 @@ class Photon(Particle):
 
     def MomentumNorm(self, X, P):
 
-        pass
+        ginvX_s = self.spacetime.ginv(X)[1:, 1:]
+        p_spatial_norm = torch.pow(ginvX_s @ P[1:] @ P[1:], -0.5)
+        P[1:] = P[1:]*p_spatial_norm
+        return P
 
+        
 
     def normp(self, X, P):
 

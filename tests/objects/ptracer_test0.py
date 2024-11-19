@@ -5,7 +5,7 @@ import sys
 sys.path.append('.')
 from bhtrace.geometry import KerrSchild0, Photon
 from bhtrace.functional import points_generate
-from bhtrace.imaging import PTracer
+from bhtrace.tracing import PTracer
 
 import matplotlib.pyplot as plt
 
@@ -15,7 +15,6 @@ ST = KerrSchild0(a=0.5,m=1)
 
 gma0 = Photon(ST)
 tracer = PTracer()
-tracer.particle_set(gma0)
 
 # Initial data
 
@@ -34,7 +33,7 @@ P0[:, 1] = -torch.ones(Ni)
 
 # Calculation
 
-X_res, P_res = tracer.trace(X0, P0, dt=0.3)
+X_res, P_res = tracer.forward(gma0, X0, P0)
 
 
 # Imaging - cartesian

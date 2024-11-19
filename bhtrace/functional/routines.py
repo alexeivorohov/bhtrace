@@ -1,6 +1,8 @@
 # This file contains some essential routines
-
+import sys
+import time
 import torch
+import numpy as np
 
 # Cooridnate transformations, OK
 def cart2sph(inX, inP):
@@ -55,8 +57,7 @@ def sph2cart(inX, inP):
 
     return outX.view(shape), outP.view(shape)
 
-# Points generating:
-
+# Points generating: OK
 def points_generate(ts, rs, ths, phs):
 
     N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
@@ -73,75 +74,56 @@ def points_generate(ts, rs, ths, phs):
 
     return X
 
-# Should be remaked or removed
-def net(type='square', rng=5, db=[-5,5,-5,5], D0 = 20, dth=0, dph=0):
+# Should be tested
+def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0 = 20, YZsize=[8, 8]):
     '''
-    Function for generation of initial photons grid on observer's sky
-    type - type of net to be generated [line, square, circle]
-    rng - rank of a net, 
-    db -
-    D0 -
-    dth -
-    dph 
+    Routine for generating cooridnate grid on observer's sky
+
+    ### Inputs:
+    - type: str - type of net to be generated [line, square, circle]
+    - rng: str - rank of a net, 
+    - db: list|array|tensor of 4 values, corresponding to the 
+    - D0: initial distance
+    - dth: float - turn grid along theta axis
+    - dph: float - turn grid along phi axis
     '''
 
     # Coordinates
     yy = []
     zz = []
 
-    if type == 'line':
+    # Unit shapes generating
+    if shape == 'line':
 
-        xx = D0*torch.ones([rng, 1])
-        yy = torch.linspace(db[0], db[1], rng).view(-1, 1)
-        zz = db[2]*torch.ones([rng, 1])
+        yy = torch.linspace(-0.5, 0.5, rng[0]).view(-1, 1)
+        zz = torch.linspace(-0.5, 0.5, rng[0]).view(-1, 1)
+        #
+    elif shape == 'square':
 
-    if type == 'square':
-
-        xx = D0*torch.ones([rng, rng])
-        smpl_y = torch.linspace(db[0], db[1], rng)
-        smpl_z = torch.linspace(db[2], db[3], rng)
+        smpl_y = torch.linspace(-0.5, 0.5, rng[0])
+        smpl_z = torch.linspace(-0.5, 0.5, rng[1])
         yy, zz = torch.meshgrid(smpl_y, smpl_z)
+        #
+    elif shape == 'circle':
 
-    if type == 'circle':
-
-        ph = [torch.linspace(0, 2*np.pi, 4*(n+1)) for n in range(rng-1)]
-        ph = torch.cat(ph)
-        r = [torch.ones(4*(k+1))*(k+1)/rng for k in range(rng-1)]
-        r = torch.cat(r)*abs(db[0])
-
-        xx = D0*torch.ones_like(r)
+        ph = [torch.linspace(0.0, 2.0, 4*(n+1)+1)[1:] for n in range(rng[0]-1)]
+        ph = torch.cat(ph)*torch.pi #+0.25*torch.pi
+        r = [torch.ones(4*(n+1)+1)[1:]*(n+1)/rng[0] for n in range(rng[0]-1)]
+        r = torch.cat(r)
         yy = r*torch.sin(ph)
         zz = r*torch.cos(ph)
+        #
+    elif shape == 'hex':
+        raise NotImplementedError('hex shape is not implemented')
 
-    if type == 'hex':
-      pass
+    # Scaling and offseting
 
-    # Velocities
-    vx = - torch.ones_like(xx.view(-1,1))
-    vy = torch.zeros_like(vx)
-    vz = torch.zeros_like(vx)
+    xx = torch.ones_like(yy)*X0
+    yy = yy*YZsize[0] + YZ0[0]
+    zz = zz*YZsize[1] + YZ0[1]
 
-    if dth != 0:
-        x_ = xx*np.cos(dth) - zz*np.sin(dth)
-        zz = xx*np.sin(dth) + zz*np.cos(dth)
-        xx = x_
+    return xx.flatten(), yy.flatten(), zz.flatten()
 
-        vz = vx*np.sin(dth)
-        vx = vx*np.cos(dth)
-
-    if dph != 0:
-        x_ = xx*np.cos(dph) - yy*np.sin(dph)
-        yy = xx*np.sin(dph) + yy*np.cos(dph)
-        xx = x_
-
-        vy = vx*np.sin(dph)
-        vx = vx*np.cos(dph)
-
-    print(xx.shape)
-    print(yy.shape)
-    print(zz.shape)
-
-    return xx.reshape(-1, 1), yy.reshape(-1, 1), zz.reshape(-1, 1), vx, vy, vz
 
 # Works?
 def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, tol=1e-4, maxiter=100):
@@ -221,7 +203,7 @@ def def_fspace(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: to
 
         return x_min, x_max
 
-
+# Should be tested 
 def levi_civita_tensor(dim):
     # Create a tensor to hold the Levi-Civita symbol
     outp = torch.zeros((dim,) * dim)  # Create a dim-dimensional tensor filled with zeros
@@ -237,3 +219,23 @@ def levi_civita_tensor(dim):
         arr[tuple(perm)] = sign  # Assign the sign to the appropriate position in the tensor
     
     return outp
+
+# Status printing: OK
+def print_status_bar(progress, total, elapsed_time):
+    bar_length = 20  # Length of the status bar
+    filled_length = int(bar_length * progress // total)  # Calculate filled length
+    bar = '█' * filled_length + '-' * (bar_length - filled_length)  # Create the bar
+    percentage = (progress / total) * 100  # Calculate percentage
+    
+    # Estimate remaining time
+    if progress > 0:
+        estimated_total_time = elapsed_time / progress * total
+        remaining_time = estimated_total_time - elapsed_time
+    else:
+        remaining_time = 0
+
+    # Format remaining time in seconds
+    remaining_time_str = f"{remaining_time:.2f} sec" if remaining_time > 0 else "Done"
+
+    sys.stdout.write(f'\r|{bar}| {percentage:.2f}% Complete | Elapsed Time: {elapsed_time:.2f} sec | Est. Remaining Time: {remaining_time_str}')
+    sys.stdout.flush()

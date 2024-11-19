@@ -5,7 +5,7 @@ import sys
 sys.path.append('.')
 from bhtrace.geometry import SphericallySymmetric, MinkowskiSph, Photon
 from bhtrace.functional import points_generate, cart2sph, sph2cart
-from bhtrace.imaging import PTracer
+from bhtrace.tracing import PTracer
 
 import matplotlib.pyplot as plt
 
@@ -16,13 +16,13 @@ ST = SphericallySymmetric()
 
 gma0 = Photon(ST)
 tracer = PTracer()
-tracer.particle_set(gma0)
 
 # Initial data
 
-Ni = 4
+Ni = 32
 D0 = 16
 db = 10
+
 
 X0, P0 = torch.zeros(Ni, 4), torch.zeros(Ni, 4)
 
@@ -40,19 +40,18 @@ for i in range(Ni):
 
 # Calculation
 
-X_res, P_res = tracer.trace(X0, P0, nsteps=256, T=30)
+X_res, P_res = tracer.forward(gma0, X0, P0, T=40.0, nsteps=32, max_proper_t=2e3)
 
 
 # Imaging - cartesian
 fig2, ax2 = plt.subplots(1,1,figsize=(8,6))
 
-# X_plt, P_plt = X_res, P_res
 X_plt, P_plt = sph2cart(X_res, P_res)
-print(X_res[:, 0, :])
 # ax2.quiver(X_plt[:, :, 1], X_plt[:, :, 2], P_plt[:, :, 1], P_plt[:, :, 2])
-ax2.plot(X_plt[:, :, 1], X_plt[:, :, 2])
+ax2.plot(X_plt[:, :, 1], X_plt[:, :, 2], '.-')
 ax2.set_xlabel('Y')
 ax2.set_ylabel('X')
 ax2.axis('equal')
 ax2.grid('on')
+
 plt.show()

@@ -5,9 +5,9 @@ import os
 import sys
 sys.path.append('.')
 
-from bhtrace.geometry import MinkowskiSph, SphericallySymmetric
+from bhtrace.geometry import MinkowskiSph, SphericallySymmetric, Photon
 from bhtrace.functional import net, sph2cart, cart2sph
-from bhtrace.imaging import CTracer
+from bhtrace.tracing import CTracer
 
 # Preset
 
@@ -16,9 +16,10 @@ f_r = lambda r: 2*torch.pow(r, -2)
 
 # ST = SphericallySymmetric(f, f_r)
 ST = MinkowskiSph()
+gma0 = Photon(ST)
 
 tracer = CTracer()
-tracer.spacetime_set(ST)
+
 
 # Initial data
 
@@ -31,15 +32,14 @@ X0, P0 = torch.zeros(Ni, 4), torch.zeros(Ni, 4)
 X0[:, 1] = torch.ones(Ni)*D0
 X0[:, 2] = torch.linspace(-1, 1, Ni)*db
 
-P0[:, 0] = torch.ones(Ni)
+P0[:, 0] = torch.ones(Ni)s
 P0[:, 1] = -torch.ones(Ni)
 
 X0sph, P0sph = cart2sph(X0, P0)
 
 # Calculation
 
-Res0 = tracer.solve(X0sph, P0sph, 30, 100)
-X_res, P_res = Res0.ys[:, :, 0:4], Res0.ys[:, :, 4:]
+X_res, P_res = tracer.forward(gma0, X0sph, P0sph, T=30, nsteps=100)
 
 # Imaging - cartesian
 fig2, ax2 = plt.subplots(1,1,figsize=(8,6))

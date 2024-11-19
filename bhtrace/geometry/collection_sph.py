@@ -41,7 +41,7 @@ class MinkowskiSph(Spacetime):
         outp = torch.zeros([4, 4, 4])
 
         f_ = 1
-        df_ = 1
+        df_ = 0
 
         # t
         # outp[:, 0, 1, 0] = df_/2/f_
@@ -75,11 +75,12 @@ class SphericallySymmetric(Spacetime):
 
     def __init__(self, f=None, f_r=None):
         '''
-        Class for handling spherically-symmetric spacetimes 
+        Class for handling spherically-symmetric spacetimes.
 
-        ## Input:
-        f - callable: metric function
-        f_r - it's derivative wrt r
+        ### Inputs:
+        - f: callable(r) - metric function
+        - f_r: callable(r) - it's derivative w.r.t. r
+        If arguments not provided, Schwarzschild metric initialized
         '''
         if f == None:
             self.f = lambda r: 1.0 - 2.0/r
@@ -88,8 +89,7 @@ class SphericallySymmetric(Spacetime):
         else:
             self.f = f
             self.df = f_r
-
-        
+        pass
 
         
     def g(self, X):
@@ -131,7 +131,7 @@ class SphericallySymmetric(Spacetime):
         outp = torch.zeros([4, 4, 4])
 
         f_ = self.f(r)
-        df_ = self.df(r)
+        df_ = self.f_r(r)
 
         # t
         outp[0, 1, 0] = df_/2/f_
