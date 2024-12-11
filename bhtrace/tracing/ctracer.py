@@ -68,7 +68,7 @@ class CTracer(Tracer):
     t_eval.to(dev)
 
     # Выбираем решатель и контроллер шага
-    step_method = tode.Dopri5(term=term)
+    step_method = tode.Euler(term=term)
     step_size_controller = tode.IntegralController(atol=1e-6, rtol=1e-3, term=term)
 
     solver = tode.AutoDiffAdjoint(step_method, step_size_controller)

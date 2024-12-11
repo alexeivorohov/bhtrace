@@ -57,9 +57,10 @@ class ED_F(Electrodynamics):
         - L_FF: callable(F) - second derivatife of L w.r.t. ivariant F
         '''
         super().__init__()
-        self.L = L
-        self.L_F = L_F
-        self.L_FF = L_FF
+        # self.L = L
+        # self.L_F = L_F
+        # self.L_FF = L_FF
+        
     
         pass
 

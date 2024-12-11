@@ -94,3 +94,59 @@ class KerrSchild(Spacetime):
         pass
 
 
+class SchwSchild(Spacetime):
+
+    def __init__(self, m=1.0, Q=0.0):
+
+        self.a = a
+        self.a2 = a*a
+        self.m = m
+        self.Q = Q
+        self.Q2 = Q*Q
+
+        self.cr_r = 0.0
+
+
+    def g(self, X):
+
+        m = self.m
+        Q = self.Q
+
+        p = X[1:]
+        rho = p@p
+        r2 = 0.5*(rho + torch.sqrt(rho**2))
+        r = torch.sqrt(r2)
+        self.r = r
+
+        k = torch.zeros(4)
+        k[0] = 1
+        k[1] = p[0]/r
+        k[2] = p[1]/r
+        k[3] = p[2]/r
+
+        f = (2.0*m/r - self.Q2/r2)
+
+        return f*torch.outer(k, k) + torch.diag(torch.Tensor([-1, 1, 1, 1]))
+
+
+    def ginv(self, X):  
+
+        return torch.inverse(self.g(X))
+
+
+    def crit(self, X):
+
+        p = X[1:]
+        rho = p@p - a2
+        r2 = 0.5*(rho + torch.sqrt(rho**2 + 4.0*a2*p[2]**2))
+        r = torch.sqrt(r2)
+
+        return r
+        
+
+    def conn(self, X):
+
+        pass
+
+
+

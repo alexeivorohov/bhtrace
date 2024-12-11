@@ -50,23 +50,24 @@ class Spacetime(ABC):
         Numerical derviative of the metric
 
         ## Input:
-        - X: torch.Tensor of shape [b, 4] - points for which to evaluate
-        - eps: float (1e-5 default)
+        - X: torch.Tensor of shape [4] - point for which to evaluate
+        - eps: float (2e-5 default)
 
         ## Output
 
-        - dg: torch.Tensor of shape [b, d, 4, 4]
+        - dg: torch.Tensor of shape [4, 4, 4]
         '''
 
-        # gX = self.g(X)
-        dgX = torch.zeros(X.shape[0], 4, 4, 4)
+        gX = self.g(X)
+        dgX = torch.zeros(4, 4, 4)
 
-        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))*eps
+        dVec = torch.eye(4)*eps
 
-        dgX[:, 0, :, :] = (self.g(X+dVec[:, 0, :]) - self.g(X-dVec[:, 0, :]))/eps/2
-        dgX[:, 1, :, :] = (self.g(X+dVec[:, 1, :]) - self.g(X-dVec[:, 1, :]))/eps/2
-        dgX[:, 2, :, :] = (self.g(X+dVec[:, 2, :]) - self.g(X-dVec[:, 2, :]))/eps/2
-        dgX[:, 3, :, :] = (self.g(X+dVec[:, 3, :]) - self.g(X-dVec[:, 3, :]))/eps/2
+
+        dgX[0, :, :] = (self.g(X+dVec[0, :]) - gX)/eps
+        dgX[1, :, :] = (self.g(X+dVec[1, :]) - gX)/eps
+        dgX[2, :, :] = (self.g(X+dVec[2, :]) - gX)/eps
+        dgX[3, :, :] = (self.g(X+dVec[3, :]) - gX)/eps
 
         return dgX
 
@@ -99,9 +100,9 @@ class Spacetime(ABC):
         g_duv = self.dg(X)
         ginv_ = self.ginv(X)    
 
-        dg0 = torch.einsum('bmd,bduv->bmuv', ginv_, g_duv)
-        dg1 = torch.einsum('bmv,bduv->bmdv', ginv_, g_duv)
-        dg2 = torch.einsum('bmu,bduv->bmud', ginv_, g_duv)
+        dg0 = torch.einsum('md,duv->muv', ginv_, g_duv)
+        dg1 = torch.einsum('mv,duv->mdv', ginv_, g_duv)
+        dg2 = torch.einsum('mu,duv->mud', ginv_, g_duv)
 
 
         return 0.5*( - dg0 + dg1 + dg2)
