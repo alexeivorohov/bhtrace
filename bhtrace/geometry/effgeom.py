@@ -19,7 +19,7 @@ class EffGeomSPH(Spacetime):
         - B: callable(X/r?) - magnetic field in spherical coordinates
         '''
 
-        if f==None:
+        if f == None:
             self.base = MinkowskiSph()
         else:
             self.base = SphericallySymmetric(f, f_r)

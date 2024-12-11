@@ -3,7 +3,7 @@ import os
 import pickle
 
 from ..geometry import Spacetime, Particle
-from ..functional import ODE, print_status_bar
+from ..functional import ODE
 from .tracer import Tracer
 
 
