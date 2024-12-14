@@ -6,8 +6,12 @@ class Photon(Particle):
 
     def __init__(self, spacetime: Spacetime):
         '''
-        Create a photon.
-        No parameters required.
+        Describes a photon in a given spacetime.
+        
+        In this class, helicity is not taken into account.
+
+        ### Inputs:
+        - spacetime: Spacetime() - spacetime
         '''
         super().__init__(spacetime=spacetime)
         self.mu = 0

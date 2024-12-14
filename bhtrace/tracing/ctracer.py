@@ -68,25 +68,27 @@ class CTracer(Tracer):
     t_eval.to(dev)
 
     # Выбираем решатель и контроллер шага
-    step_method = tode.Euler(term=term)
-    step_size_controller = tode.IntegralController(atol=1e-6, rtol=1e-3, term=term)
+    step_method = tode.Dopri5(term=term)
+    step_size_controller = tode.IntegralController(atol=1e-6, rtol=1e-3)
 
     solver = tode.AutoDiffAdjoint(step_method, step_size_controller)
+    dt0 = torch.full((1,), 0.01)
 
     # Выполняем jit-компиляцию кода решателя напрямую в машинный код, чтобы
     # избежать затрат на интерпретацию при каждом вызове
-    jit_solver = torch.compile(solver)
+    solver = torch.compile(solver)
 
     start_time = time.time()
+    
     for i in range(self.Ni):
       Y0 = XP0[i, :].view(1, 8)
-      sol = jit_solver.solve(tode.InitialValueProblem(y0=Y0, t_eval=t_eval))
-
+      sol = solver.solve(tode.InitialValueProblem(y0=Y0, t_eval=t_eval), dt0=dt0)
 
       self.X[:, i, :] = sol.ys[0, :, :4]
       self.P[:, i, :] = sol.ys[0, :, 4:]
       elapsed_time = time.time() - start_time
       print_status_bar(i, self.Ni, elapsed_time)
+
     print('\n Done!')
 
     return self.X, self.P

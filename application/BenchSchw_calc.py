@@ -1,5 +1,4 @@
 import torch
-import time
 
 import sys
 sys.path.append('.')
@@ -22,7 +21,7 @@ tr2 = PTracer()
 # Initial conditions:
 
 
-X0, Y0, Z0 = net('circle', rng=(40, 0), X0=20.0, YZsize=[20, 20])
+X0, Y0, Z0 = net('circle', rng=(0, 0), X0=20.0, YZsize=[20, 20])
 
 print(X0.shape)
 fig, ax = plt.subplots(1, 1, figsize=(8,8))

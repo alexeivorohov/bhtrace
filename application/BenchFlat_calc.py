@@ -1,5 +1,4 @@
 import torch
-import time
 
 import sys
 sys.path.append('.')
@@ -20,7 +19,7 @@ tr2 = PTracer()
 # Initial conditions:
 X0, Y0, Z0 = net('circle', rng=(40, 0), X0=20.0, YZsize=[20, 20])
 
-print(X0.shape)
+# print(X0.shape)
 fig, ax = plt.subplots(1, 1, figsize=(8,8))
 ax.plot(Y0, Z0, '.')
 ax.grid('on')
@@ -46,5 +45,5 @@ for i in range(Ni):
 X1_res, P1_res = tr1.forward(phot, X0sph, P0sph, T=30.0, nsteps=64)
 tr1.save('tr1_bench_{}.pkl'.format(Ni), directory='application/')
 
-X2_res, P2_res = tr2.forward(phot, X0sph, P0sph_cov, T=30.0, nsteps=64)
-tr2.save('tr2_bench_{}.pkl'.format(Ni), directory='application/')
+# X2_res, P2_res = tr2.forward(phot, X0sph, P0sph_cov, T=30.0, nsteps=64)
+# tr2.save('tr2_bench_{}.pkl'.format(Ni), directory='application/')

@@ -9,13 +9,13 @@ class Particle(ABC):
 
     def __init__(self, spacetime: Spacetime):
         '''
-        Base class for handling different particles
+        Base class for handling different particle types.
         '''
 
         self.spacetime = spacetime
-        self.mu = None #dedicated p^mu p_mu
 
-        self.g_ = None
+        self.mu = None #dedicated p^mu p_mu
+        self.g_ = None # 
         self.ginv_ = None
         self.dgX_ = None
         self.r_max = torch.Tensor([30.0])
@@ -27,22 +27,36 @@ class Particle(ABC):
     @abstractmethod
     def Hmlt(self, X, P):
         '''
-        Returns $H(x^\mu, p^\mu)$
+        Pointwise calculation of particle hamiltonian.
 
-        Requires contravariant X and P as inputs!
+        Requires contravariant P as input!
+
+        ### Inputs: 
+        - X: torch.Tensor[4] - point in spacetime
+        - P: torch.Tensor[4] - particle impulse (contravariant)
+
+        ### Outputs:
+        - H: float - hamiltonian value at (X, P)
         '''
+
         return None
 
 
     @abstractmethod
     def dHmlt(self, X, P):
         '''
-        Hamiltonian gradient
+        Pointwise differentiation of hamiltonian
 
-        Returns $\partial^\mu H(x^u, p^u)$
+        Requires contravariant P as input!
 
-        Requires contravariant X and P as inputs!
+        ### Inputs: 
+        - X: torch.Tensor[4] - point in spacetime
+        - P: torch.Tensor[4] - particle impulse (contravariant)
+
+        ### Outputs:
+        - dH: torch.Tensor[4] - hamiltonian gradient at (X, P)
         '''
+
         return None
 
 
@@ -72,11 +86,11 @@ class Particle(ABC):
     def normp(self, X, P):
         '''
         Method of normalizing particle impulse P at coord X
-        ## Input:
+        ### Input:
         - X: torch.Tensor() - coordinate
         - P: torch.Tensor() - impulse
 
-        ## Output:
+        ### Output:
         - P: torch.Tensor() - normalized impulse
         - mu: float - norm
         - v: float - spatial velocity
