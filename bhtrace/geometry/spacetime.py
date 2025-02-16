@@ -40,6 +40,8 @@ from abc import ABC, abstractmethod
 
 import torch
 
+# May be should not hold impls of derivatives and connections
+
 class Spacetime(ABC):
     '''
     Base class for handling different spacetimes.

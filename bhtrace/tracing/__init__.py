@@ -9,3 +9,15 @@ from .tracer import Tracer
 from .ctracer import CTracer
 from .ptracer import PTracer
 from .ntracer import NTracer
+
+
+# Status:
+# [] Tracer baseclass
+# [] Baseclass unittest
+# [] Per-particle tracing solution
+# [] Unittest
+# [] Parallel-particle tracing solution
+# [] Unittest
+# [] Compilable arallel-particle tracing solution
+# [] Unittest
+# [] Descriptions

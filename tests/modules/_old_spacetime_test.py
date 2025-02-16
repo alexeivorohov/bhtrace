@@ -29,7 +29,7 @@ for t in ts:
 schw = lambda r: 1 - 2/r
 schw_r = lambda r: 2*torch.pow(r, -2)
 
-ST = SphericallySymmetric(f=schw, f_r=schw_r)
+ST = SphericallySymmetric(A=schw, f_r=schw_r)
 # ST = MinkowskiSph()
 
 # Eye test
@@ -48,7 +48,7 @@ for i in range(N_test_p):
 
 # dg test
 
-FlatST = SphericallySymmetric(f=lambda r: 1, f_r = lambda r: 0)
+FlatST = SphericallySymmetric(A=lambda r: 1, f_r = lambda r: 0)
 dgX = FlatST.dg(X)
 
 print(dgX)

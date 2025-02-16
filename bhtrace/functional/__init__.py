@@ -9,3 +9,12 @@ Submodule for hanlding several routines:
 
 from .routines import *
 from .odeint import *
+
+# Status:
+# [x] Routines
+# [x] Routines documentation
+# [] Routines unittests
+# [x] Odeint baseclass
+# [] Ode schemes
+# [] Documentation
+# [] Unittests

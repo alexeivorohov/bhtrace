@@ -64,7 +64,7 @@ class Particle(ABC):
         '''
         Less effective, but type-independent method of differentiating particle hamiltonian
 
-        Input:
+        Inputs:
         - X: contravariant coordinate
         - P: impulse (same as for hamiltonian)
         '''
@@ -98,6 +98,16 @@ class Particle(ABC):
         return None
 
     def GetNullMomentum(self, X, v):
+        '''
+        Method for calculating covariant 4-impulse P_u for particle at point X with 3-velocity v.
+
+        ### Inputs:
+        - X: torch.Tensor() - cooridnate
+        - v: torch.Tensor() - velocity
+
+        ### Outputs:
+        - P: torch.Tensor() - initial impulse
+        '''
 
         v_inv = torch.pow(v@v, -0.5)
         v = v*v_inv
@@ -108,17 +118,47 @@ class Particle(ABC):
 
 
     def GetDirection(self, X, P):
+        '''
+        Method for calculating direction of particle at point X with impulse P
+
+        ### Inputs:
+        - X: torch.Tensor() - coordinate
+        - P: torch.Tensor() - impulse
+
+        ### Outputs:
+        - V: torch.Tensor() - 3-velocity
+
+        '''
 
         v = self.spacetime.ginv(X) @ P
         return v[1:]
 
 
     def MomentumNorm(self, X, P):
+        '''
+        Method for calculating impulse norm (P^\mu P_\mu)
+
+        ### Inputs:
+
+        ### Outputs:
+
+
+        '''
 
         pass
 
 
     def crit(self, X, P):
+        '''
+        Stopping condition
+
+        ### Inputs:
+        - X: torch.Tensor() - coordinate
+        - P: torch.Tensor() - impulse
+
+        ### Outputs:
+        - bool
+        '''
 
         detgX = torch.abs(torch.det(self.spacetime.g(X)))
         cr1 = torch.less(detgX, self.gtol[0])

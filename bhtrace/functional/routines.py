@@ -6,6 +6,18 @@ import numpy as np
 
 # Cooridnate transformations, OK
 def cart2sph(inX, inP):
+    '''
+    Cast coordinates and impulses 4-d from cartesian to 4-d spherical coordinates.
+
+    Only contravariant representation!
+
+    ### Inputs:
+    - inX: torch.Tensor - input coordinates 
+    - inP: torch.Tensor - input impulses (or velocities)
+
+    ### Outputs:
+    - tuple(outX, outP): torch.Tensor - output coordinates and impulses in spherical coordinates
+    '''
 
     shape = inX.shape
     X = inX.view(-1, 4)
@@ -32,6 +44,18 @@ def cart2sph(inX, inP):
     return outX.view(shape), outP.view(shape)
 
 def sph2cart(inX, inP):
+    '''
+    Cast 4d spherical coordinates to 4d cartesian coordinates.
+
+    Only contravariant representation!
+
+    ### Inputs:
+    - inX: torch.Tensor - input coordinates 
+    - inP: torch.Tensor - input impulses (or velocities)
+
+    ### Outputs:
+    - tuple(outX, outP): torch.Tensor - output coordinates and impulses
+    '''
 
     shape = inX.shape
     X = inX.view(-1, 4)
@@ -59,6 +83,9 @@ def sph2cart(inX, inP):
 
 # Points generating: OK
 def points_generate(ts, rs, ths, phs):
+    '''
+    Make all permutations for 4 coordinates lists.
+    '''
 
     N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
 
@@ -128,8 +155,15 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0 = 20, YZsize=[8, 8]):
 # Works?
 def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, tol=1e-4, maxiter=100):
     '''
-    eq: callable X
-    intervals: intervals[0] must be x_min, intervals[1] must be x_max
+    Find function zeros by recursive bisection method.
+
+    ### Inputs:
+    - eq: callable of X, supported types of X: float, np.array, torch.Tensor
+    - x_min: torch.Tensor - lower boundary
+    - x_max: torch.Tensor - upper boundary
+    
+    ### Outputs:
+    - outp: torch.Tensor - zeros, founded on given interval
     '''
     mid = (x_min+x_max)/2
 
@@ -174,8 +208,18 @@ def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: tor
 # Works?
 def def_fspace(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, alpha=0.5, maxiter=100):
     '''
-    eq: callable X
-    intervals: intervals[0] must be x_min, intervals[1] must be x_max
+    Tries to determine function domain. Vectroized input interpreted as different 1-d functions.
+
+    ### Inputs
+    - func: callable X:
+    - x_min: lower estimation boundary
+    - x_max: upper estimation boundary
+    - par: other parameters to be passed to func
+    - alpha: scale coefficient
+    - maxiter: maximum number of iterarions
+
+    ### Outputs:
+    - tuple(x_min, x_max) 
     '''
 
     if maxiter==0:
@@ -205,6 +249,13 @@ def def_fspace(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: to
 
 # Should be tested 
 def levi_civita_tensor(dim):
+    '''
+    Basic consturction of fully-antisymmetric Levi-Civita object in dimension=dim
+
+    Not invariant form!
+    '''
+
+
     # Create a tensor to hold the Levi-Civita symbol
     outp = torch.zeros((dim,) * dim)  # Create a dim-dimensional tensor filled with zeros
     
@@ -222,20 +273,28 @@ def levi_civita_tensor(dim):
 
 # Status printing: OK
 def print_status_bar(progress, total, elapsed_time):
+    '''
+    This function displays and updates status bar.
+
+
+    '''
+
     bar_length = 20  # Length of the status bar
     filled_length = int(bar_length * progress // total)  # Calculate filled length
-    bar = '█' * filled_length + '-' * (bar_length - filled_length)  # Create the bar
+    bar = '=' * filled_length + ' ' * (bar_length - filled_length)  # Create the bar
     percentage = (progress / total) * 100  # Calculate percentage
-    
+    status = f'\r\r {percentage:.2f}% [{bar}] | '
+
     # Estimate remaining time
-    if progress > 0:
-        estimated_total_time = elapsed_time / progress * total
-        remaining_time = estimated_total_time - elapsed_time
+    if progress == 0:
+        info = "N/A tr/s | T: N/A s | ETA N/A s"
+    elif progress == total:  
+        info = f'Done! | T {elapsed_time:.2f} s'
     else:
-        remaining_time = 0
+        trs = progress/elapsed_time
+        ETA_t = total / trs
+        info = f'{trs:.2f} tr/s | T: {elapsed_time:.2f} s | ETA {ETA_t:.2f} s' 
 
     # Format remaining time in seconds
-    remaining_time_str = f"{remaining_time:.2f} sec" if remaining_time > 0 else "Done"
-
-    sys.stdout.write(f'\r|{bar}| {percentage:.2f}% Complete | Elapsed Time: {elapsed_time:.2f} sec | Est. Remaining Time: {remaining_time_str}')
+    sys.stdout.write(status + info)
     sys.stdout.flush()

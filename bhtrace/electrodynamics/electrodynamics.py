@@ -25,6 +25,14 @@ class Electrodynamics(ABC):
         pass
 
     def attach_fields(self, E, B):
+        '''
+        Attach E and B fields coordinate representation to current model
+
+        ### Inputs:
+        - E: callable(X) - electric field tensor
+        - B: callable(X) - magnetic field tensor
+
+        '''
 
         self.E = E
         self.B = B
@@ -34,11 +42,19 @@ class Electrodynamics(ABC):
 
     # F^{uv}
     def __Fuv__(self):
+        '''
+        Maxwell tensor with all upper indexes
+        '''
 
         pass
 
     # faster method for a case B=0
     def __Fuv_s__(self):
+        '''
+        Maxwell tensor with all upper indexes
+    
+        Faster method for a case of single E field
+        '''
 
         f1 = torch.outer(self._E, self._U)
         f2 = f1.T
@@ -74,9 +90,12 @@ class ED_F(Electrodynamics):
         self._B = self.B(X)
         self._U = self.U(X)
         self._Fuv = self.Fuv()
+        
+        self._E2 = gX @ self._E @ self._E
+        self._B2 = gX @ self._B @ self._B 
 
 
-        self._F = 2*(gX @ self._B @ self._B - gX @ self._E @ self._E)
+        self._F = 2*(self._B2 - self._E2)
         self._L = self.L(self._F)
         self._L_F = self.L_F(self._F)
         self._L_FF = self.L_FF(self._F)
@@ -91,7 +110,16 @@ class ED_F(Electrodynamics):
 # todo: FG-ED class
 class ED_FG(Electrodynamics):
 
-    def __init__(self, L, L_F, L_FF):
+    def __init__(self, L, L_F, L_G, L_FF, L_FG, L_GG):
+        '''
+        Electrodynamics model for case of both non-zero invariants
+
+        ### Constructor arguments:
+        - L: Lagrangian
+        - L_[xy]: Lagrangian derivative wrt invarians xy:
+
+        '''
+
         super().__init__()
         self.L = L
         self.L_F = L_F

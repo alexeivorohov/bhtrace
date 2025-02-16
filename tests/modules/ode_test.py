@@ -9,7 +9,7 @@ from bhtrace.functional import RKF23b, Euler
 
 
 
-class TestODE_RKF23b(unittest.TestCase):
+class TestODE(unittest.TestCase):
 
     def setUp(self):
 
@@ -22,16 +22,23 @@ class TestODE_RKF23b(unittest.TestCase):
 
 
     def test_Exponent(self):
+        '''
+        Test on simplest equation
 
+        '''
+
+        # parameters
         dim = 5
         nsteps = 128
 
         k = - torch.linspace(0, 1, dim)
 
+        # equation
         def term(t, X):
 
             return k*X
 
+        # test loop
         for ode in self.solvers:
 
             X0 = torch.ones(dim)
@@ -47,9 +54,11 @@ class TestODE_RKF23b(unittest.TestCase):
 
     def test_OscillatorTask(self):
 
+        # parameters
         k = 0.5
         mu = 0.0
 
+        # ODE term
         def term(t, XP):
 
             dX = XP[1]
@@ -57,13 +66,14 @@ class TestODE_RKF23b(unittest.TestCase):
 
             return torch.Tensor([dX, dP])
 
+        # hamiltonian ()
         def H(t, X, P):
 
             H = k*torch.pow(X, 2) + torch.pow(P, 2)
 
             return H
 
-
+        # test loop
         for ode in self.solvers:
             XP0 = torch.Tensor([1.0, 0])
             T0 = torch.Tensor([0.0])
