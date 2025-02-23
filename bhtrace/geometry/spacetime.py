@@ -1,4 +1,4 @@
-"""
+'''
 This file contains an abstract class Spacetime, which calculates the principal
 quantities associated with a given spacetime: the metric and the Levi-Civita connection
 symbols. The abstract class Spacetime contains the following methods:
@@ -32,7 +32,7 @@ symbols. The abstract class Spacetime contains the following methods:
     crit(self, X):
         Abstract method. Computes the (??? distance) to 
         the (??? nearest) singularity of the metric.
-"""
+'''
 
 
 from abc import ABC, abstractmethod
@@ -51,7 +51,7 @@ class Spacetime(ABC):
     - ginv(X): expression for inverse metric function
     
     Optional methods:
-    - conn(X): Connection symbols $\Gamma^p_uv$
+    - conn(X): Connection symbols \Gamma^p_uv
 
     '''
 
@@ -85,7 +85,7 @@ class Spacetime(ABC):
         pass
 
     # Numerical derivatives of metric tensor:
-    def dg(self, X, eps=2e-5):
+    def dg(self, X, eps=2e-5) -> torch.Tensor:
         '''
         Numerical derviative of the metric
 
@@ -138,6 +138,7 @@ class Spacetime(ABC):
                     at which the derivative is evaluated
 
             eps:    approximation step, torch.float32
+            
 
             order:  order of the difference scheme.
                     Two options available, 2 and 4
@@ -225,6 +226,46 @@ class Spacetime(ABC):
         '''
         Function of "distance" to the metric singularities
         F: X -> (0, inf)
+
+        Used to control step size or stop integration.
         '''
 
         return None
+    
+
+class mock_spacetime(Spacetime):
+    
+    def __init__(self):
+        '''
+        :class:`Spacetime()` implementation, used for test purposes.
+        '''
+        pass
+
+
+    def g(self, X):
+        
+        outp = torch.zeros(4, 4)
+        outp[0, 0] = - 1.0
+        outp[1, 1] = 1.0
+        outp[2, 2] = 2.0
+        outp[3, 3] = 4.0
+
+        return outp
+
+
+    def ginv(self, X):
+
+        outp = torch.zeros(4, 4)
+        outp[0, 0] = - 1.0
+        outp[1, 1] = 1.0
+        outp[2, 2] = 0.5
+        outp[3, 3] = 0.25
+
+        return outp
+
+    
+    def crit(self, X):
+
+        outp = abs(X[1]-6) + abs(X[2]-6) + abs(X[3]-6)
+
+        return outp

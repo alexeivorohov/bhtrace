@@ -1,4 +1,9 @@
-# particle class description here
+'''
+This file describes an abstract class Particle, which holds routines
+
+
+'''
+
 from abc import ABC, abstractmethod
 from .spacetime import Spacetime
 
@@ -14,7 +19,7 @@ class Particle(ABC):
 
         self.spacetime = spacetime
 
-        self.mu = None #dedicated p^mu p_mu
+        self.mu = None # Particle mass
         self.g_ = None # 
         self.ginv_ = None
         self.dgX_ = None
@@ -136,7 +141,7 @@ class Particle(ABC):
 
     def MomentumNorm(self, X, P):
         '''
-        Method for calculating impulse norm (P^\mu P_\mu)
+        Method for calculating impulse norm (P^mu P_mu)
 
         ### Inputs:
 
@@ -168,4 +173,8 @@ class Particle(ABC):
         return cr1 + cr2
 
 
+if __name__ == "__main__":
+    
+    # Test calls here
 
+    pass

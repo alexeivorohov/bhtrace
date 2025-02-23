@@ -1,5 +1,9 @@
 '''
-Submodule for working with geometry and particles
+Submodule for working with geometry, particles and fields
+
+By design, this module tries to follow classical field theory, in which particles and fields are constructs over spacetime.
+
+
 '''
 
 from .spacetime import *
@@ -13,7 +17,7 @@ from .particle_zoo import *
 # [x] Spacetime baseclass
 # [x] Spacetimes base collection
 # [] Baseclass unittests
-# [] Collections unittests
+# [] Collection unittests
 # [x] Descriptions
 # [x] Particle baseclass
 # [] Particle base collection
@@ -25,3 +29,9 @@ from .particle_zoo import *
 # [] Baseclass unittests
 # [] Models unittests
 # [] Descriptions
+
+if __name__ == "__main__":
+    
+    # Test calls here
+
+    pass
