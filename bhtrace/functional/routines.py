@@ -3,8 +3,8 @@ import sys
 import time
 import torch
 import numpy as np
+from itertools import permutations
 
-# Cooridnate transformations, OK
 def cart2sph(inX, inP):
     '''
     Cast coordinates and impulses 4-d from cartesian to 4-d spherical coordinates.
@@ -18,7 +18,6 @@ def cart2sph(inX, inP):
     ### Outputs:
     - tuple(outX, outP): torch.Tensor - output coordinates and impulses in spherical coordinates
     '''
-
     shape = inX.shape
     X = inX.view(-1, 4)
     P = inP.view(-1, 4)
@@ -43,6 +42,7 @@ def cart2sph(inX, inP):
 
     return outX.view(shape), outP.view(shape)
 
+
 def sph2cart(inX, inP):
     '''
     Cast 4d spherical coordinates to 4d cartesian coordinates.
@@ -56,12 +56,11 @@ def sph2cart(inX, inP):
     ### Outputs:
     - tuple(outX, outP): torch.Tensor - output coordinates and impulses
     '''
-
     shape = inX.shape
     X = inX.view(-1, 4)
     P = inP.view(-1, 4)
 
-    T, R, TH, PH,  = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
+    T, R, TH, PH = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
     vT, vR, vTH, vPH = P[:, 0], P[:, 1], P[:, 2], P[:, 3]
 
     outX = torch.zeros_like(X)
@@ -73,22 +72,27 @@ def sph2cart(inX, inP):
     outX[:, 3] = R*torch.cos(TH)
 
     outP[:, 0] = vT
-    outP[:, 1] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.cos(PH) \
-        - R*torch.sin(PH)*torch.sin(TH)*vPH
-    outP[:, 2] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.sin(PH) \
-        + R*torch.cos(PH)*torch.sin(TH)*vPH
-    outP[:, 3] = vR*torch.cos(TH)-R*torch.sin(TH)*vTH
+    outP[:, 1] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.cos(PH) - R*torch.sin(PH)*torch.sin(TH)*vPH
+    outP[:, 2] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.sin(PH) + R*torch.cos(PH)*torch.sin(TH)*vPH
+    outP[:, 3] = vR*torch.cos(TH) - R*torch.sin(TH)*vTH
 
     return outX.view(shape), outP.view(shape)
 
-# Points generating: OK
+
 def points_generate(ts, rs, ths, phs):
     '''
     Make all permutations for 4 coordinates lists.
+
+    ### Inputs:
+    - ts: list of float - time coordinates
+    - rs: list of float - radial coordinates
+    - ths: list of float - theta coordinates
+    - phs: list of float - phi coordinates
+
+    ### Outputs:
+    - X: torch.Tensor - tensor of shape (len(ts)*len(rs)*len(ths)*len(phs), 4) containing all permutations
     '''
-
     N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
-
     X = torch.zeros(N_test_p, 4)
 
     i = 0
@@ -101,49 +105,71 @@ def points_generate(ts, rs, ths, phs):
 
     return X
 
-# Should be tested
-def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0 = 20, YZsize=[8, 8]):
+
+def EulerRotation(
+        X: torch.Tensor,
+        dphi: float | torch.Tensor,
+        dth: float | torch.Tensor
+        ):
     '''
-    Routine for generating cooridnate grid on observer's sky
+    Euler rotation of unit vector(s) in cartesian coordinates
+
+    Inputs:
+    - X: torch.Tensor - vector(s) 
+    - dphi: float | torch.Tensor - azimuthal rotation
+    - dth: float | torch.Tensor - ... rotation
+
+    Outputs:
+    - outX: torch.Tensor - rotated vector
+    '''
+    outX = X.copy()
+
+    cdphi = torch.cos(dphi)
+    sdphi = torch.sin(dphi)
+
+    sdth = torch.sin(dth)
+    cdth = torch.cos(dth)
+
+    outX[..., 0] = (X[..., 0]*cdphi - X[..., 1]*sdphi)*cdth - X[..., 0]*X[..., 2]*sdth
+    outX[..., 1] = (X[..., 0]*sdphi + X[..., 1]*cdphi)*cdth - X[..., 1]*X[..., 2]*sdth
+    outX[..., 2] = torch.pow((X[..., 0]**2 + X[..., 1]**2), -0.5)*sdth + X[..., 2]*cdth
+
+    return outX
+
+
+def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
+    '''
+    Routine for generating coordinate grid on observer's sky
 
     ### Inputs:
-    - type: str - type of net to be generated [line, square, circle]
-    - rng: str - rank of a net, 
-    - db: list|array|tensor of 4 values, corresponding to the 
-    - D0: initial distance
-    - dth: float - turn grid along theta axis
-    - dph: float - turn grid along phi axis
-    '''
+    - shape: str - type of net to be generated [line, square, circle, hex]
+    - rng: tuple - rank of a net
+    - YZ0: list - initial YZ coordinates
+    - X0: float - initial X coordinate
+    - YZsize: list - size of the grid in Y and Z directions
 
-    # Coordinates
+    ### Outputs:
+    - tuple(xx, yy, zz): torch.Tensor - coordinates of the grid
+    '''
     yy = []
     zz = []
 
-    # Unit shapes generating
     if shape == 'line':
-
         yy = torch.linspace(-0.5, 0.5, rng[0]).view(-1, 1)
         zz = torch.linspace(-0.5, 0.5, rng[0]).view(-1, 1)
-        #
     elif shape == 'square':
-
         smpl_y = torch.linspace(-0.5, 0.5, rng[0])
         smpl_z = torch.linspace(-0.5, 0.5, rng[1])
         yy, zz = torch.meshgrid(smpl_y, smpl_z)
-        #
     elif shape == 'circle':
-
         ph = [torch.linspace(0.0, 2.0, 4*(n+1)+1)[1:] for n in range(rng[0]-1)]
-        ph = torch.cat(ph)*torch.pi #+0.25*torch.pi
+        ph = torch.cat(ph)*torch.pi
         r = [torch.ones(4*(n+1)+1)[1:]*(n+1)/rng[0] for n in range(rng[0]-1)]
         r = torch.cat(r)
         yy = r*torch.sin(ph)
         zz = r*torch.cos(ph)
-        #
     elif shape == 'hex':
         raise NotImplementedError('hex shape is not implemented')
-
-    # Scaling and offseting
 
     xx = torch.ones_like(yy)*X0
     yy = yy*YZsize[0] + YZ0[0]
@@ -152,149 +178,123 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0 = 20, YZsize=[8, 8]):
     return xx.flatten(), yy.flatten(), zz.flatten()
 
 
-# Works?
 def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, tol=1e-4, maxiter=100):
     '''
     Find function zeros by recursive bisection method.
 
     ### Inputs:
-    - eq: callable of X, supported types of X: float, np.array, torch.Tensor
+    - func: callable - function to find zeros
     - x_min: torch.Tensor - lower boundary
     - x_max: torch.Tensor - upper boundary
-    
+    - par: torch.Tensor - parameters for the function
+    - tol: float - tolerance for zero finding
+    - maxiter: int - maximum number of iterations
+
     ### Outputs:
-    - outp: torch.Tensor - zeros, founded on given interval
+    - outp: torch.Tensor - zeros found on the given interval
     '''
-    mid = (x_min+x_max)/2
+    mid = (x_min + x_max) / 2
 
-    if maxiter==0:
-
+    if maxiter == 0:
         return mid
-
     else:
-        
         f_mid = func(mid, par)
-
         tol_mask = torch.greater(abs(f_mid), tol)
-        
         sign0 = torch.greater(func(x_min, par), 0)
         sign1 = torch.greater(func(x_max, par), 0)
-
-        # mask0 = torch.logical_xor(sign0, sign1)
-
         mask0 = torch.logical_and(torch.logical_xor(sign0, sign1), tol_mask)
-
         mid0 = mid[mask0]
-
         sign_mid = torch.greater(f_mid[mask0], 0)
-
         mask_mid = torch.logical_xor(sign0[mask0], sign_mid)
         not_mask_mid = torch.logical_not(mask_mid)
-
         new_xmin = x_min[mask0]
         new_xmax = x_max[mask0]
-
         new_xmax[mask_mid] = mid0[mask_mid]
         new_xmin[not_mask_mid] = mid0[not_mask_mid]
-
         res = bisection(func, new_xmin, new_xmax, par[mask0], tol=tol, maxiter=maxiter-1)
-
         outp = mid
-
         outp[mask0] = res
-
         return outp
 
-# Works?
-def def_fspace(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, alpha=0.5, maxiter=100):
+
+def def_fspace(func, x_min, x_max, par, alpha=1.0, maxiter=10):
     '''
-    Tries to determine function domain. Vectroized input interpreted as different 1-d functions.
-
-    ### Inputs
-    - func: callable X:
-    - x_min: lower estimation boundary
-    - x_max: upper estimation boundary
-    - par: other parameters to be passed to func
-    - alpha: scale coefficient
-    - maxiter: maximum number of iterarions
-
-    ### Outputs:
-    - tuple(x_min, x_max) 
+    Function to define the function space for a given function `func`.
+    
+    ## Inputs:
+    - func: function to evaluate
+    - x_min: torch.Tensor - minimum x values
+    - x_max: torch.Tensor - maximum x values
+    - par: torch.Tensor - parameters for the function
+    - alpha: float - scaling factor
+    - maxiter: int - maximum number of iterations
+    
+    ## Outputs:
+    - x_min: torch.Tensor - updated minimum x values
+    - x_max: torch.Tensor - updated maximum x values
     '''
-
-    if maxiter==0:
-
-        return x_min, x_max
-
-    else:
-        
-        d = (x_min+x_max)*alpha
-        
-        new_xmax = x_max+d
-
+    for _ in range(maxiter):
+        new_xmax = x_max + alpha * (x_max - x_min)
         f1 = func(new_xmax, par)
+        xmask1 = ~torch.isnan(f1)
+        if torch.all(xmask1):
+            return x_min, new_xmax
+        x_max[xmask1] = new_xmax[xmask1]
+    return x_min, x_max
 
-        mask1 = torch.isnan(f1)
 
-        xmask1 = torch.logical_not(mask1)
-
-        _, res1 = def_fspace(func, x_min[mask1], x_max[mask1], par[mask1], alpha=alpha*0.7, maxiter=maxiter-1)
-
-        _, resX = def_fspace(func, x_min[xmask1], new_xmax[xmask1], par[xmask1], alpha=alpha*1.3, maxiter=maxiter-1)
-
-        x_max[mask1] = res1
-        x_max[xmask1] = resX
-
-        return x_min, x_max
-
-# Should be tested 
 def levi_civita_tensor(dim):
     '''
-    Basic consturction of fully-antisymmetric Levi-Civita object in dimension=dim
+    Basic construction of fully-antisymmetric Levi-Civita object in dimension=dim.
 
     Not invariant form!
+
+    ### Inputs:
+    - dim: int - Dimension of the tensor.
+
+    ### Outputs:
+    - outp: torch.Tensor - Levi-Civita tensor of shape (dim, dim, ..., dim).
     '''
+    outp = torch.zeros((dim,) * dim, dtype=torch.int8)  # Create a dim-dimensional tensor filled with zeros
 
-
-    # Create a tensor to hold the Levi-Civita symbol
-    outp = torch.zeros((dim,) * dim)  # Create a dim-dimensional tensor filled with zeros
-    
     # Generate all permutations of dimensions
-    for perm in torch.permutations(torch.arange(dim)):
+    for perm in permutations(range(dim)):
         # Calculate the sign of the permutation
-        sign = 1 if perm[0].item() < perm[1].item() else -1
+        sign = 1
         for i in range(dim):
             for j in range(i + 1, dim):
                 if perm[i] > perm[j]:
                     sign *= -1
-        arr[tuple(perm)] = sign  # Assign the sign to the appropriate position in the tensor
-    
+        outp[perm] = sign  # Assign the sign to the appropriate position in the tensor
+
     return outp
 
-# Status printing: OK
+
 def print_status_bar(progress, total, elapsed_time):
     '''
     This function displays and updates status bar.
 
-
+    ### Inputs:
+    - progress: int - current progress
+    - total: int - total steps
+    - elapsed_time: float - elapsed time in seconds
     '''
-
     bar_length = 20  # Length of the status bar
     filled_length = int(bar_length * progress // total)  # Calculate filled length
     bar = '=' * filled_length + ' ' * (bar_length - filled_length)  # Create the bar
     percentage = (progress / total) * 100  # Calculate percentage
-    status = f'\r\r {percentage:.2f}% [{bar}] | '
+    status = f'\r {percentage:.2f}% [{bar}] | '
 
     # Estimate remaining time
     if progress == 0:
         info = "N/A tr/s | T: N/A s | ETA N/A s"
     elif progress == total:  
-        info = f'Done! | T {elapsed_time:.2f} s'
+        trs = progress / elapsed_time
+        info = f'{trs:.2f} tr/s | T: {elapsed_time:.2f} s | Done !' 
     else:
-        trs = progress/elapsed_time
-        ETA_t = total / trs
+        trs = progress / elapsed_time
+        ETA_t = (total - progress) / trs
         info = f'{trs:.2f} tr/s | T: {elapsed_time:.2f} s | ETA {ETA_t:.2f} s' 
 
-    # Format remaining time in seconds
     sys.stdout.write(status + info)
     sys.stdout.flush()

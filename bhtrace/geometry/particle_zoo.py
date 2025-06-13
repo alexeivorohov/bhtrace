@@ -2,25 +2,29 @@ import torch
 from .particle import Particle
 from .spacetime import Spacetime
 
+
 class Photon(Particle):
+    '''
+    Describes a photon in a given spacetime.
+        
+    In this class, helicity is not taken into account.
+    '''
 
     def __init__(self, spacetime: Spacetime):
         '''
-        Describes a photon in a given spacetime.
-        
-        In this class, helicity is not taken into account.
-
         ### Inputs:
         - spacetime: Spacetime() - spacetime
         '''
         super().__init__(spacetime=spacetime)
         self.mu = 0
+        self.h = None
         pass
 
-
+    
     def Hmlt(self, X, P):
 
         ginv = self.spacetime.ginv(X)
+
         return 0.5*(ginv @ P) @ P
 
 
@@ -67,3 +71,30 @@ class Photon(Particle):
     def normp(self, X, P):
 
         pass
+
+
+class EffPhoton(Particle):
+
+    def __init__(self, spacetime: Spacetime):
+        '''
+        ### Inputs:
+        - spacetime: Spacetime() - spacetime
+        '''
+        super().__init__(spacetime=spacetime)
+        self.mu = 0
+        self.h = 0 # helicity
+        pass
+
+
+class PhotonR(Photon):
+
+    def __init__(self, spacetime):
+
+        super().__init__(spacetime)
+        self.mu = 0
+
+
+    
+
+
+

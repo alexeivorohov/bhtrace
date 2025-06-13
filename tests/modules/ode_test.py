@@ -1,11 +1,14 @@
 import torch
 import unittest
-from uniplot import plot as uplot
 
 import sys
-sys.path.append('.')
+import os
+root_path = os.path.dirname(os.path.dirname(os.getcwd()))
+sys.path.append(root_path)
+sys.path.append(os.getcwd())
 
 from bhtrace.functional import RKF23b, Euler
+import uniplot as uplot
 
 
 

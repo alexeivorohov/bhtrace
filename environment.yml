@@ -1,0 +1,14 @@
+name: bhtrace_env
+channels:
+- defaults
+- conda-forge
+dependencies:
+- python=3.13.4
+- numpy
+- pandas
+- matplotlib
+- uniplot
+- jupyter
+- pytorch
+- scipy
+- sympy

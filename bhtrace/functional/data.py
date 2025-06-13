@@ -10,7 +10,7 @@
 # 'solv': string - type of solver used
 # 'm_param': list - parameters of the solver
 # 'X' : torch.Tensor of shape [Nt, Ni, 4] - coords
-# 'P' : torch.Tensir of shape [Nt, Ni, 4] - impulses
+# 'P' : torch.Tensor of shape [Nt, Ni, 4] - impulses
 # 'Ni' : number of initial conditions (number of particles)
 # 'Nt' : number of steps
 # 't' : float - simulation 'time' (time of a remote observer)

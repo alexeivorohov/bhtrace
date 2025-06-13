@@ -5,19 +5,19 @@ Submodule with different ray-tracing procedures, including:
 - Keplerian disks imagig algorihm (ktracer) - planned
 '''
 
-from .tracer import Tracer
+from .tracer import Tracer, MockTracer
 from .ctracer import CTracer
 from .ptracer import PTracer
-from .ntracer import NTracer
+# from .ntracer import NTracer
 
 
 # Status:
-# [] Tracer baseclass
+# [X] Tracer baseclass
 # [] Baseclass unittest
 # [] Per-particle tracing solution
 # [] Unittest
 # [] Parallel-particle tracing solution
 # [] Unittest
-# [] Compilable arallel-particle tracing solution
+# [] Compilable parallel-particle tracing solution
 # [] Unittest
 # [] Descriptions

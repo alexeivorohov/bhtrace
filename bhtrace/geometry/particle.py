@@ -1,7 +1,6 @@
 '''
 This file describes an abstract class Particle, which holds routines
 
-
 '''
 
 from abc import ABC, abstractmethod
@@ -9,9 +8,9 @@ from .spacetime import Spacetime
 
 import torch
 
+# [] Should be renamed to Wordline?
 class Particle(ABC):
  
-
     def __init__(self, spacetime: Spacetime):
         '''
         Base class for handling different particle types.
@@ -20,13 +19,19 @@ class Particle(ABC):
         self.spacetime = spacetime
 
         self.mu = None # Particle mass
-        self.g_ = None # 
-        self.ginv_ = None
-        self.dgX_ = None
         self.r_max = torch.Tensor([30.0])
         self.gtol = torch.Tensor([1e-6, 1e6])
+        self.color = None
+
+        self.g_ = None 
+        self.ginv_ = None
+        self.dgX_ = None
 
         pass
+
+
+    def __str__(self):
+        return f'Particle: {self.color}'
 
 
     @abstractmethod
@@ -50,7 +55,7 @@ class Particle(ABC):
     @abstractmethod
     def dHmlt(self, X, P):
         '''
-        Pointwise differentiation of hamiltonian
+        Pointwise analytical gradient of hamiltonian
 
         Requires contravariant P as input!
 
@@ -101,6 +106,7 @@ class Particle(ABC):
         - v: float - spatial velocity
         '''
         return None
+
 
     def GetNullMomentum(self, X, v):
         '''

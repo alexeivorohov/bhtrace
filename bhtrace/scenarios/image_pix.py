@@ -1,4 +1,4 @@
-from ..imaging import PTracer
+from ..tracing import PTracer
 from ..geometry import Particle
 from ..functional import sph2cart, cart2sph
 from ..radiation import Radiation

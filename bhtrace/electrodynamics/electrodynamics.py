@@ -6,18 +6,22 @@ import torch
 
 
 
-# In this and other files we tried to always name precomputed quantities as _F, _g and etc.
+# In this and other files precomputed quantities are always named as _F, _g and etc.
 
 class Electrodynamics(ABC):
-
+    '''
+    Serves as base interface for all ED models
+    ''' 
 
     def __init__(self):
-        '''
-        Serves as base interface for all ED models
-        ''' 
+        
         # self.lct4 = levi_civita_tensor(4) # e^{pquv}
         self.U = lambda X: torch.Tensor([1, 0, 0, 0])
         self.Fuv = self.__Fuv_s__
+
+    def __str__(self):
+
+        return 'Electrodynamics model'
 
 
     def compute(self, *args, **kwargs):

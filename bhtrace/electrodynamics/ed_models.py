@@ -109,7 +109,11 @@ class Bardeen(ED_F):
         return self.l1*1.25*torch.pow(1+x, -4.5)*torch.pow(x, 3)*(term1 + term2)
 
 
+class PostMaxwell:
 
+    def __init__(self):
+
+        pass
 
 
 

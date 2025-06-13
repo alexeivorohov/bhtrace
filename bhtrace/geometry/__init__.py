@@ -13,11 +13,20 @@ from .effgeom import *
 from .particle import *
 from .particle_zoo import *
 
+ST_COLLECTION = {
+    'mock_spacetime': mock_spacetime,
+    'MinkowskiCart': MinkowskiCart,
+    # 'KerrSchild': KerrSchild,
+    # 'SchwSchild': SchwSchild,
+    'MinkowskiSph': MinkowskiSph,
+    'SphericallySymmetric': SphericallySymmetric,
+}
+
 ## Status:
 # [x] Spacetime baseclass
 # [x] Spacetimes base collection
-# [] Baseclass unittests
-# [] Collection unittests
+# [X] Baseclass unittests
+# [X] Collection unittests
 # [x] Descriptions
 # [x] Particle baseclass
 # [] Particle base collection
@@ -29,6 +38,7 @@ from .particle_zoo import *
 # [] Baseclass unittests
 # [] Models unittests
 # [] Descriptions
+
 
 if __name__ == "__main__":
     

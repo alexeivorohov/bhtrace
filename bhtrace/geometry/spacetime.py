@@ -30,10 +30,9 @@ symbols. The abstract class Spacetime contains the following methods:
         using either dg ('standard') or dg_horder ('horder') method. 
 
     crit(self, X):
-        Abstract method. Computes the (??? distance) to 
-        the (??? nearest) singularity of the metric.
+        Abstract method. Computes the "proximity" value to 
+        the singularity of the metric.
 '''
-
 
 from abc import ABC, abstractmethod
 # from typing_extensions import ParamSpecArgs
@@ -51,7 +50,7 @@ class Spacetime(ABC):
     - ginv(X): expression for inverse metric function
     
     Optional methods:
-    - conn(X): Connection symbols \Gamma^p_uv
+    - conn(X): Connection symbols Gamma^p_uv
 
     '''
 
@@ -112,72 +111,6 @@ class Spacetime(ABC):
         return dgX
 
 
-    # Higher-order numerical derivative of metric
-    def dg_horder(self, X: torch.Tensor, eps=2e-5, order=2) -> torch.Tensor:
-        """
-        Numerical derivative of the metric. Uses higher order difference schemes
-        for better approximation of partial derivatives of the metric g(X). A difference 
-        scheme is defined by coefficients before g(X + eps * k * dX_i) where eps is the
-        approximation step, k is the number of steps, and dX_i is the i'th basis vector.
-        
-            dg(X)_i = [g(X + eps * k * dX_i) for k in shifts].T @ coefficients
-
-        degree = 2:
-            dg(X, i) = (g(X + eps * dX_i) - g(X - eps * dX_i)) / (2 * eps)
-            shifts = [1, -1]
-            coefficients = [0.5, -0.5]
-
-        degree = 4:
-            shifts = [2, 1, -1, 2]
-            coefficients = [-1/12, 2/3, -2/3, 1/12]    
-        
-        ---
-        INPUT:
-
-            X:      4-vector, torch.Tensor of shape [4], the point
-                    at which the derivative is evaluated
-
-            eps:    approximation step, torch.float32
-            
-
-            order:  order of the difference scheme.
-                    Two options available, 2 and 4
-
-        ---
-        RETURNS:
-
-            dgX:    torch.Tensor of shape [4, 4, 4],
-                    where index 0 is the direction in which
-                    the partial derivative is taken
-
-
-        ---
-        RAISES:
-
-            ValueError:     In case the order parameter
-                            does not equal 2 or 4
-        """
-
-        gX = self.g(X)
-        dgX = torch.zeros(4, 4, 4)
-        dVec = torch.eye(4) * eps
-
-        if order == 2:
-            for i in range(4):
-                dgX[i, :, :] = self.g(X + dVec[i, :]) - self.g(X - dVec[i, :]) / (2 * eps)
-
-        elif order == 4:
-            for i in range(4):
-                dgX[i, :, :] = (-1 / 12) * self.g(X + 2 * dVec[i, :]) +\
-                                (2 / 3) * self.g(X + dVec[i, :]) -\
-                                (2 / 3) * self.g(X - dVec[i, :]) +\
-                                (1 / 12) * self.g(X - 2 * dVec[i, :])
-
-        else:
-            raise ValueError("The order value is not valid")
-
-
-    @abstractmethod
     def conn(self, X: torch.Tensor) -> torch.Tensor:
         '''
         Computes the Levi-Civita connection coefficients (Christoffel symbols) 
@@ -191,13 +124,13 @@ class Spacetime(ABC):
         First index is contravariant, the other two are covariant.
         '''
 
-        return None
+        return self.conn_(X, method='standard')
 
 
     def conn_(self, X, method='standard'):
         '''
         Evaluate connection symbols by numerical differentiation. 
-        Relies on method dg(X) in computing derivatives of the metric/
+        Relies on method dg(X) in computing derivatives of the metric
 
         ### Inputs:
         - X: torch.Tensor [4] - coordinates
@@ -231,6 +164,18 @@ class Spacetime(ABC):
         '''
 
         return None
+    
+
+    def compile(self):
+        '''
+        Compile the class with torch.jit.script
+        '''
+
+        return torch.jit.script(self)
+
+
+    def __str__(self):
+        return self.__class__.__name__
     
 
 class mock_spacetime(Spacetime):
