@@ -7,19 +7,34 @@ By design, this module tries to follow classical field theory, in which particle
 '''
 
 from .spacetime import *
-from .collection_cart import *
-from .collection_sph import *
-from .effgeom import *
+from .spacetimes_cart import *
+from .spacetimes_sph import *
+from .spacetimes_eff import *
+
 from .particle import *
 from .particle_zoo import *
 
-ST_COLLECTION = {
-    'mock_spacetime': mock_spacetime,
+from .coordinates import *
+from .coord_systems import *
+
+_SPACETIME_COLLECTION_ = {
+    'mock': mock_spacetime,
     'MinkowskiCart': MinkowskiCart,
     # 'KerrSchild': KerrSchild,
     # 'SchwSchild': SchwSchild,
     'MinkowskiSph': MinkowskiSph,
     'SphericallySymmetric': SphericallySymmetric,
+}
+
+_COORDS_COLLECTION_ = {
+    'mock' : None,
+    'Cartesian' : Cartesian
+}
+
+_PARTICLE_COLLECTION_ = {
+    'mock' : None,
+    'Photon' : Photon,
+
 }
 
 ## Status:
@@ -32,11 +47,15 @@ ST_COLLECTION = {
 # [] Particle base collection
 # [] Particle baseclass unittests
 # [] Collection unittests
-# [] Descriptions
+# [] Particle descriptions
 # [x] Effective geometry baseclass
 # [] Effective geometry base models
 # [] Baseclass unittests
 # [] Models unittests
+# [] Descriptions
+# [] Coordinates base class
+# [] Coordinate systems implementations
+# [] Coordinate systems unittests
 # [] Descriptions
 
 

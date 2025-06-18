@@ -5,78 +5,7 @@ import torch
 import numpy as np
 from itertools import permutations
 
-def cart2sph(inX, inP):
-    '''
-    Cast coordinates and impulses 4-d from cartesian to 4-d spherical coordinates.
 
-    Only contravariant representation!
-
-    ### Inputs:
-    - inX: torch.Tensor - input coordinates 
-    - inP: torch.Tensor - input impulses (or velocities)
-
-    ### Outputs:
-    - tuple(outX, outP): torch.Tensor - output coordinates and impulses in spherical coordinates
-    '''
-    shape = inX.shape
-    X = inX.view(-1, 4)
-    P = inP.view(-1, 4)
-
-    T0, X0, Y0, Z0 = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
-    vT, vX, vY, vZ = P[:, 0], P[:, 1], P[:, 2], P[:, 3]
-
-    X2Y2 = X0**2 + Y0**2
-    R = torch.sqrt(X2Y2 + Z0**2)
-    TH = torch.arccos(Z0/R)
-    PH = torch.arctan2(Y0, X0)
-
-    vR = torch.sin(TH)*(torch.cos(PH)*vX + torch.sin(PH)*vY) + torch.cos(TH)*vZ
-    vTH = (torch.cos(TH)*(torch.cos(PH)*vX+torch.sin(PH)*vY) - torch.sin(TH)*vZ)/R
-    vPH = (-torch.sin(PH)*vX+torch.cos(PH)*vY)/R*torch.sin(TH)
-
-    outX = torch.zeros_like(X)
-    outP = torch.zeros_like(P)
-
-    outX[:, 0], outX[:, 1], outX[:, 2], outX[:, 3] = T0, R, TH, PH
-    outP[:, 0], outP[:, 1], outP[:, 2], outP[:, 3] = vT, vR, vTH, vPH
-
-    return outX.view(shape), outP.view(shape)
-
-
-def sph2cart(inX, inP):
-    '''
-    Cast 4d spherical coordinates to 4d cartesian coordinates.
-
-    Only contravariant representation!
-
-    ### Inputs:
-    - inX: torch.Tensor - input coordinates 
-    - inP: torch.Tensor - input impulses (or velocities)
-
-    ### Outputs:
-    - tuple(outX, outP): torch.Tensor - output coordinates and impulses
-    '''
-    shape = inX.shape
-    X = inX.view(-1, 4)
-    P = inP.view(-1, 4)
-
-    T, R, TH, PH = X[:, 0], X[:, 1], X[:, 2], X[:, 3]
-    vT, vR, vTH, vPH = P[:, 0], P[:, 1], P[:, 2], P[:, 3]
-
-    outX = torch.zeros_like(X)
-    outP = torch.zeros_like(P)
-
-    outX[:, 0] = T
-    outX[:, 1] = R*torch.sin(TH)*torch.cos(PH)
-    outX[:, 2] = R*torch.sin(TH)*torch.sin(PH)
-    outX[:, 3] = R*torch.cos(TH)
-
-    outP[:, 0] = vT
-    outP[:, 1] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.cos(PH) - R*torch.sin(PH)*torch.sin(TH)*vPH
-    outP[:, 2] = (vR*torch.sin(TH) + R*torch.cos(TH)*vTH)*torch.sin(PH) + R*torch.cos(PH)*torch.sin(TH)*vPH
-    outP[:, 3] = vR*torch.cos(TH) - R*torch.sin(TH)*vTH
-
-    return outX.view(shape), outP.view(shape)
 
 
 def points_generate(ts, rs, ths, phs):
@@ -122,7 +51,6 @@ def EulerRotation(
     Outputs:
     - outX: torch.Tensor - rotated vector
     '''
-    outX = X.copy()
 
     cdphi = torch.cos(dphi)
     sdphi = torch.sin(dphi)
@@ -130,11 +58,11 @@ def EulerRotation(
     sdth = torch.sin(dth)
     cdth = torch.cos(dth)
 
-    outX[..., 0] = (X[..., 0]*cdphi - X[..., 1]*sdphi)*cdth - X[..., 0]*X[..., 2]*sdth
-    outX[..., 1] = (X[..., 0]*sdphi + X[..., 1]*cdphi)*cdth - X[..., 1]*X[..., 2]*sdth
-    outX[..., 2] = torch.pow((X[..., 0]**2 + X[..., 1]**2), -0.5)*sdth + X[..., 2]*cdth
+    outX0 = (X[..., 0]*cdphi - X[..., 1]*sdphi)*cdth - X[..., 0]*X[..., 2]*sdth
+    outX1 = (X[..., 0]*sdphi + X[..., 1]*cdphi)*cdth - X[..., 1]*X[..., 2]*sdth
+    outX2 = torch.pow((X[..., 0]**2 + X[..., 1]**2), -0.5)*sdth + X[..., 2]*cdth
 
-    return outX
+    return torch.stack([outX0, outX1, outX2], -1)
 
 
 def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
