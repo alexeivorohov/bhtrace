@@ -17,7 +17,9 @@ from .particle_zoo import *
 from .coordinates import *
 from .coord_systems import *
 
-_SPACETIME_COLLECTION_ = {
+from .transformations import *
+
+_SPACETIMES_ = {
     'mock': mock_spacetime,
     'MinkowskiCart': MinkowskiCart,
     # 'KerrSchild': KerrSchild,
@@ -26,15 +28,20 @@ _SPACETIME_COLLECTION_ = {
     'SphericallySymmetric': SphericallySymmetric,
 }
 
-_COORDS_COLLECTION_ = {
+_COORDINATES_ = {
     'mock' : None,
     'Cartesian' : Cartesian
 }
 
-_PARTICLE_COLLECTION_ = {
+_TRANSFORMATIONS_ = {
+    'Shift': Shift,
+    'Scale': None,
+    'Ax2Cart': Ax2Cart,
+    'Cart2Ax': Cart2Ax
+}
+_PARTICLES_ = {
     'mock' : None,
     'Photon' : Photon,
-
 }
 
 ## Status:
@@ -53,9 +60,11 @@ _PARTICLE_COLLECTION_ = {
 # [] Baseclass unittests
 # [] Models unittests
 # [] Descriptions
-# [] Coordinates base class
+# [X] Coordinates base class
 # [] Coordinate systems implementations
 # [] Coordinate systems unittests
+# [X] Transformations baseclass
+# [] Transformations unittests
 # [] Descriptions
 
 

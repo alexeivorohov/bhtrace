@@ -4,6 +4,7 @@
 /.vscode
 /.conda
 *.pyc
+*_old_*
 /tests/devscratch.py
 /tests/visibility_test.py
 /examples/*.pickle

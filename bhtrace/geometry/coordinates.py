@@ -16,10 +16,7 @@ from typing import Tuple
 # X[..., 4]
 
 
-
-
 class Coordinates(ABC):
-
 
     def __init__(self, name, dim=4, labels=None, position=None, direction=None):
         '''

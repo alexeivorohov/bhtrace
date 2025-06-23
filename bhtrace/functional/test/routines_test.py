@@ -36,7 +36,7 @@ class TestRoutines(unittest.TestCase):
         X = points_generate(ts, rs, ths, phs)
         self.assertEqual(X.shape, (len(ts) * len(rs) * len(ths) * len(phs), 4))
 
-    def test_net(self):
+    def test_net(self):''
         xx, yy, zz = net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8])
         self.assertEqual(xx.shape, yy.shape)
         self.assertEqual(yy.shape, zz.shape)

@@ -15,14 +15,13 @@ class Cartesian(Coordinates):
     
     def x_in(self, X: torch.Tensor):
 
-        
+                
 
         return
 
     def x_out(self, X: torch.Tensor):
         
         return 
-
 
 
 class Spherical(Coordinates):
@@ -32,9 +31,6 @@ class Spherical(Coordinates):
         
         '''
         super().__init__(name='spherical', dimension=4)
-
-    
-
 
 
 class Cylindric(Coordinates):
