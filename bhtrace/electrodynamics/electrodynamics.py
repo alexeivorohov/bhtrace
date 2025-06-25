@@ -10,19 +10,23 @@ import torch
 
 class Electrodynamics(ABC):
     '''
-    Serves as base interface for all ED models
+    Serves as base class for all ED models
     ''' 
 
     def __init__(self):
         
-        # self.lct4 = levi_civita_tensor(4) # e^{pquv}
-        self.U = lambda X: torch.Tensor([1, 0, 0, 0])
-        self.Fuv = self.__Fuv_s__
+        # ED.lct4 = levi_civita_tensor(4) # e^{pquv}
+        self.L = L
+        self.L_F = L_F
+        self.L_FF = L_FF
 
-    def __str__(self):
+        self.L_G = L_G
+        self.L_GG = L_G
+        self.L_FG = L_FG
 
-        return 'Electrodynamics model'
+    def regime():
 
+        pass
 
     def compute(self, *args, **kwargs):
 
@@ -44,95 +48,113 @@ class Electrodynamics(ABC):
         pass
 
 
-    # F^{uv}
-    def __Fuv__(self):
+class ED_logic(ABC):
+    '''
+    Serves as base interface for computation logics of ED models
+    '''
+    
+    def __call__(
+            ED: Electrodynamics,
+            X: torch.Tensor, 
+            gX: torch.Tensor, 
+            U: torch.Tensor,
+            ginvX: torch.Tensor = None
+            ):
         '''
-        Maxwell tensor with all upper indexes
-        '''
+        Perform computations of all quantites of given ED model
 
+        Inputs:
+        - ED: Electrodynamics - the model within which to perform computations
+        - X: torch.Tensor - point in spacetime
+        - gX: torch.Tensor - metric tensor at this point
+        - U: torch.Tensor - 4-velocity of the reference frame
+        - ginvX: torch.Tensor - metrics inverse (do not needed by default)
+        '''
         pass
 
-    # faster method for a case B=0
-    def __Fuv_s__(self):
+
+    def Fuv(ED: Electrodynamics):
+        '''
+        Maxwell tensor with all upper indexes
+
+        F^{uv}
+        '''
+        raise NotImplementedError
+
+
+    def Fuv_E(ED: Electrodynamics):
         '''
         Maxwell tensor with all upper indexes
     
         Faster method for a case of single E field
         '''
 
-        f1 = torch.outer(self._E, self._U)
+        f1 = torch.outer(ED._E, ED._U)
         f2 = f1.T
         return f1-f1.T
-
-
-class ED_F(Electrodynamics):
-
-    def __init__(self, L=None, L_F=None, L_FF=None):
-        '''
-        Serves as base class for L(F) ED models
-        Holds all general routines.
-
-        Implementation should provide:
-        - L_F: callable(F) - derivative of Lagrangian w.r.t. invariant F
-        - L_FF: callable(F) - second derivatife of L w.r.t. ivariant F
-        '''
-        super().__init__()
-        # self.L = L
-        # self.L_F = L_F
-        # self.L_FF = L_FF
-        
     
-        pass
 
-
-    def compute(self, X, gX, ginvX):
+    def Fuv_B(ED: Electrodynamics):
         '''
-        - X: torch.Tensor (4) - point in space-time
+        Maxwell tensor with all upper indexes
+    
+        Faster method for a case of single B field
+        '''
+        # TODO: Implement this method
+        f1 = torch.outer(ED._E, ED._U)
+        f2 = f1.T
+        return f1-f1.T
+    
+    
+    def FumFmv(
+            ED: Electrodynamics,
+            gX: torch.Tensor
+            ):
+        '''
+        Colvolution of Maxwell tensor with itself
+
+        Inputs:
+        - ED: Electrodynamics - the model within which to perform computations
+        - X: torch.Tensor - point in spacetime
         '''
 
-        self._E = self.E(X)
-        self._B = self.B(X)
-        self._U = self.U(X)
-        self._Fuv = self.Fuv()
+        return torch.einsum('...up, ...pq, ...qv->uv', ED._Fuv, gX, ED._Fuv)
+
+
+class ED_F(ED_logic):
+
+    @classmethod
+    def __call__(
+            cls,
+            ED: Electrodynamics,
+            X: torch.Tensor, 
+            gX: torch.Tensor, 
+            ginvX=None
+            ):
+
+        ED._E = ED.E(X)
+        ED._B = ED.B(X)
+
+        ED._Fuv = cls.__Fuv_E__()
         
-        self._E2 = gX @ self._E @ self._E
-        self._B2 = gX @ self._B @ self._B 
+        ED._E2 = gX @ ED._E @ ED._E
+        ED._B2 = gX @ ED._B @ ED._B 
 
-
-        self._F = 2*(self._B2 - self._E2)
-        self._L = self.L(self._F)
-        self._L_F = self.L_F(self._F)
-        self._L_FF = self.L_FF(self._F)
+        ED._F = 2*(ED._B2 - ED._E2)
+        ED._L = ED.L(ED._F)
+        ED._L_F = ED.L_F(ED._F)
+        ED._L_FF = ED.L_FF(ED._F)
         
-        # F{ua}F{v, a}
-        self._uFFv = torch.einsum('up,pq,qv->uv', self._Fuv, gX, self._Fuv)
-
+        # F^{ua}F^{v}_{a}
+        ED._uFFv = 
         pass
 
 
-
-# todo: FG-ED class
-class ED_FG(Electrodynamics):
-
-    def __init__(self, L, L_F, L_G, L_FF, L_FG, L_GG):
-        '''
-        Electrodynamics model for case of both non-zero invariants
-
-        ### Constructor arguments:
-        - L: Lagrangian
-        - L_[xy]: Lagrangian derivative wrt invarians xy:
-
-        '''
-
-        super().__init__()
-        self.L = L
-        self.L_F = L_F
-        self.L_FF = L_FF
-
-        pass
+# TODO: FG-ED class
+class ED_FG(ED_logic):
 
 
-    def compute(self, X):
+    def compute(ED, X):
 
-
-        pass
+        raise NotImplementedError
+        

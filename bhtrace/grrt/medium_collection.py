@@ -6,24 +6,26 @@ import torch
 
 class ThinDisk(Medium):
 
-    def __init__(self, spacetime: Spacetime, params):
+    def __init__(self,
+                 spacetime: Spacetime,
+                 position : torch.Tensor = torch.zeros(4),
+                 direction: torch.Tensor = torch.tensor([0, 0, 0, 1])
+                 ):
         '''
         Thin disk accretion
 
         Input parameters:
         - position: torch.Tensor
-        - dir: torch.Tensor
+        - direction: torch.Tensor
         - params: dict
         '''
-
 
         super().__init__(spacetime=Spacetime, coordinates=)
         self._flux_ = lambda r, phi: torch.pow(r, -3)*(1 - torch.pow(r/2, -0.5))
         self.pos = position
         self.dir = direction
-        self.params = params
+   
         
-
     def Embedding(self, xi):
         '''
         Inputs:
@@ -37,7 +39,7 @@ class ThinDisk(Medium):
         # Into cartesian?
 
 
-        return xi 
+        return xi
 
     
     def InvEmbedding(self, X: torch.Tensor):
