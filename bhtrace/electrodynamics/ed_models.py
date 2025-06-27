@@ -4,6 +4,11 @@ import torch
 class Maxwell(Electrodynamics):
 
     def __init__(self):
+        '''
+        Maxwell electrodynamics.
+
+        Defined for \mu_0 = 4\pi, \epsilon_0 = 1/{4\pi}
+        '''
 
         # mu_0 = 4*pi
         # eps_0 = 1/(4*pi)
@@ -33,7 +38,6 @@ class EulerHeisenberg(Electrodynamics):
         self.L_F = lambda F: -w + dh1*F
         self.L_FF = lambda F: dh1
         
-
         pass
 
 

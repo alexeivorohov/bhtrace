@@ -1,15 +1,22 @@
 from medium import Medium
-from ..geometry import Spacetime
+from ..geometry import Spacetime, CoordinateTransformation
+from typing import Type
 
 import torch
 
 
-class ThinDisk(Medium):
+class ThinNewtonianDisk(Medium):
+
+
+    # 
+    # TODO: Disk orientation
+    # TODO: Disk shifts
 
     def __init__(self,
                  spacetime: Spacetime,
-                 position : torch.Tensor = torch.zeros(4),
-                 direction: torch.Tensor = torch.tensor([0, 0, 0, 1])
+                 position = torch.zeros(4),
+                 direction = torch.tensor([0, 0, 0, 1]),
+                 transformation = None
                  ):
         '''
         Thin disk accretion
@@ -20,13 +27,25 @@ class ThinDisk(Medium):
         - params: dict
         '''
 
-        super().__init__(spacetime=Spacetime, coordinates=)
-        self._flux_ = lambda r, phi: torch.pow(r, -3)*(1 - torch.pow(r/2, -0.5))
+        super().__init__(spacetime=Spacetime,)
+        
+        if self.transformation == None:
+
+            # TODO: TF initialization for a given spacetime
+
+            pass
+
         self.pos = position
         self.dir = direction
+
+        # Keplerian disk: v_phi = sqrt(GM/R)
+        # LINK
+        self.u_ph = lambda r: torch.pow(r, -0.5)
+        self.u_r = lambda r: torch.zeros_like(r)
+        self._flux_ = lambda r, phi: torch.pow(r, -3)*(1 - torch.pow(r/2, -0.5))
    
         
-    def Embedding(self, xi):
+    def Embedding(self, xi: torch.Tensor) -> torch.Tensor:
         '''
         Inputs:
         - xi: torch.Tensor of shape[..., 3] - disk t, r and phi
@@ -35,14 +54,14 @@ class ThinDisk(Medium):
         - X: torch.Tensor of shape[..., 4] - position in spacetime
         '''
 
-        X = torch.Tensor(xi.shape)
+        X = torch.Tensor(*xi.shape[:-1], 4)
         # Into cartesian?
 
 
         return xi
 
     
-    def InvEmbedding(self, X: torch.Tensor):
+    def InvEmbedding(self, X: torch.Tensor) -> torch.Tensor:
         '''
         Inputs:
         - X: torch.Tensor of shape[..., 4] - position in spacetime   
@@ -56,7 +75,7 @@ class ThinDisk(Medium):
         return None
 
 
-    def Density(self, X: torch.Tensor):
+    def Density(self, xi: torch.Tensor):
 
 
         rho = 0
@@ -64,17 +83,15 @@ class ThinDisk(Medium):
         return rho
     
 
-    def U(self, xi: torch.Tensor):
-
+    def U(self, xi: torch.Tensor = None, X: torch.Tensor = None):
+        
         # Should be a method of ??
+        U_disk = torch.zeros(*xi.shape[:-1], 4)
+        
+        r = xi[..., 1]
+        
+        U_disk[..., 3] = self.u_ph(r)
 
-        U_disk = torch.zeros_like(X_sph)
-
-        # Keplerian disk: v_phi = sqrt(GM/R)
-        u_ph = lambda r: torch.pow(r, -0.5)
-
-
-        U_disk[..., 3] = u_ph(X_sph[..., 1])
 
         return 
 
@@ -85,7 +102,7 @@ class ThinDisk(Medium):
         return X
 
 
-    def Flux(self, xi): 
+    def Flux(self, xi) -> torch.Tensor: 
 
         f = 0
     
@@ -94,6 +111,7 @@ class ThinDisk(Medium):
 
     def __call__(self, X):
 
+        
         # xi = hit(X)
         # U = U(xi)
         # F = flux(xi)

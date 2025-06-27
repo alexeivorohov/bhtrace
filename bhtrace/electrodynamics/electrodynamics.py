@@ -14,7 +14,7 @@ class Electrodynamics(ABC):
     ''' 
     def __init__(self):
         
-        self.lct4 = levi_civita_tensor(4) 
+        self.lct4 = levi_civita_tensor(4).float() 
         self.L = None
         self.L_F = None
         self.L_FF = None
@@ -27,13 +27,14 @@ class Electrodynamics(ABC):
     def calculate(self,
         X: torch.Tensor,
         gX: torch.Tensor,
-        ginvX = None
+        U: torch.Tensor,
+        ginvX = None,
         ) -> None:
         '''
         Computes fields and model quantities at the point
         '''
-        self.process_fields(ED=self, X=X, gX=gX, ginvX=ginvX)
-        self.process_model(ED=self, X=X, gX=gX, ginvX=ginvX)
+        self.process_fields.forward(ED=self, X=X, gX=gX, U=U, ginvX=ginvX)
+        self.process_model.forward(ED=self, X=X, gX=gX, U=U, ginvX=ginvX)
 
 
     def set_regime(self, 
@@ -110,12 +111,12 @@ class Electrodynamics(ABC):
         return NotImplementedError
 
 
-class ED_logic(ABC):
+class ED_logic:
     '''
     Serves as base interface for computation logics of ED models
     '''
 
-    def __call__(
+    def forward(
             ED: Electrodynamics,
             X: torch.Tensor, 
             gX: torch.Tensor, 
@@ -141,32 +142,37 @@ class ED_logic(ABC):
         '''
         ED._sqrtmg = torch.sqrt( - torch.linalg.det(gX))
 
-        ED._eps4 = ED.lct4.repeat(ED._sqrtmg.shape, 1, 1, 1, 1)
-        
-        ED._eps4 *= 1/ED._sqrtmg
+        ED._eps4 = ED.lct4.repeat(*gX.shape[:-2], 1, 1, 1, 1)/ED._sqrtmg
+  
 
+    def eta_pqu(ED: Electrodynamics, gX: torch.Tensor, U: torch.Tensor):
+        '''
+            \eta^{pq}_u
+        '''
+        ED._eta4 = torch.einsum(
+            '...pqwv, ...vk, ...k, ...wu -> ...pqu',
+            ED._eps4, gX, U, gX)
 
     @classmethod
-    def Fuv(cls, ED: Electrodynamics):
+    def Fuv(cls, ED: Electrodynamics, gX, U):
         '''
         Maxwell tensor with all upper indexes
 
         F^{uv}
         '''
         
-        return cls.Fuv_E(ED) + cls.Fuv_B(ED)
+        return cls.Fuv_E(ED, gX, U) + cls.Fuv_B(ED)
 
 
-    def Fuv_E(ED: Electrodynamics):
+    def Fuv_E(ED: Electrodynamics, gX: torch.Tensor,  U: torch.Tensor):
         '''
         Maxwell tensor with all upper indexes
     
         Faster method for a case of single E field
         '''
+        outp = torch.einsum('...p,...q -> ...pq', ED._E, U)
 
-        f1 = torch.outer(ED._E, ED._U)
-        f2 = f1.T
-        return f1-f1.T
+        return outp - outp.mT
     
 
     def Fuv_B(ED: Electrodynamics):
@@ -176,11 +182,8 @@ class ED_logic(ABC):
         Faster method for a case of single B field
 
         '''
-        # TODO: Implement this method
 
-        f1 = torch.outer(ED._E, ED._U)
-        f2 = f1.T
-        return f1-f1.T
+        return torch.einsum('...pqu, ...u', ED._eta4, ED._B)
     
 
     def FumFmv(
@@ -197,7 +200,10 @@ class ED_logic(ABC):
         - gX: torch.Tensor - metrics  spacetime
         '''
 
-        return torch.einsum('...up, ...pq, ...qv->uv', ED._Fuv, gX, ED._Fuv)
+        return torch.einsum(
+            '...up, ...pq, ...qv->uv', 
+            ED._Fuv, gX, ED._Fuv)
+
 
     def __str__(self):
     
@@ -210,17 +216,18 @@ class ED_E(ED_logic):
     '''
 
     @classmethod
-    def __call__(
+    def forward(
             cls,
             ED: Electrodynamics,
             X: torch.Tensor, 
             gX: torch.Tensor, 
+            U: torch.Tensor,
             ginvX=None
             ):
 
         ED._E = ED.E(X)
 
-        ED._Fuv = cls.Fuv_E(ED)
+        ED._Fuv = cls.Fuv_E(ED, gX, U)
         
         ED._E2 = gX @ ED._E @ ED._E
         ED._B2 = torch.zeros_like(ED._E2)
@@ -231,17 +238,21 @@ class ED_B(ED_logic):
     '''
     Class for performing computations in case of pure magnetic field
     '''
+
     @classmethod
-    def __call__(
+    def forward(
             cls,
             ED: Electrodynamics,
             X: torch.Tensor, 
             gX: torch.Tensor, 
+            U: torch.Tensor,
             ginvX=None
             ):
 
         ED._B = ED.B(X)
+
         cls.eps_mnpq(ED, gX)
+        cls.eta_pqu(ED, gX, U)
 
         ED._Fuv = cls.Fuv_B(ED)
         
@@ -256,11 +267,12 @@ class ED_EB(ED_logic):
     '''
 
     @classmethod
-    def __call__(
+    def forward(
         cls,
         ED: Electrodynamics,
         X: torch.Tensor,
         gX: torch.Tensor,
+        U: torch.Tensor,
         ginvX = None
     ):
         
@@ -268,8 +280,9 @@ class ED_EB(ED_logic):
         ED._B = ED.B(X)
 
         cls.eps_mnpq(ED, gX)
+        cls.eta_pqu(ED, gX, U)
 
-        ED._Fuv = cls.Fuv(ED)
+        ED._Fuv = cls.Fuv(ED, gX, U)
         
         ED._E2 = gX @ ED._E @ ED._E
         ED._B2 = gX @ ED._B @ ED._B 
@@ -282,11 +295,12 @@ class ED_F(ED_logic):
     
     '''
     @classmethod
-    def __call__(
+    def forward(
             cls,
             ED: Electrodynamics,
             X: torch.Tensor, 
             gX: torch.Tensor, 
+            U: torch.Tensor,
             ginvX=None
             ):
 
@@ -304,11 +318,12 @@ class ED_FG(ED_logic):
     '''
 
     @classmethod
-    def __call__(
+    def forward(
             cls,
             ED: Electrodynamics,
             X: torch.Tensor, 
             gX: torch.Tensor, 
+            U: torch.Tensor,
             ginvX=None
             ):
         
@@ -331,12 +346,14 @@ class ED_FJ(ED_logic):
     J_4 can be defined as F^{mn}F_{nk}F^{kl}F_{lm}
     
     '''
+
     @classmethod
-    def __call__(
+    def forward(
         cls,
         ED: Electrodynamics,
         X: torch.Tensor, 
-        gX: torch.Tensor, 
+        gX: torch.Tensor,
+        U: torch.Tensor,
         ginvX=None
         ):
 

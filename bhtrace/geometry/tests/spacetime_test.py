@@ -9,7 +9,7 @@ sys.path.append(os.getcwd())
 
 
 from bhtrace.geometry import mock_spacetime
-from bhtrace.geometry import ST_COLLECTION 
+from bhtrace.geometry import _SPACETIMES_
 # from bhtrace.functional import sph2cart, cart2sph
 # from bhtrace.tracing import PTracer, CTracer
 
@@ -77,13 +77,13 @@ class TestSpacetimeCollection(unittest.TestCase):
         '''
         Test if all spacetimes can be initialized
         '''
-        for st_name, st_constr in ST_COLLECTION.items():
+        for name, constructor in _SPACETIMES_.items():
 
             try:
-                ST = st_constr()
-                self.ST_dict[st_name] = ST
+                ST = constructor()
+                self.ST_dict[name] = ST
             except Exception as e:  
-                print(f"Failed to initialize {st_name}: {e}")
+                print(f"Failed to initialize {name}: {e}")
                 continue
 
         pass
@@ -160,6 +160,5 @@ class TestSpacetimeCollection(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
 
-    pass
+    unittest.main()

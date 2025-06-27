@@ -33,7 +33,7 @@ class Medium(ABC):
         - X: torch.Tensor of shape[..., 4] - position in spacetime
 
         Outputs:
-        - U: torch.Tensor of shape[...] - local velocity
+        - U: torch.Tensor of shape[...] - local velocity (in disk coordinates)
         '''
 
         return NotImplementedError
@@ -62,8 +62,13 @@ class Medium(ABC):
         return NotImplementedError
     
 
-    def __call__(self, X):
+    def __call__(self, X) -> dict:
+        '''
+        Performs GRRT computation along given geodesic(s) and returns full output
 
+        Inputs:
+        - X: torch.Tensor() - geodesic
+        '''
         pass
 
 # WIP

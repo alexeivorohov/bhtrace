@@ -39,7 +39,7 @@ from abc import ABC, abstractmethod
 
 import torch
 
-# May be should not hold impls of derivatives and connections
+# TODO: May be derivatives and connections should be moved to another class
 
 class Spacetime(ABC):
     '''
@@ -54,59 +54,57 @@ class Spacetime(ABC):
 
     '''
 
-    # Metric tensors 
     @abstractmethod
     def g(self, X):
         '''
         Metric tensor evaluated at a batch of coordinates
 
         ## Input
-        X: torch.Tensor [:, 4] - coordinates
+        X: torch.Tensor [..., 4] - coordinates
 
         ## Output
-        g: torch.Tensor [:, 4, 4] - metric tensor at each coordinate
+        g: torch.Tensor [..., 4, 4] - metric tensor at each coordinate
         '''
         pass
 
-    # Inverse metric tensors
     @abstractmethod
     def ginv(self, X):
         '''
         Metric inverse evaluated at a batch of coordinates
 
         ## Input
-        X: torch.Tensor [:, 4] - coordinates
+        X: torch.Tensor [..., 4] - coordinates
 
         ## Output
-        g: torch.Tensor [:, 4, 4] - metric inverze at each coordinate
+        g: torch.Tensor [..., 4, 4] - metric inverse at each coordinate
         '''
 
         pass
 
-    # Numerical derivatives of metric tensor:
+
     def dg(self, X, eps=2e-5) -> torch.Tensor:
         '''
         Numerical derviative of the metric
 
         ## Input:
-        - X: torch.Tensor of shape [4] - point for which to evaluate
+        - X: torch.Tensor of shape [..., 4] - point for which to evaluate
         - eps: float (2e-5 default)
 
         ## Output
 
-        - dg: torch.Tensor of shape [4, 4, 4]
+        - dg: torch.Tensor of shape [..., 4, 4, 4]
         '''
 
         gX = self.g(X)
-        dgX = torch.zeros(4, 4, 4)
+        dgX = torch.zeros(*X.shape[:-1], 4, 4, 4)
 
-        dVec = torch.eye(4) * eps
+        dVec = torch.eye(4).repeat(*X.shape[:-1], 1, 1) * eps
 
 
-        dgX[0, :, :] = (self.g(X + dVec[0, :]) - gX) / eps
-        dgX[1, :, :] = (self.g(X + dVec[1, :]) - gX) / eps
-        dgX[2, :, :] = (self.g(X + dVec[2, :]) - gX) / eps
-        dgX[3, :, :] = (self.g(X + dVec[3, :]) - gX) / eps
+        dgX[..., 0, :, :] = (self.g(X + dVec[..., 0, :]) - gX) / eps
+        dgX[..., 1, :, :] = (self.g(X + dVec[..., 1, :]) - gX) / eps
+        dgX[..., 2, :, :] = (self.g(X + dVec[..., 2, :]) - gX) / eps
+        dgX[..., 3, :, :] = (self.g(X + dVec[..., 3, :]) - gX) / eps
 
         return dgX
 
@@ -117,10 +115,10 @@ class Spacetime(ABC):
         via a method specified down the line.
         
         ### Inputs:
-        - X: torch.Tensor [4] - evaluation point
+        - X: torch.Tensor [..., 4] - evaluation point(s)
 
         ### Outputs:
-        - G: torch.Tensor [4, 4, 4] - connection symbols
+        - G: torch.Tensor [..., 4, 4, 4] - connection symbols
         First index is contravariant, the other two are covariant.
         '''
 
@@ -147,9 +145,9 @@ class Spacetime(ABC):
             g_duv = self.gd_horder(X)
             ginv_ = self.ginv(X)
 
-        dg0 = torch.einsum('md,duv->muv', ginv_, g_duv)
-        dg1 = torch.einsum('mv,duv->mdv', ginv_, g_duv)
-        dg2 = torch.einsum('mu,duv->mud', ginv_, g_duv)
+        dg0 = torch.einsum('...md, ...duv ->...muv', ginv_, g_duv)
+        dg1 = torch.einsum('...mv,...duv -> ...mdv', ginv_, g_duv)
+        dg2 = torch.einsum('...mu, ...duv -> ...mud', ginv_, g_duv)
         
         return 0.5*( - dg0 + dg1 + dg2)
 
@@ -180,37 +178,39 @@ class Spacetime(ABC):
 
 class mock_spacetime(Spacetime):
     
-    def __init__(self):
+    def __init__(self, coefs=[1.0, 2.0, 3.0, 5.0]):
         '''
         :class:`Spacetime()` implementation, used for test purposes.
         '''
+
+        self.coefs = coefs
         pass
 
 
     def g(self, X):
         
-        outp = torch.zeros(4, 4)
-        outp[0, 0] = - 1.0
-        outp[1, 1] = 1.0
-        outp[2, 2] = 2.0
-        outp[3, 3] = 4.0
+        outp = torch.zeros(*X.shape, 4)
+        outp[..., 0, 0] = - self.coefs[0]
+        outp[..., 1, 1] = self.coefs[1]
+        outp[..., 2, 2] = self.coefs[2]
+        outp[..., 3, 3] = self.coefs[3]
 
         return outp
 
 
     def ginv(self, X):
 
-        outp = torch.zeros(4, 4)
-        outp[0, 0] = - 1.0
-        outp[1, 1] = 1.0
-        outp[2, 2] = 0.5
-        outp[3, 3] = 0.25
+        outp = torch.zeros(*X.shape, 4)
+        outp[..., 0, 0] = - 1/self.coefs[0]
+        outp[..., 1, 1] = 1/self.coefs[1]
+        outp[..., 2, 2] = 1/self.coefs[2]
+        outp[..., 3, 3] = 1/self.coefs[3]
 
         return outp
 
     
     def crit(self, X):
 
-        outp = abs(X[1]-6) + abs(X[2]-6) + abs(X[3]-6)
+        outp = abs(X[...,1]-6) + abs(X[...,2]-6) + abs(X[...,3]-6)
 
         return outp
