@@ -68,7 +68,6 @@ class Coordinates(ABC):
 
         pass
 
-    
 
     def rotate(self, dphi: torch.Tensor, dtheta, update=True):
         '''

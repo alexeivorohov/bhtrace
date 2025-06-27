@@ -25,7 +25,7 @@ class TestSpacetimeBase(unittest.TestCase):
     def test_metric(self):
         '''
         Test if metric is computed correctly:
-        g @ g^{-1} = I
+            g @ g^{-1} = I
         '''
 
         test_coords = torch.randn(self.n_eval, 4)
@@ -40,8 +40,8 @@ class TestSpacetimeBase(unittest.TestCase):
     def test_derivatives(self):
         '''
         Test if derivatives are computed correctly:
-        dg = 0
-        conn = 0
+            dg = 0
+            conn = 0
         '''
         test_coords = torch.randn(self.n_eval, 4)
         dg = self.mock_st.dg(test_coords)

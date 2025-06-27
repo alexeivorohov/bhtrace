@@ -6,12 +6,12 @@ from .ed_models import *
 
 _ED_MODELS_ = {
     'Maxwell': Maxwell,
-    'PPM': ParametricPostMaxwell,
-    'PostMaxwell': ParametricPostMaxwell,
+    'ParametricPostMaxwell': ParametricPostMaxwell,
     'EulerHeisenberg': EulerHeisenberg,
     'Bardeen': Bardeen,
     'ModMax': ModMax
     }
+
 ### Status:
 # [x] One-parameter models
 # [] Two-parameter models

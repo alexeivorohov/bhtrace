@@ -1,38 +1,88 @@
 from abc import ABC, abstractmethod
 from ..geometry import Spacetime
-# from ..functional import levi_civita_tensor
+from ..functional import levi_civita_tensor
 
 import torch
 
 
 
-# In this and other files precomputed quantities are always named as _F, _g and etc.
+# In this and other files already computed quantities are always named as _F, _g and etc.
 
 class Electrodynamics(ABC):
     '''
     Serves as base class for all ED models
     ''' 
-
     def __init__(self):
         
-        # ED.lct4 = levi_civita_tensor(4) # e^{pquv}
-        self.L = L
-        self.L_F = L_F
-        self.L_FF = L_FF
+        self.lct4 = levi_civita_tensor(4) 
+        self.L = None
+        self.L_F = None
+        self.L_FF = None
 
-        self.L_G = L_G
-        self.L_GG = L_G
-        self.L_FG = L_FG
+        self.L_G = None
+        self.L_GG = None
+        self.L_FG = None
 
-    def regime():
 
-        pass
+    def calculate(self,
+        X: torch.Tensor,
+        gX: torch.Tensor,
+        ginvX = None
+        ) -> None:
+        '''
+        Computes fields and model quantities at the point
+        '''
+        self.process_fields(ED=self, X=X, gX=gX, ginvX=ginvX)
+        self.process_model(ED=self, X=X, gX=gX, ginvX=ginvX)
 
-    def compute(self, *args, **kwargs):
 
-        pass
+    def set_regime(self, 
+        fields = 'B',
+        model_type = 'F',
+        verbose=False
+        ):
 
-    def attach_fields(self, E, B):
+        if fields == 'B':
+            self.process_fields = ED_B
+        elif fields == 'E':
+            self.process_fields = ED_E
+        elif fields == 'EB':
+            self.process_fields = ED_EB
+        else:
+            raise ValueError
+        
+        if model_type == 'F':
+            self.process_model = ED_F
+        elif model_type == 'FG':
+            self.process_model = ED_FG
+        elif model_type == 'FJ':
+            self.process_model = ED_FJ
+        else:
+            raise ValueError
+
+        if verbose:
+            print(f'nope')
+        
+
+    def process_fields(*args, **kwargs) -> None:
+        '''
+        Computes field stengths E and B, their norms and Maxwell tensor 
+        '''
+
+        return NotImplementedError
+
+
+    def process_model(self, *args, **kwargs) -> None:
+        '''
+        Computes quantities, related to electrodynamics model: invariants, lagrangians, their derivatives and etc.
+        '''
+
+        return NotImplementedError
+
+
+    def attach_fields(self,
+                      E: callable, 
+                      B: callable):
         '''
         Attach E and B fields coordinate representation to current model
 
@@ -41,18 +91,30 @@ class Electrodynamics(ABC):
         - B: callable(X) - magnetic field tensor
 
         '''
-
         self.E = E
         self.B = B
 
-        pass
+
+    def point_E(self, E):
+        '''
+        Electric field of point charge
+        '''
+
+        return NotImplementedError
+    
+
+    def point_B(self, B):
+        '''
+        Magnetic field of point charge
+        '''
+        return NotImplementedError
 
 
 class ED_logic(ABC):
     '''
     Serves as base interface for computation logics of ED models
     '''
-    
+
     def __call__(
             ED: Electrodynamics,
             X: torch.Tensor, 
@@ -73,13 +135,26 @@ class ED_logic(ABC):
         pass
 
 
-    def Fuv(ED: Electrodynamics):
+    def eps_mnpq(ED: Electrodynamics, gX: torch.Tensor):
+        '''
+        Covariantly-constant levi-civita antisymmetric tensor
+        '''
+        ED._sqrtmg = torch.sqrt( - torch.linalg.det(gX))
+
+        ED._eps4 = ED.lct4.repeat(ED._sqrtmg.shape, 1, 1, 1, 1)
+        
+        ED._eps4 *= 1/ED._sqrtmg
+
+
+    @classmethod
+    def Fuv(cls, ED: Electrodynamics):
         '''
         Maxwell tensor with all upper indexes
 
         F^{uv}
         '''
-        raise NotImplementedError
+        
+        return cls.Fuv_E(ED) + cls.Fuv_B(ED)
 
 
     def Fuv_E(ED: Electrodynamics):
@@ -99,13 +174,15 @@ class ED_logic(ABC):
         Maxwell tensor with all upper indexes
     
         Faster method for a case of single B field
+
         '''
         # TODO: Implement this method
+
         f1 = torch.outer(ED._E, ED._U)
         f2 = f1.T
         return f1-f1.T
     
-    
+
     def FumFmv(
             ED: Electrodynamics,
             gX: torch.Tensor
@@ -113,15 +190,24 @@ class ED_logic(ABC):
         '''
         Colvolution of Maxwell tensor with itself
 
+        F^{um}F^{v}_{m}
+
         Inputs:
         - ED: Electrodynamics - the model within which to perform computations
-        - X: torch.Tensor - point in spacetime
+        - gX: torch.Tensor - metrics  spacetime
         '''
 
         return torch.einsum('...up, ...pq, ...qv->uv', ED._Fuv, gX, ED._Fuv)
 
+    def __str__(self):
+    
+        pass
 
-class ED_F(ED_logic):
+
+class ED_E(ED_logic):
+    '''
+    Class for performing computations in case of pure electric field
+    '''
 
     @classmethod
     def __call__(
@@ -133,28 +219,125 @@ class ED_F(ED_logic):
             ):
 
         ED._E = ED.E(X)
+
+        ED._Fuv = cls.Fuv_E(ED)
+        
+        ED._E2 = gX @ ED._E @ ED._E
+        ED._B2 = torch.zeros_like(ED._E2)
+        ED._uFFv = cls.FumFmv(ED, gX)
+
+
+class ED_B(ED_logic):
+    '''
+    Class for performing computations in case of pure magnetic field
+    '''
+    @classmethod
+    def __call__(
+            cls,
+            ED: Electrodynamics,
+            X: torch.Tensor, 
+            gX: torch.Tensor, 
+            ginvX=None
+            ):
+
+        ED._B = ED.B(X)
+        cls.eps_mnpq(ED, gX)
+
+        ED._Fuv = cls.Fuv_B(ED)
+        
+        ED._B2 = gX @ ED._B @ ED._B 
+        ED._E2 = torch.zeros_like(ED._B2)
+        ED._uFFv = cls.FumFmv(ED, gX)
+
+
+class ED_EB(ED_logic):
+    '''
+    Class for performing computations in case of both electric and magnetic field present
+    '''
+
+    @classmethod
+    def __call__(
+        cls,
+        ED: Electrodynamics,
+        X: torch.Tensor,
+        gX: torch.Tensor,
+        ginvX = None
+    ):
+        
+        ED._E = ED.E(X)
         ED._B = ED.B(X)
 
-        ED._Fuv = cls.__Fuv_E__()
+        cls.eps_mnpq(ED, gX)
+
+        ED._Fuv = cls.Fuv(ED)
         
         ED._E2 = gX @ ED._E @ ED._E
         ED._B2 = gX @ ED._B @ ED._B 
+        ED._uFFv = cls.FumFmv(ED, gX)
 
+
+class ED_F(ED_logic):
+    '''
+    Class for performing computations within L(F) models.
+    
+    '''
+    @classmethod
+    def __call__(
+            cls,
+            ED: Electrodynamics,
+            X: torch.Tensor, 
+            gX: torch.Tensor, 
+            ginvX=None
+            ):
+
+        
         ED._F = 2*(ED._B2 - ED._E2)
         ED._L = ED.L(ED._F)
         ED._L_F = ED.L_F(ED._F)
         ED._L_FF = ED.L_FF(ED._F)
         
-        # F^{ua}F^{v}_{a}
-        ED._uFFv = 
-        pass
 
-
-# TODO: FG-ED class
 class ED_FG(ED_logic):
+    '''
+    Class for performing computations within L(F, G) models.
+    
+    '''
 
+    @classmethod
+    def __call__(
+            cls,
+            ED: Electrodynamics,
+            X: torch.Tensor, 
+            gX: torch.Tensor, 
+            ginvX=None
+            ):
+        
+        ED._F = 2*(ED._B2 - ED._E2)
+        ED._G = 4*gX @ ED._E @ ED._B
 
-    def compute(ED, X):
+        ED._L = ED.L(ED._F, ED._G)
+        ED._L_F = ED.L_F(ED._F, ED._G)
+        ED._L_FF = ED.L_FF(ED._F, ED._G)
+
+        ED._L_G = ED.L_G(ED._F, ED._G)
+        ED._L_GG = ED.L_GG(ED._F, ED._G)
+        ED._L_FG = ED.L_FG(ED._F, ED._G)
+        
+
+class ED_FJ(ED_logic):
+    '''
+    Class for performing computations within L(F, J_4) models.
+
+    J_4 can be defined as F^{mn}F_{nk}F^{kl}F_{lm}
+    
+    '''
+    @classmethod
+    def __call__(
+        cls,
+        ED: Electrodynamics,
+        X: torch.Tensor, 
+        gX: torch.Tensor, 
+        ginvX=None
+        ):
 
         raise NotImplementedError
-        

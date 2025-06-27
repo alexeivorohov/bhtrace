@@ -1,7 +1,7 @@
-from .electrodynamics import ED_F
+from .electrodynamics import Electrodynamics
 import torch
 
-class Maxwell(ED_F):
+class Maxwell(Electrodynamics):
 
     def __init__(self):
 
@@ -13,14 +13,13 @@ class Maxwell(ED_F):
         self.L = lambda F: -w*F
         self.L_F = lambda F: -w
         self.L_FF = lambda F: 0
-        self.U = lambda X: torch.Tensor([1, 0, 0, 0])
-
+       
         pass
 
 
-class EulerHeisenberg(ED_F):
+class EulerHeisenberg(Electrodynamics):
 
-    def __init__(self, h):
+    def __init__(self, h=1.0):
 
         # mu_0 = 4*pi
         # eps_0 = 1/(4*pi)
@@ -33,25 +32,27 @@ class EulerHeisenberg(ED_F):
         self.L = lambda F: -w*F + h1*F**2
         self.L_F = lambda F: -w + dh1*F
         self.L_FF = lambda F: dh1
-        self.U = lambda X: torch.Tensor([1, 0, 0, 0])
+        
 
         pass
 
 
-class BornInfeld(ED_F): 
+class BornInfeld(Electrodynamics): 
 
-    def __init__(self, b):
+    def __init__(self, b=1.0):
 
 
         pass 
 
 
-class ModMax(ED_F):
+class ModMax(Electrodynamics):
 
     def __init__(self, gma=0):
 
         # mu_0 = ?
         # eps_o = ?
+        # OK?
+
         gma = torch.Tensor([gma])
         self.gma = gma
         self.coshgma = torch.cosh(gma)
@@ -64,12 +65,13 @@ class ModMax(ED_F):
         self.L_F = lambda F: -self.w + self.h*torch.sign(F)
         self.L_FF = lambda F: 0
 
-        self.U = lambda X: torch.Tensor([1, 0, 0, 0])
-
         pass
 
 
-class Bardeen(ED_F):
+class Bardeen(Electrodynamics):
+    '''
+    Introduces a first 
+    '''
 
     def __init__(self, g=0, m=1):
 
@@ -79,9 +81,10 @@ class Bardeen(ED_F):
 
         super().__init__()
         # неясен правильный коэффициент
-        self.l1 = 3/(2*self.s*self.g2)
-
-        self.U = lambda X: torch.Tensor([1, 0, 0, 0])
+        if self.g != 0:
+            self.l1 = 3/(2*self.s*self.g2)
+        else:
+            self.l1 = 0
 
 
     def L(self, F):
@@ -109,9 +112,12 @@ class Bardeen(ED_F):
         return self.l1*1.25*torch.pow(1+x, -4.5)*torch.pow(x, 3)*(term1 + term2)
 
 
-class PostMaxwell:
+class ParametricPostMaxwell(Electrodynamics):
 
-    def __init__(self):
+    def __init__(self, eta_1=1, eta_2=0):
+        
+        self.eta_1 = eta_1
+        self.eta_2 = eta_2
 
         pass
 
