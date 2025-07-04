@@ -1,15 +1,34 @@
-from bhtrace.geometry import MinkowskiCart, Photon
-from bhtrace.grrt import Scene, ThinNewtonianDisk
+import os
+import sys
+import inspect
+
+import unittest
+import torch
+
+root_path = '/home/alexey/Work/bhtrace-dev'
+sys.path.append(root_path)
+sys.path.append(os.getcwd())
+
+from bhtrace.geometry import KerrSchild, Photon, Observer
+from bhtrace.fields import Maxwell
+from bhtrace.tracing import PTracer
+
+from bhtrace.grrt import ObjectAndDisk, ThinNewtonianDisk
 
 
-ST = MinkowskiCart()
+# scene = Scene(ST, Photon, net, disk)
 
-disk = ThinNewtonianDisk(ST)
+# IM1 = scene.compute(angle= ,saveas='', method=ptracer)
 
-photon = Photon(ST)
 
-scene = Scene(ST, Photon, net, disk)
+electrodynamics = Maxwell()
+tracer = PTracer()
+spacetime = KerrSchild()
+photon = Photon(spacetime)
+obs = Observer(spacetime=spacetime)
+medium = Medium()
+obs.setup_net()
 
-IM1 = scene.compute(angle= ,saveas='', method=ptracer)
+scene = Scene('ObjectAndDisk', )
 
-IM2 = scene.compute(angle=,saveas='',)
+scene.propagate_photons()

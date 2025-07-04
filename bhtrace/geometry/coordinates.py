@@ -3,20 +3,24 @@ This class is a base class for all coordinate systems.
 
 Each coordinate system, no matter which dimension of, is meant to be embedded in absolute 4d cartesian coordinate system.
 
-This absolute coordinate system has no physical meaning and introduced for simplicity.
-
 For now, each coordinate system is also assumed to be four-dimensional. 
-
 
 '''
 
 import torch
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 from ..functional import EulerRotation
-from typing import Tuple
 from .transformation_collection import relation_dict
 
+# TODO:
+# [ ] Axial coordinates class
+# [ ] Relation property
+# [ ] Left and right vector systems?
+# [ ] Symbolic coordinates
+# [ ] Update method
+# [ ] jit-compilation?
 
 class Coordinates(ABC):
 
@@ -36,14 +40,13 @@ class Coordinates(ABC):
 
         if direction is None:
             self.direction = torch.Tensor([0, 0, 0, 1]) 
-            # is t component really needed?
+            # is t component truely needed?
         else:
             self.direction = direction
 
         self.relation = {}
 
         # choice between left and right systems?
-        # self.domain?
 
 
     def set(self, position=None, direction=None, update=True):
@@ -60,13 +63,6 @@ class Coordinates(ABC):
         if direction is not None: self.direction = direction
 
         if update: update()
-
-        # Definitions
-
-        # TODO: Compile coordinate transformations
-        
-
-        pass
 
 
     def rotate(self, dphi: torch.Tensor, dtheta, update=True):
