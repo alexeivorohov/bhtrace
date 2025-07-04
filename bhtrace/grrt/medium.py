@@ -5,11 +5,15 @@ from typing import Tuple
 from ..geometry import Spacetime, Coordinates, Particle
 from .utils import i2_r
 
+# TODO:
+# [ ] Implement composite medium class
+# [ ] How to treat intersections and opacity for composite mediums?
+# [ ] Implement factory method
 
 class Medium(ABC):
 
     # def __new__(cls, *args, **kwargs)
-    
+
 
     def __init__(self, spacetime: Spacetime, coordinates: Coordinates):
 
@@ -27,6 +31,7 @@ class Medium(ABC):
         Outputs:
         - rho: torch.Tensor of shape[...] - density
         '''
+        
         return NotImplementedError
     
 
@@ -74,9 +79,6 @@ class Medium(ABC):
         '''
         pass
 
-# TODO:
-# [ ] Implement composite medium class
-# [ ] How to treat intersections and opacity?
 
 class Composite(Medium):
 

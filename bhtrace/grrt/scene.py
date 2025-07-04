@@ -7,17 +7,20 @@ from ..geometry import Observer
 from .medium import Medium
 import torch
 
+# TODO:
+# [ ] Set up a factory method for creating different scenes
+# [ ] hash/key generation method for naming data entries
 
 class Scene:
 
-    # TODO: Set up a factory method for creating different scenes
-    def __new__(cls, 
-                type, *args, **kwargs):
+
+    # def __new__(cls, 
+    #             type, *args, **kwargs):
         
-        if type in _SCENES_.keys():
-            return _SCENES_[type].__new__(*args, **kwargs)
-        else:
-            raise NotImplementedError
+    #     if type in _SCENES_.keys():
+    #         return _SCENES_[type].__new__(*args, **kwargs)
+    #     else:
+    #         raise NotImplementedError
  
     
     def __init__(self,
@@ -52,8 +55,6 @@ class Scene:
 
         X0 = self.observer.X_net
         P0 = self.observer.P_net
-
-        #TODO: Hash/key generation method for naming data entries
 
         ray_XP = self.tracer.forward(
             self.photon, X0, P0, T=60.0, nsteps=128

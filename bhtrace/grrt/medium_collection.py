@@ -1,4 +1,4 @@
-from medium import Medium
+from .medium import Medium
 from ..geometry import Spacetime, CoordinateTransformation
 from typing import Type
 

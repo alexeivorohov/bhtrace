@@ -4,14 +4,27 @@ from ..functional import levi_civita_tensor
 
 import torch
 
+_ED_MODELS_ = {
+    'Maxwell': Maxwell,
+    'ParametricPostMaxwell': ParametricPostMaxwell,
+    'EulerHeisenberg': EulerHeisenberg,
+    'Bardeen': Bardeen,
+    'ModMax': ModMax
+    }
 
 
-# In this and other files already computed quantities are always named as _F, _g and etc.
+# In this and other files we use _ to distinguish computed quantities
+# from computation methods (F vs _F, g vs _g and etc.)
 
 class Electrodynamics(ABC):
     '''
     Serves as base class for all ED models
     ''' 
+    # def __new__(self, model: str, *args, **kwargs):
+
+    #     pass
+
+
     def __init__(self):
         
         self.lct4 = levi_civita_tensor(4).float() 
