@@ -1,7 +1,5 @@
 '''
-Submodule for working with geometry, particles and fields
-
-By design, this module tries to follow classical field theory, in which particles and fields are constructs over spacetime.
+Submodule for working with spacetime geometry, particles and fields
 
 
 '''
@@ -17,7 +15,11 @@ from .particle_zoo import *
 from .coordinates import *
 from .coord_systems import *
 
-from .transformations import *
+from .transformation import *
+from .transformation_collection import *
+
+from .observer import *
+
 
 _SPACETIMES_ = {
     'mock': mock_spacetime,
@@ -33,6 +35,7 @@ _COORDINATES_ = {
     'Cartesian' : Cartesian
 }
 
+
 _TRANSFORMATIONS_ = {
     'Shift': Shift,
     'Scale': None,
@@ -45,6 +48,7 @@ _PARTICLES_ = {
 }
 
 ## Status:
+# TODO:
 # [x] Spacetime baseclass
 # [x] Spacetimes base collection
 # [X] Baseclass unittests
@@ -58,14 +62,15 @@ _PARTICLES_ = {
 # [x] Effective geometry baseclass
 # [] Effective geometry base models
 # [] Baseclass unittests
-# [] Models unittests
-# [] Descriptions
+# [ ] Models unittests
+# [ ] Descriptions
 # [X] Coordinates base class
-# [] Coordinate systems implementations
-# [] Coordinate systems unittests
+# [ ] Coordinate systems implementations
+# [ ] Coordinate systems unittests
 # [X] Transformations baseclass
-# [] Transformations unittests
-# [] Descriptions
+# [ ] Transformations unittests
+# [ ] Descriptions
+# [ ] Factory methods
 
 
 if __name__ == "__main__":

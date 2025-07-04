@@ -6,8 +6,6 @@ import numpy as np
 from itertools import permutations
 
 
-
-
 def points_generate(ts, rs, ths, phs):
     '''
     Make all permutations for 4 coordinates lists.
@@ -79,6 +77,7 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
     ### Outputs:
     - tuple(xx, yy, zz): torch.Tensor - coordinates of the grid
     '''
+    
     yy = []
     zz = []
 
@@ -226,3 +225,76 @@ def print_status_bar(progress, total, elapsed_time):
 
     sys.stdout.write(status + info)
     sys.stdout.flush()
+
+
+def rotate_point_cloud(points, dir_a, dir_b, angle=0.0):
+    """
+    Rotate a point cloud so that dir_a aligns with dir_b, then rotate around dir_b.
+
+    Args:
+        points (torch.Tensor): Nx3 tensor of points.
+        dir_a (torch.Tensor): Original orientation vector, shape (3,).
+        dir_b (torch.Tensor): Target orientation vector, shape (3,).
+        angle (float): Additional rotation angle (radians) around dir_b.
+
+    Returns:
+        torch.Tensor: Rotated point cloud Nx3.
+    """
+    # Normalize input vectors
+    v1 = dir_a / dir_a.norm()
+    v2 = dir_b / dir_b.norm()
+
+    # Compute rotation axis and angle to align v1 to v2
+    axis = torch.cross(v1, v2)
+    cos_angle = torch.dot(v1, v2)
+
+    # Handle parallel and anti-parallel cases
+    if torch.allclose(axis, torch.zeros(3), atol=1e-6):
+        if cos_angle > 0:
+            # No rotation needed
+            R_align = torch.eye(3)
+        else:
+            # 180 degree rotation around any orthogonal axis
+            orthogonal_axis = torch.tensor([1., 0., 0.])
+            if torch.allclose(v1, orthogonal_axis, atol=1e-6):
+                orthogonal_axis = torch.tensor([0., 1., 0.])
+            axis = torch.cross(v1, orthogonal_axis)
+            axis = axis / axis.norm()
+            angle_align = torch.pi
+            R_align = rotation_matrix(axis, angle_align)
+    else:
+        axis = axis / axis.norm()
+        angle_align = torch.acos(torch.clamp(cos_angle, -1.0, 1.0))
+        R_align = rotation_matrix(axis, angle_align)
+
+    # Rotation matrix around dir_b by 'angle'
+    axis_b = v2
+    R_rotate = rotation_matrix(axis_b, angle)
+
+    # Combined rotation: first align, then rotate around dir_b
+    R = R_rotate @ R_align
+
+    # Rotate points
+    rotated_points = points @ R.T
+    return rotated_points
+
+
+def rotation_matrix(axis, angle):
+    """
+    Rodrigues' rotation formula for rotation matrix around a given axis.
+
+    Args:
+        axis (torch.Tensor): Rotation axis (3,).
+        angle (float): Rotation angle in radians.
+
+    Returns:
+        torch.Tensor: 3x3 rotation matrix.
+    """
+    axis = axis / axis.norm()
+    K = torch.tensor([[0, -axis[2], axis[1]],
+                      [axis[2], 0, -axis[0]],
+                      [-axis[1], axis[0], 0]], dtype=axis.dtype)
+
+    I = torch.eye(3, dtype=axis.dtype)
+    R = I + torch.sin(angle)*K + (1 - torch.cos(angle))*(K @ K)
+    return R

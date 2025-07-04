@@ -10,11 +10,12 @@ Submodule for hanlding several routines:
 from .routines import *
 from .odeint import *
 
-# Status:
+# TODO: 
 # [x] Routines
 # [x] Routines documentation
-# [] Routines unittests
+# [ ] Routines unittests
 # [x] Odeint baseclass
-# [] Ode schemes
-# [] Documentation
-# [] Unittests
+# [ ] Ode schemes
+# [ ] Documentation
+# [ ] Unittests
+# [ ] Rewrite net generation functionality as separate class

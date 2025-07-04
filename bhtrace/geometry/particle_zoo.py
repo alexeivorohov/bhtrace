@@ -65,8 +65,22 @@ class Photon(Particle):
         p_spatial_norm = torch.pow(ginvX_s @ P[1:] @ P[1:], -0.5)
         P[1:] = P[1:]*p_spatial_norm
         return P
+    
 
-        
+    def energy(self, X, P, u):
+        '''
+        Inputs
+        - X: torch.Tensor - point in spacetime
+        - P: P^{\mu} - 4-impulse of photon 
+        - u: u^{\mu} 4-velocity of source (medium)
+        '''
+        # Move to Photon later
+        g = self.spacetime.g(X=X)
+
+        E = - (g @ u) @ P
+
+        return E
+
 
     def normp(self, X, P):
 

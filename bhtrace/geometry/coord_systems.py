@@ -4,6 +4,7 @@ import sympy
 import torch
 
 
+
 class Cartesian(Coordinates):
 
     def __init__(self, *kwargs):

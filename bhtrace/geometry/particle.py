@@ -51,6 +51,14 @@ class Particle(ABC):
 
         return None
 
+    @abstractmethod
+    def energy(self, X, P, u):
+        '''
+        Get particle energy, measured by observer, with four-velocity u^\mu.
+
+        '''
+        return None
+
 
     @abstractmethod
     def dHmlt(self, X, P):

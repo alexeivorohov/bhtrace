@@ -1,11 +1,15 @@
 import torch
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 from ..geometry import Spacetime, Coordinates, Particle
 from .utils import i2_r
 
 
 class Medium(ABC):
+
+    # def __new__(cls, *args, **kwargs)
+    
 
     def __init__(self, spacetime: Spacetime, coordinates: Coordinates):
 
@@ -15,7 +19,7 @@ class Medium(ABC):
         pass
     
 
-    def Density(self, X):
+    def density(self, X):
         '''
         Inputs:
         - X: torch.Tensor of shape[..., 4] - position in spacetime
@@ -24,7 +28,6 @@ class Medium(ABC):
         - rho: torch.Tensor of shape[...] - density
         '''
         return NotImplementedError
-
     
 
     def U(self, X_sph, g, norm_v):
@@ -39,7 +42,7 @@ class Medium(ABC):
         return NotImplementedError
 
 
-    def Flux(self, X):
+    def flux(self, X):
         '''
         Inputs:
         - X: torch.Tensor of shape [..., 4] - point(s) in spacetime
@@ -50,7 +53,7 @@ class Medium(ABC):
         return NotImplementedError
 
 
-    def Hit(self, X, return_Xi=False):
+    def hit(self, X, return_Xi=False):
         '''
         Inputs:
         - X: torch.Tensor of shape [..., 4] - point in spacetimes
@@ -71,21 +74,29 @@ class Medium(ABC):
         '''
         pass
 
-# WIP
+# TODO:
+# [ ] Implement composite medium class
+# [ ] How to treat intersections and opacity?
+
 class Composite(Medium):
 
-    def __init__(self, spacetime: Spacetime, mediums):
+    # def __new__(cls, *args, **kwargs)
+
+    def __init__(self,
+                 spacetime: Spacetime, 
+                 mediums: Tuple[Medium]
+                 ):
 
         super().__init__(spacetime=spacetime)
 
         self.mediums = mediums
 
     
-    def Hit(self, X):
+    def hit(self, X):
         '''
         
         '''
-        # Priority and possibility of intersections must be somehow treated
+        
         pass
 
     

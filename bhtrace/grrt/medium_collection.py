@@ -7,10 +7,9 @@ import torch
 
 class ThinNewtonianDisk(Medium):
 
-
-    # 
-    # TODO: Disk orientation
-    # TODO: Disk shifts
+    # TODO:
+    # [ ] Disk orientation 
+    # [ ] Disk shifts 
 
     def __init__(self,
                  spacetime: Spacetime,
@@ -27,16 +26,16 @@ class ThinNewtonianDisk(Medium):
         - params: dict
         '''
 
-        super().__init__(spacetime=Spacetime,)
+        super().__init__(spacetime=Spacetime, )
         
         if self.transformation == None:
 
             # TODO: TF initialization for a given spacetime
+            
 
             pass
-
-        self.pos = position
-        self.dir = direction
+        
+        self.coords = Axial()
 
         # Keplerian disk: v_phi = sqrt(GM/R)
         # LINK
@@ -45,45 +44,53 @@ class ThinNewtonianDisk(Medium):
         self._flux_ = lambda r, phi: torch.pow(r, -3)*(1 - torch.pow(r/2, -0.5))
    
         
-    def Embedding(self, xi: torch.Tensor) -> torch.Tensor:
+    def embedding(self, xi: torch.Tensor) -> torch.Tensor:
         '''
         Inputs:
-        - xi: torch.Tensor of shape[..., 3] - disk t, r and phi
+        - xi: torch.Tensor of shape[..., 4] - disk t, r, phi and z
 
         Outputs:
-        - X: torch.Tensor of shape[..., 4] - position in spacetime
+        - X: torch.Tensor of shape[..., 4] - position in given spacetime
         '''
 
-        X = torch.Tensor(*xi.shape[:-1], 4)
-        # Into cartesian?
 
-
-        return xi
+        return self.TF(xi)
 
     
-    def InvEmbedding(self, X: torch.Tensor) -> torch.Tensor:
+    def embedding(self, X: torch.Tensor) -> torch.Tensor:
         '''
         Inputs:
         - X: torch.Tensor of shape[..., 4] - position in spacetime   
 
         Outputs:
-        - xi: torch.Tensor of shape[..., 2] - disk rho and phi
+        - xi: torch.Tensor of shape[..., 4] - disk t, rho, phi and z
         '''
 
-        # From cartesian?
-
-        return None
+        return self.TF.inverse(X)
 
 
-    def Density(self, xi: torch.Tensor):
+    def density(self, xi: torch.Tensor):
+        '''
+        Inputs:
+        - X: torch.Tensor of shape[..., 4] - position in spacetime   
 
+        Outputs:
+        - xi: torch.Tensor of shape[..., 4] - disk t, rho, phi and z
+        '''
 
         rho = 0
 
         return rho
     
 
-    def U(self, xi: torch.Tensor = None, X: torch.Tensor = None):
+    def U(self, xi: torch.Tensor):
+        '''
+        Inputs:
+        - xi: torch.Tensor of shape[..., 4] - position in spacetime   
+
+        Outputs:
+        - U_xi: torch.Tensor of shape[..., 4] - disk t, rho, phi and z
+        '''
         
         # Should be a method of ??
         U_disk = torch.zeros(*xi.shape[:-1], 4)
@@ -92,24 +99,29 @@ class ThinNewtonianDisk(Medium):
         
         U_disk[..., 3] = self.u_ph(r)
 
+        return X
 
-        return 
 
+    def hit(self, xi: torch.Tensor):
+        '''
+        Inputs:
+        - xi: torch.Tensor of shape[..., 4] - position in spacetime   
 
-    def Hit(self, X):
-
+        Outputs:
+        - U_xi: torch.Tensor of shape[..., 4] - disk t, rho, phi and z
+        '''
         
         return X
 
 
-    def Flux(self, xi) -> torch.Tensor: 
+    def flux(self, xi: torch.Tensor) -> torch.Tensor: 
 
         f = 0
     
         return f
     
 
-    def __call__(self, X):
+    def __call__(self, X: torch.Tensor):
 
         
         # xi = hit(X)
@@ -120,7 +132,7 @@ class ThinNewtonianDisk(Medium):
         pass
     
 
-class Spherical(Medium):
+class SphericalAccretion(Medium):
 
     def __init__(self, spacetime: Spacetime):
 

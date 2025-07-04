@@ -8,12 +8,15 @@ from .tracer import Tracer
 
 
 class PTracer(Tracer):
+    '''
+    Hamiltonian ray-tracer
+    '''
+
 
     def __init__(self, ode_method='Euler', eps=1e-4):
 
         super().__init__(ode_method=ode_method)
 
-        self.name = 'PTracer'
         self.m_param = None
         self.eps = eps
         pass

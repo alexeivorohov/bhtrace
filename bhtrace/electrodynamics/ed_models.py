@@ -1,17 +1,16 @@
 from .electrodynamics import Electrodynamics
 import torch
 
+
 class Maxwell(Electrodynamics):
 
     def __init__(self):
         '''
         Maxwell electrodynamics.
 
-        Defined for \mu_0 = 4\pi, \epsilon_0 = 1/{4\pi}
+        Defined for mu_0 = 4pi, epsilon_0 = 1/{4pi}
         '''
 
-        # mu_0 = 4*pi
-        # eps_0 = 1/(4*pi)
         w = 1/(16*torch.pi)
 
         super().__init__()
@@ -26,8 +25,6 @@ class EulerHeisenberg(Electrodynamics):
 
     def __init__(self, h=1.0):
 
-        # mu_0 = 4*pi
-        # eps_0 = 1/(4*pi)
         w = 1/(16*torch.pi)
         h1 = h/(16*torch.pi**2)
         h2 = h1*7/4
@@ -45,7 +42,7 @@ class BornInfeld(Electrodynamics):
 
     def __init__(self, b=1.0):
 
-
+        
         pass 
 
 
@@ -125,6 +122,8 @@ class ParametricPostMaxwell(Electrodynamics):
 
         pass
 
+
+    
 
 
 

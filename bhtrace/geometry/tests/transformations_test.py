@@ -2,15 +2,15 @@ import os
 import sys
 import inspect
 
+import unittest
+import torch
+
 root_path = '/home/alexey/Work/bhtrace-dev'
 sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
-from bhtrace.geometry.transformations import CoordinateTransformation
+from bhtrace.geometry.transformation import CoordinateTransformation
 from bhtrace.geometry import _TRANSFORMATIONS_
-
-import unittest
-import torch
 
 
 class MockTransformation(CoordinateTransformation):
@@ -182,7 +182,7 @@ class TestTransformations(unittest.TestCase):
                 J = TF.jac(X)
                 I = torch.eye(4).repeat(*X.shape[:-1], 1, 1)
                 self.assertTrue(torch.allclose(J, I, atol=1e-5), f"{key} jacobian is not identity")
-
+ 
     def test_inverse_consistency(self):
         '''
         Test that applying transformation and its inverse returns the original input
