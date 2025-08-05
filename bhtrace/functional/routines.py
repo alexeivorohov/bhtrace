@@ -298,3 +298,16 @@ def rotation_matrix(axis, angle):
     I = torch.eye(3, dtype=axis.dtype)
     R = I + torch.sin(angle)*K + (1 - torch.cos(angle))*(K @ K)
     return R
+
+
+def last_non_nan(X):
+    
+    n = X.shape[0] - 1
+    n = X.shape[0] - 1
+    mask = torch.isnan(X)
+    nonnan = 0
+    for k in range(n):
+        if mask[n-k] == False:
+            nonnan = X[n-k]
+            break
+    return nonnan

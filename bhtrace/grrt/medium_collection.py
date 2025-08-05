@@ -1,24 +1,24 @@
 from .medium import Medium
-from ..geometry import Spacetime, CoordinateTransformation
+from ..geometry import Spacetime, Axial
 from typing import Type
 
 import torch
 
 
-class ThinNewtonianDisk(Medium):
+class ThinKeplerianDisk(Medium):
 
     # TODO:
     # [ ] Disk orientation 
-    # [ ] Disk shifts 
+    # [ ] Disk shifts
+    # TODO: 
 
     def __init__(self,
                  spacetime: Spacetime,
-                 position = torch.zeros(4),
-                 direction = torch.tensor([0, 0, 0, 1]),
-                 transformation = None
+                 position: torch.Tensor = torch.zeros(4),
+                 direction: torch.Tensor = torch.tensor([0, 0, 0, 1])
                  ):
         '''
-        Thin disk accretion
+        Thin keplerian disk model
 
         Input parameters:
         - position: torch.Tensor
@@ -26,16 +26,13 @@ class ThinNewtonianDisk(Medium):
         - params: dict
         '''
 
-        super().__init__(spacetime=Spacetime, )
+        super().__init__(
+            spacetime=Spacetime,
+            position=position,
+            direction=direction,
+            coordinates=Axial()
+            )
         
-        if self.transformation == None:
-
-            # TODO: TF initialization for a given spacetime
-            
-
-            pass
-        
-        self.coords = Axial()
 
         # Keplerian disk: v_phi = sqrt(GM/R)
         # LINK

@@ -15,9 +15,16 @@ class Medium(ABC):
     # def __new__(cls, *args, **kwargs)
 
 
-    def __init__(self, spacetime: Spacetime, coordinates: Coordinates):
+    def __init__(self, 
+                 spacetime: Spacetime,
+                 position: torch.Tensor, 
+                 direction: torch.Tensor,
+                 coordinates: Coordinates
+                 ):
 
         self.spacetime = spacetime
+        self.coordinates = coordinates
+        self.position = position
         self.coordinates = coordinates
         
         pass

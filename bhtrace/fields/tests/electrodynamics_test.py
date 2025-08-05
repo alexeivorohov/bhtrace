@@ -11,7 +11,7 @@ sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
 from bhtrace.geometry import MinkowskiCart, MinkowskiSph
-from bhtrace.electrodynamics import Electrodynamics, _ED_MODELS_
+from bhtrace.fields import Electrodynamics, _ED_MODELS_
 
 
 class TestElectrodynamics(unittest.TestCase):

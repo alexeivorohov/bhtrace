@@ -61,8 +61,11 @@ class KerrSchild(Spacetime):
         m = self.m
         Q = self.Q
 
+        shape_a = [*X.shape[:-1]]
+        shape_b = [1 for _ in shape_a]
+                          
         p = X[..., 1:]
-        rho = p@p - a2
+        rho = self.geom_R(X)- a2
         r2 = 0.5*(rho + torch.sqrt(rho**2 + 4.0*a2*p[..., 2]**2))
         r = torch.sqrt(r2)
         self.r = r
@@ -74,16 +77,22 @@ class KerrSchild(Spacetime):
         k[..., 2] = (r*p[..., 1] - a*p[..., 0])/r2a2
         k[..., 3] = p[..., 2]/r
 
-        f = r2*(2.0*m*r - Q*Q)/(r2*r2+(a*p[..., 2])**2)
+        
+        outer_k = torch.einsum('...p, ...q -> ...pq', k, k)
+        f = (r2*(2.0*m*r - Q*Q)/(r2*r2+(a*p[..., 2])**2)).view(*shape_a, 1, 1)
+        eta = self.eta.view(*shape_b, 4, 4) 
 
-        return f*torch.einsum('...p,...q->...pq', k, k) + self.eta 
+        # print(X.shape)
+        # print(outer_k.shape)
+        # print(f.shape)
+        # print(eta.shape)
+
+        return f*outer_k + eta
 
 
     def geom_R(self, X):
-
-        p = X[..., 1:]
-
-        return p@p
+        
+        return torch.einsum('...u, ...u -> ...', X[..., 1:], X[..., 1:])
 
 
     def ginv(self, X):  
@@ -94,17 +103,17 @@ class KerrSchild(Spacetime):
     def crit(self, X):
 
         p = X[..., 1:]
-        rho = p@p - self.a2
+        rho = self.geom_R(X) - self.a2
         r2 = 0.5*(rho + torch.sqrt(rho**2 + 4.0*self.a2*p[..., 2]**2))
         r = torch.sqrt(r2)
 
         return r
         
 
-    def conn(self, X):
+    # def conn(self, X):
 
-        # TODO: Implement this
-        pass
+    #     # TODO: Implement this
+    #     pass
 
 
 class SchwSchild(Spacetime):
@@ -123,21 +132,45 @@ class SchwSchild(Spacetime):
         m = self.m
         Q = self.Q
 
-        p = X[1:]
-        rho = p@p
-        r2 = 0.5*(rho + torch.sqrt(rho**2))
+        shape_a = [*X.shape[:-1]]
+        shape_b = [1 for _ in shape_a]
+                          
+        p = X[..., 1:]
+        rho = self.geom_R(X) 
+        r2 = 0.5*(rho + torch.sqrt(rho**2 ))
         r = torch.sqrt(r2)
         self.r = r
+        r2a2 = r2
 
-        k = torch.zeros(*X.shape[:-1], 4, 4)
+        k = torch.zeros_like(X)
         k[..., 0] = 1
-        k[..., 1] = p[..., 0]/r
-        k[..., 2] = p[..., 1]/r
+        k[..., 1] = (r*p[..., 0])/r2a2
+        k[..., 2] = (r*p[..., 1])/r2a2
         k[..., 3] = p[..., 2]/r
 
-        f = (2.0*m/r - self.Q2/r2)
+        
+        outer_k = torch.einsum('...p, ...q -> ...pq', k, k)
+        f = (r2*(2.0*m*r - Q*Q)/(r2*r2)).view(*shape_a, 1, 1)
+        eta = self.eta.view(*shape_b, 4, 4) 
 
-        return f*torch.einsum('...p,...q->...pq', k, k) + self.eta
+        # print(X.shape)
+        # print(outer_k.shape)
+        # print(f.shape)
+        # print(eta.shape)
+
+        return f*outer_k + eta
+
+
+    # def conn(self, X):
+
+    #     # TODO: Implement this
+
+    #     pass
+
+
+    def geom_R(self, X):
+        
+        return torch.einsum('...u, ...u -> ...', X[..., 1:], X[..., 1:])
 
 
     def ginv(self, X):  
@@ -147,15 +180,10 @@ class SchwSchild(Spacetime):
 
     def crit(self, X):
 
+        p = X[..., 1:]
+        rho = self.geom_R(X)
+        r2 = 0.5*(rho + torch.sqrt(rho**2))
+        r = torch.sqrt(r2)
 
-        return NotImplementedError
-        
-
-    def conn(self, X):
-
-        # TODO: Implement this
-
-        pass
-
-
+        return r
 

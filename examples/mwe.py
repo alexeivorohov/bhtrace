@@ -26,9 +26,9 @@ tracer = PTracer()
 spacetime = KerrSchild()
 photon = Photon(spacetime)
 obs = Observer(spacetime=spacetime)
-medium = Medium()
+medium = ThinNewtonianDisk(spacetime=spacetime)
 obs.setup_net()
 
-scene = Scene('ObjectAndDisk', )
+scene = ObjectAndDisk('ObjectAndDisk', )
 
 scene.propagate_photons()

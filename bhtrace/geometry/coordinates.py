@@ -21,15 +21,30 @@ from .transformation_collection import relation_dict
 # [ ] Symbolic coordinates
 # [ ] Update method
 # [ ] jit-compilation?
+# [ ] Possibility of setting another CS as global
+
 
 class Coordinates(ABC):
+    
 
-    def __init__(self, name, dim=4, labels=None, position=None, direction=None):
+    def __init__(self,
+                 dim: int = 4,
+                 labels=None, 
+                 position=None,
+                 direction=None,
+                 glob = None
+                 ):
+        
         '''
-        Base class for coordinate systems
+        Base class for all coordinate systems
+
+        Parameters:
+            dim: int (default 4) - number of dimensions (independent coordinates)
+            labels: sympy symbolical description of coordinate labels 
+            position: position in global cartesian coordinates (0, 0, )
+
         '''
 
-        self.name = name
         self.dim = dim
         self.labels = labels
 
@@ -43,6 +58,15 @@ class Coordinates(ABC):
             # is t component truely needed?
         else:
             self.direction = direction
+
+        if glob != None:
+            
+            self.glob = glob
+            try: 
+                self.glob_TF = relation_dict[glob.__name__, self.__name__]
+            except:
+                raise ValueError(f'Can not instantate transformation between these and global coordinates')
+
 
         self.relation = {}
 
@@ -84,15 +108,19 @@ class Coordinates(ABC):
 
         pass
     
-    def add_relation(self, other: 'Coordinates'):
-        '''
-        Function, which relates two given coordinate systems):
-        '''
-        if self.position == other.position and self.direction == other.direction:
-            self.relation = relation_dict[self.__name__][other.__name__]()
-        else:
-            raise NotImplementedError
-        pass
+    # def r(self,
+    #       X: torch.)
+
+    # def add_relation(self, other: 'Coordinates'):
+    #     '''
+    #     Function, which relates two given coordinate systems):
+    #     '''
+    #     if self.position == other.position and self.direction == other.direction:
+    #         self.relation = relation_dict[self.__name__][other.__name__]()
+    #     else:
+    #         raise NotImplementedError
+    #     pass
+
        
 
 class PatchCoordinates(Coordinates):

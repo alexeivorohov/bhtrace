@@ -15,7 +15,7 @@ class CoordinateTransformation(ABC):
 
     def __call__(self, X: torch.Tensor):
         '''
-        Transformation
+        Transform coordinates
         '''
 
         raise NotImplementedError
@@ -116,7 +116,6 @@ class Sym(CoordinateTransformation):
     # TODO: Implement this class
 
     def __init__(self, new_labels, old_labels, exprs):
-
 
         self.compile()
         pass

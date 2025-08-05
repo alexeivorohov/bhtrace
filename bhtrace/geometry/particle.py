@@ -8,7 +8,7 @@ from .spacetime import Spacetime
 
 import torch
 
-# [] Should be renamed to Wordline?
+
 class Particle(ABC):
  
     def __init__(self, spacetime: Spacetime):
@@ -78,7 +78,7 @@ class Particle(ABC):
         return None
 
 
-    def dHmlt_(self, X, P, eps):
+    def dHmlt_(self, X, P, eps=1e-3):
         '''
         Less effective, but type-independent method of differentiating particle hamiltonian
 
@@ -87,15 +87,15 @@ class Particle(ABC):
         - P: impulse (same as for hamiltonian)
         '''
 
-        dVec = torch.einsum('bi,ij->bij', torch.ones_like(X), torch.eye(4))*eps
+        dVec = eps*torch.eye(X.shape[-1]).view(*[1] * (X.ndim -1), 1, 1)
 
         # H = self.Hmlt(X, P)
         dH = torch.zeros_like(X)
 
-        dH[:, 0] = (self.Hmlt(X+dVec[:, 0, :], P) - self.Hmlt(X-dVec[:, 0, :], P))/eps/2
-        dH[:, 1] = (self.Hmlt(X+dVec[:, 1, :], P) - self.Hmlt(X-dVec[:, 1, :], P))/eps/2
-        dH[:, 2] = (self.Hmlt(X+dVec[:, 2, :], P) - self.Hmlt(X-dVec[:, 2, :], P))/eps/2
-        dH[:, 3] = (self.Hmlt(X+dVec[:, 3, :], P) - self.Hmlt(X-dVec[:, 3, :], P))/eps/2
+        dH[..., 0] = (self.Hmlt(X+dVec[..., 0, :], P) - self.Hmlt(X-dVec[..., 0, :], P))/eps/2
+        dH[..., 1] = (self.Hmlt(X+dVec[..., 1, :], P) - self.Hmlt(X-dVec[..., 1, :], P))/eps/2
+        dH[..., 2] = (self.Hmlt(X+dVec[..., 2, :], P) - self.Hmlt(X-dVec[..., 2, :], P))/eps/2
+        dH[..., 3] = (self.Hmlt(X+dVec[..., 3, :], P) - self.Hmlt(X-dVec[..., 3, :], P))/eps/2
 
         return dH
 
@@ -121,19 +121,14 @@ class Particle(ABC):
         Method for calculating covariant 4-impulse P_u for particle at point X with 3-velocity v.
 
         ### Inputs:
-        - X: torch.Tensor() - cooridnate
-        - v: torch.Tensor() - velocity
+        - X: torch.Tensor [..., 4] - cooridnate
+        - v: torch.Tensor [..., 4] - 4-velocity
 
         ### Outputs:
         - P: torch.Tensor() - initial impulse
         '''
 
-        v_inv = torch.pow(v@v, -0.5)
-        v = v*v_inv
-
-        gX = self.spacetime.g(X)
-
-        return gX @ torch.Tensor([v_inv, v[0], v[1], v[2]])
+        return NotImplementedError
 
 
     def GetDirection(self, X, P):
@@ -149,8 +144,7 @@ class Particle(ABC):
 
         '''
 
-        v = self.spacetime.ginv(X) @ P
-        return v[1:]
+        return NotImplementedError
 
 
     def MomentumNorm(self, X, P):
@@ -164,7 +158,7 @@ class Particle(ABC):
 
         '''
 
-        pass
+        return NotImplementedError
 
 
     def crit(self, X, P):

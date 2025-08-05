@@ -23,7 +23,11 @@ class Tracer():
         self.odeint = ODE(ode_method)
 
     @abstractmethod
-    def __term__(self, t, XP):
+    def __term__(self,
+                 t,
+                 X: torch.Tensor,
+                 P: torch.Tensor
+                 ):
         '''
         Abstract method to define the term for ODE integration.
 
@@ -36,7 +40,11 @@ class Tracer():
         '''
         pass
 
-    def evnt(self, t, XP):
+    def evnt(self,
+             t,
+             X: torch.Tensor,
+             P: torch.Tensor
+             ):
 
         # cr1 = self.particle.crit(XP[:4], XP[4:])
         cr1 = torch.less(self.max_proper_t, XP[0])
@@ -46,8 +54,8 @@ class Tracer():
 
     def forward(self,
                 particle: Particle,
-                X0,
-                P0,
+                X0: torch.Tensor,
+                P0: torch.Tensor,
                 T,
                 nsteps=128,
                 r_max=30.0,
@@ -94,8 +102,8 @@ class Tracer():
         print_status_bar(0, self.Ni, 0)
 
         for n in range(self.Ni):
-            XP0 = torch.cat((X0[n], P0[n]))
 
+            XP0 = torch.cat((X0[n], P0[n]))
             sol = self.odeint.forward(
                 term=self.__term__,
                 X0=XP0,
@@ -151,6 +159,7 @@ class Tracer():
 
         return full_path
 
+
 class MockTracer(Tracer):
     
     def __init__(self, particle, spacetime, ode_method='Euler'):
@@ -186,7 +195,11 @@ class MockTracer(Tracer):
         return torch.cat((dX, dP))
 
 
-    def evnt(self, t, XP):
+    def evnt(self,
+             t,
+             X,
+             P
+             ):
         '''
         Event function for ODE integration.
 
@@ -200,7 +213,11 @@ class MockTracer(Tracer):
         return False
 
 
-    def reg(self, t, XP):
+    def reg(self,
+            t,
+            X,
+            P
+            ):
         '''
         Regularization function for ODE integration.
 
@@ -212,3 +229,13 @@ class MockTracer(Tracer):
         - torch.Tensor: The regularized state vector.
         '''
         return XP
+    
+    
+    def evaluate(self, 
+                 X,
+                 P
+                 ):
+        '''
+        
+        '''
+        return NotImplementedError

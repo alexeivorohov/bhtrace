@@ -4,14 +4,6 @@ from ..functional import levi_civita_tensor
 
 import torch
 
-_ED_MODELS_ = {
-    'Maxwell': Maxwell,
-    'ParametricPostMaxwell': ParametricPostMaxwell,
-    'EulerHeisenberg': EulerHeisenberg,
-    'Bardeen': Bardeen,
-    'ModMax': ModMax
-    }
-
 
 # In this and other files we use _ to distinguish computed quantities
 # from computation methods (F vs _F, g vs _g and etc.)
@@ -160,7 +152,7 @@ class ED_logic:
 
     def eta_pqu(ED: Electrodynamics, gX: torch.Tensor, U: torch.Tensor):
         '''
-            \eta^{pq}_u
+            eta^{pq}_u
         '''
         ED._eta4 = torch.einsum(
             '...pqwv, ...vk, ...k, ...wu -> ...pqu',

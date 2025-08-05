@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import sys
 sys.path.append('.')
 from bhtrace.geometry import EffGeomSPH, MinkowskiSph, Photon
-from bhtrace.electrodynamics import Maxwell, EulerHeisenberg
+from bhtrace.fields import Maxwell, EulerHeisenberg
 from bhtrace.tracing import PTracer
 from bhtrace.functional import cart2sph, sph2cart
 

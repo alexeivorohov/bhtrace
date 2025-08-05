@@ -8,6 +8,7 @@ Submodule with different ray-tracing procedures, including:
 from .tracer import Tracer, MockTracer
 from .ctracer import CTracer
 from .ptracer import PTracer
+from .ntracer import NTracer
 # from .ntracer import NTracer
 
 

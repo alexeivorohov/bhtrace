@@ -18,52 +18,73 @@ class Photon(Particle):
         super().__init__(spacetime=spacetime)
         self.mu = 0
         self.h = None
-        pass
 
     
     def Hmlt(self, X, P):
 
         ginv = self.spacetime.ginv(X)
 
-        return 0.5*(ginv @ P) @ P
+        return 0.5*torch.einsum('...uv, ...u, ...v -> ...', ginv, P, P)
 
 
     def dHmlt(self, X, P, eps):
 
-        dH = torch.zeros(4)
-        dX = torch.eye(4)*eps
+        dim = X.shape[-1]
 
-        H = self.Hmlt(X, P)
+        dH = torch.zeros(*X.shape)
+        dX = torch.eye(dim).view(*[1] * (X.ndim-1), dim, dim)
 
-        dH[0] = (self.Hmlt(X + dX[0], P) - H)/eps
-        dH[1] = (self.Hmlt(X + dX[1], P) - H)/eps
-        dH[2] = (self.Hmlt(X + dX[2], P) - H)/eps
-        dH[3] = (self.Hmlt(X + dX[3], P) - H)/eps
+        hmlt = self.Hmlt(X, P)
+
+        dH[..., 0] = (self.Hmlt(X + dX[..., 0], P) - hmlt)/eps
+        dH[..., 1] = (self.Hmlt(X + dX[..., 1], P) - hmlt)/eps
+        dH[..., 2] = (self.Hmlt(X + dX[..., 2], P) - hmlt)/eps
+        dH[..., 3] = (self.Hmlt(X + dX[..., 3], P) - hmlt)/eps
 
         return dH
 
 
-    def GetNullMomentum(self, X, v):
-
-        v_inv = torch.pow(v@v, -0.5)
-        v = v*v_inv
-
+    def GetNullMomentum(self,
+                        X: torch.Tensor,
+                        V: torch.Tensor
+                        ):
+        '''
+        Get covariant momentum
+        '''
+        # E = self.spacetime.tetrad(X)
         gX = self.spacetime.g(X)
+        # Step 2: invert tetrad to get e^\mu_a
+        # E_inv = torch.inverse(E)  # E = e^a_mu, so E_inv = e^\mu_a^T
+        # e_mu_a = E_inv.nT  # shape (4,4)
 
-        return gX @ torch.Tensor([v_inv, v[0], v[1], v[2]])
+        # Transform to coordinate basis and lower index, 
+        p = torch.einsum('...wu, ...vu, ...v -> ...v', gX, E_inv, V)  # shape (4,)
+
+        # norm_check = torch.einsum.
+        # assert torch.allclose()
+
+        return p
 
 
     def GetDirection(self, X, P):
-
-        v = self.spacetime.ginv(X) @ P
+        '''
+        Inputs:
+            X: torch.Tensor - position
+            P: torch.Tensor - impulse (downstairs, contravariant)
+        '''
+        ginvX = self.spacetime.ginv(X)
+        v = torch.einsum('...uv, ...u -> v', ginvX, P)
         return v[1:]
 
 
     def MomentumNorm(self, X, P):
 
-        ginvX_s = self.spacetime.ginv(X)[1:, 1:]
-        p_spatial_norm = torch.pow(ginvX_s @ P[1:] @ P[1:], -0.5)
-        P[1:] = P[1:]*p_spatial_norm
+        ginvX_spatial = self.spacetime.ginv(X)[..., 1:, 1:]
+        p2_spatial = torch.einsum('...ij, ...i, ...j ->  ...',
+                                  ginvX_spatial, P[..., 1:], P[..., 1:])
+        
+        P[..., 1:] = P[..., 1:] * torch.pow(p2_spatial, -0.5)
+        
         return P
     
 
@@ -71,15 +92,11 @@ class Photon(Particle):
         '''
         Inputs
         - X: torch.Tensor - point in spacetime
-        - P: P^{\mu} - 4-impulse of photon 
-        - u: u^{\mu} 4-velocity of source (medium)
+        - P: P_{mu} - 4-impulse of photon 
+        - u: u^{mu} 4-velocity of source (medium)
         '''
-        # Move to Photon later
-        g = self.spacetime.g(X=X)
 
-        E = - (g @ u) @ P
-
-        return E
+        return torch.einsum('...u, ...u -> ...', P, u)        
 
 
     def normp(self, X, P):

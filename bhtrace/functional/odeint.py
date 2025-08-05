@@ -2,32 +2,52 @@ import torch
 import torch.jit as jit
 from abc import ABC, abstractmethod
 
-class ODEint(torch.nn.Module):
+class ODEint:
     '''
     Base class for ODE integration methods.
+
+    Main methods:
+
+    - forward - solves ODE for given i.c.
+    - __step__ - stepping method, which is defined by implementation
+    - 
     '''
 
     def __init__(self):
-        super().__init__()
+
+        # super().__init__() # N: No super class!
         self.__native_dyn_dt__ = False
         self.outX = None
         self.LTE = None
         self.t_s = None
 
-    def forward(self, term, X0, T=None, tspan=None, dt=0.15, nsteps=128, eps=1e-3, event_fn=None, step_fn=None, variable_step=False, reg=None):
+
+    def forward(self,
+                term,
+                X0: torch.Tensor, 
+                T=None,
+                tspan=None,
+                dt=0.15, 
+                nsteps=128, 
+                eps=1e-3, 
+                event_fn=None, 
+                step_fn=None, 
+                variable_step=False, 
+                reg=None
+                ):
         '''
-        Solving ODE, defined by f(t, x) = x' for (X0, T0)
+        Solving first-order ODE, defined by f(t, X) = X' for given initial conditions T0, X0
 
         ### Input:
-        - term: callable(t, x) - equation function, representing x'
+        - term: callable(t, *X) - equation function, representing x'
         - X0: initial conditions
         only one of the followed must be specified:
         - T: tuple (T0, T1), nsteps
         - tspan: time grid, default - None
 
-        other options:
-        - event_fn: callable(t, x) - event function, f <= 0 - integration stops
-        - step_fn: callable(t, X, LTE) - step-controlling function.
+        Other options:
+        - event_fn: callable(t, *X) - event function, f <= 0 - integration stops
+        - step_fn: callable(t, LTE, *X) - step-controlling function.
 
         ### Output format: 
         - sol: dict, keywords
@@ -52,7 +72,7 @@ class ODEint(torch.nn.Module):
             self.step_control = step_fn
             variable_step = True
         else:
-            raise NotImplementedError('Cannot establish task: time configuration not supported')
+            raise NotImplementedError('Cannot establish task: configuration not supported')
 
         # Update regularizing function:
         if reg is not None:
@@ -85,7 +105,7 @@ class ODEint(torch.nn.Module):
         return sol
 
     @abstractmethod
-    def __step__(self, term, t, X, dt):
+    def __step__(self, term, t, X,):
         '''
         Abstract method for performing a single integration step.
 
@@ -93,13 +113,14 @@ class ODEint(torch.nn.Module):
         - term: callable(t, x) - equation function, representing x'
         - t: current time
         - X: current state
-        - dt: time step
+        ===== dt: time step
 
         ### Output:
         - X_: updated state
         - LTE: local truncation error
         '''
         pass
+
 
     def reg(self, t, X):
         '''
@@ -114,12 +135,14 @@ class ODEint(torch.nn.Module):
         '''
         return X
 
+
     def __NullState__(self):
         '''
         Restore solver initial state.
         '''
         self.event_control = self.__event_control__
         self.step_control = self.__step_control__
+
 
     def step_control(self, nt):
         '''
@@ -133,6 +156,7 @@ class ODEint(torch.nn.Module):
         - dt: time step
         '''
         raise NotImplementedError('Step controller was not set during initialization')
+
 
     def __step_control__(self, nt):
         '''
@@ -161,6 +185,7 @@ class ODEint(torch.nn.Module):
         '''
         return False
 
+
     def __event_control__(self, nt):
         '''
         Default event control function.
@@ -182,20 +207,29 @@ class Euler(ODEint):
     def __init__(self):
         super().__init__()
 
-    def __step__(self, term, t, X, dt):
 
-        f0 = term(t, X)
-        X_ = X + f0 * dt
-        t_ = t + dt
+    def __step__(self, t, *Y):
+
+        f0 = self.__term__(t, *Y)
+        
+        Y_prev = copy(Y)
+        
+        for i, y_ in enumerate(Y):
+            y_ += f0[i] * self.dt
+
+        t_ = t + self.dt
+
+        # TODO:
+        # [ ] fix LTE evaluation  
 
         # Local truncation error
-        f1 = term(t_, X)
-        f2 = term(t, X_)
+        f1 = self.__term__(t_, *Y)
+        f2 = self.__term__(t, *Y)
         df_t = (f1 - f0) / dt
         df_x = (f2 - f0) / dt
         LTE = 0.5 * (dt ** 2) * (df_t + f0 * df_x)
 
-        return X_, LTE
+        return *Y, LTE
 
 
 class RKF23b(ODEint):
@@ -204,6 +238,7 @@ class RKF23b(ODEint):
     '''
 
     def __init__(self, N=5, varistep=False):
+        
         super().__init__()
         self.C = torch.Tensor([0.0, 0.25, 27 / 40, 1.0])
         self.A = torch.Tensor([
@@ -220,8 +255,10 @@ class RKF23b(ODEint):
         self.max_dt = 1e-2
         self.min_dt = 1e-6
 
+
     def step_control(self, t, X, LTE):
         self.h = self.h * 0.9 * torch.pow(self.eps / (LTE + self.eps * 1e-2), 0.2)
+
 
     def eof_dyn_dt(self, t, X, Y, LTE, dt):
         t_, dt = self.__step_control__(t, X, LTE)
@@ -237,12 +274,16 @@ class RKF23b(ODEint):
         else:
             return t, X, LTE
 
+
     def eof_const_dt(self, t, X, Y, LTE, dt):
+
         X_ = X + Y @ self.B
         t_ = t + dt
         return t_, X_, LTE
 
+
     def __step__(self, term, t, X):
+
         Y = torch.zeros(X.shape[0], 4)
         dt = self.h
         Y[:, 0] = term(t, X)  # 1 step
@@ -271,18 +312,27 @@ class Verlet(ODEint):
     def __init__(self):
         super().__init__()
 
-    def __step__(self, term, t, X, dt):
-        X_half = X + 0.5 * term(t, X) * dt
-        t_half = t + 0.5 * dt
+
+    def __step__(self,
+                 t,
+                 *Y
+                 ):
+
+        X_half = X + 0.5 * term(t, X) * self.dt
+        t_half = t + 0.5 * self.dt
         X_ = X + term(t_half, X_half) * dt
+
         LTE = torch.zeros_like(X)  # Verlet method does not provide LTE estimation
+
         return X_, LTE
+
 
 ODE_SCHEMES = {'RKF23b': RKF23b, 'Euler': Euler, 'Verlet': Verlet}
 
+
 def ODE(name='Euler', *args, **kwargs):
     '''
-    Factory function to create ODE integrator instances.
+    Factory method for creating ODE integrator instances.
 
     ### Input:
     - name: str - Name of the ODE integration method.

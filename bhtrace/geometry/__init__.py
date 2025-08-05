@@ -13,7 +13,7 @@ from .particle import *
 from .particle_zoo import *
 
 from .coordinates import *
-from .coord_systems import *
+from .coordinate_collection import *
 
 from .transformation import *
 from .transformation_collection import *

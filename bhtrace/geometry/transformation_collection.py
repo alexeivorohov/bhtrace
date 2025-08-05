@@ -2,6 +2,26 @@ from .transformation import *
 import torch
 
 
+class Ident(CoordinateTransformation):
+
+    def __init__(self):
+        '''
+        Ident transformation
+        '''
+
+    def __call__(self, X: torch.Tensor):
+
+        return X
+    
+    def jac(self, X: torch.Tensor):
+
+        return torch.eye(X.shape[-1]).repeat(*X.shape[:-1], 1, 1)
+
+    def tensor(self, X, A, valence = None):
+
+        return X, A
+
+
 class Cart2Sph(CoordinateTransformation):
 
     def __init__(self):

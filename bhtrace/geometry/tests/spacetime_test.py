@@ -141,6 +141,21 @@ class TestSpacetimeCollection(unittest.TestCase):
             self.assertTrue(torch.allclose(ref_conn, test_conn, atol=1e-5))
 
         pass
+    
+    def test_tetrad(self):
+
+        X = torch.randn(1, 1, 4)
+
+        for ST in self.ST_dict.values():
+
+            eta = torch.diag(torch.tensor([-1, 1, 1, 1]))
+
+            E = ST.tetrad(X)
+            g_recon = torch.einsum('...ab, ...bc, ... cd -> ...ad', E.swapaxes(-1, -2), eta, E)
+
+            # Check if close to g
+            if not torch.allclose(g, g_recon, atol=1e-5):
+                print("Warning: Reconstruction error in tetrad factorization.")
 
 
     def test_JIT(self):
