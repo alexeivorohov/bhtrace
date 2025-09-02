@@ -2,6 +2,7 @@ import torch
 from typing import Tuple, List, Dict, Any
 from abc import ABC, abstractmethod
 import inspect
+from tqdm import trange
 
 class ODEint(ABC):
     '''
@@ -20,6 +21,9 @@ class ODEint(ABC):
     '''
 
     __variable_step__ = False
+    __event_tracking__ = False
+    __supports_variable_step__ = False
+    __supports_event_tracking__ = False
 
     def __init__(self,
                  dt: float,
@@ -32,15 +36,10 @@ class ODEint(ABC):
         '''
         self.dt = dt
         self.eps = eps
+        self._lte_warning_shown = False
         
-        self.step_fn = None
-        if self.__variable_step__ and step_fn is not None:
-            self.step_fn = step_fn
-        elif step_fn is not None:
-            print('Variable step is not supported for this solver, skipping step_fn.')
-
-        self.event_fn = event_fn
-        self.__event_tracking__ = event_fn is not None
+        self.set_event(event_fn=event_fn)
+        self.set_stepping_strategy(step_fn=step_fn)
         
         self.term = None
         self.solution: Dict[str, List] = {}
@@ -50,18 +49,24 @@ class ODEint(ABC):
         self.Y0: Tuple[torch.Tensor, ...] | None = None
 
     def set_event(self, event_fn: callable):
-        self.event_fn = event_fn
-        self.__event_tracking__ = event_fn is not None
+        if self.__supports_event_tracking__ and event_fn is not None:
+            self.event_fn = event_fn
+            self.event_fn_signature = inspect.signature(event_fn).parameters
+            self.__event_tracking__ = True
 
     def set_stepping_strategy(self, step_fn: callable):
-        if self.__variable_step__ and step_fn is not None:
+        if self.__supports_variable_step__ and step_fn is not None:
             self.step_fn = step_fn
+            self.step_fn_signature = inspect.signature(step_fn).parameters
+            self.__variable_step__ = True
+
         else:
             print('Variable step is not supported for this solver, skipping.')
 
     def attach_task(self, term: callable, Y0: Tuple[torch.Tensor, ...], t0: float):
         self.term = term
         self.ntensors = len(Y0)
+        self.batch_dimension = Y0[0].shape[0]
         self.Y0 = Y0
         self.t0 = t0
         self.t = t0
@@ -69,28 +74,28 @@ class ODEint(ABC):
         self.solution = {'t': [], 'Y': [], 'LTE': []}
 
     def __post_step__(self, t: float, Y: Tuple[torch.Tensor, ...], dY: Tuple[torch.Tensor, ...], lte: Any) -> bool:
+        
         stop = False
-        if self.__event_tracking__ and self.event_fn is not None:
-            params = inspect.signature(self.event_fn).parameters
+        if self.__event_tracking__:
             args = {}
-            if 't' in params: args['t'] = t
-            if 'Y' in params: args['Y'] = Y
-            if 'dY' in params: args['dY'] = dY
-            if 'lte' in params: args['lte'] = lte
+            if 't' in self.event_fn_signature: args['t'] = t
+            if 'Y' in self.event_fn_signature: args['Y'] = Y
+            if 'dY' in self.event_fn_signature: args['dY'] = dY
+            if 'lte' in self.event_fn_signature: args['lte'] = lte
             
             mask = self.event_fn(**args)
             if torch.any(mask):
-                print(f"Event detected at t={t}. Stopping.")
+                # TODO: This print statement is not ideal for batch processing
+                # print(f"Event detected at t={t}. Stopping.")
                 stop = True
 
-        if self.__variable_step__ and self.step_fn is not None:
-            params = inspect.signature(self.step_fn).parameters
-            args = {'dt': self.dt, 'eps': self.eps}
-            if 't' in params: args['t'] = t
-            if 'Y' in params: args['Y'] = Y
-            if 'dY' in params: args['dY'] = dY
-            if 'LTE' in params: args['LTE'] = lte
-
+        if self.__variable_step__:
+            args = {'dt': self.dt}
+            if 't' in self.step_fn_signature: args['t'] = t
+            if 'Y' in self.step_fn_signature: args['Y'] = Y
+            if 'dY' in self.step_fn_signature: args['dY'] = dY
+            if 'LTE' in self.step_fn_signature: args['LTE'] = lte
+            args['eps'] = self.eps
             self.dt = self.step_fn(**args)
         
         return stop
@@ -104,7 +109,7 @@ class ODEint(ABC):
 
         y = self.Y0
 
-        for i in range(n_steps):
+        for i in trange(n_steps):
             y_new, dY = self.__step__(self.t, y)
             lte = self.__LTE__(self.t, *y)
 
@@ -160,7 +165,9 @@ class Euler(ODEint):
         return Y_new, dY
 
     def __LTE__(self, t: float, *Y: torch.Tensor) -> None:
-        print("LTE calculation for Euler is not implemented.")
+        if not self._lte_warning_shown:
+            print("LTE calculation for Euler is not implemented.")
+            self._lte_warning_shown = True
         return None
 
 class RK4(ODEint):
@@ -177,5 +184,19 @@ class RK4(ODEint):
         return new_Y, k1
 
     def __LTE__(self, t: float, *Y: torch.Tensor) -> None:
-        print("LTE calculation for RK4 is not implemented.")
+        if not self._lte_warning_shown:
+            print("LTE calculation for RK4 is not implemented.")
+            self._lte_warning_shown = True
         return None
+    
+def ODE(method: str, *args, **kwargs) -> 'ODEint':
+        """
+        Factory method to create an ODE solver instance by name.
+        """
+        if method == 'Euler':
+            return Euler(*args, **kwargs)
+        elif method == 'RK4':
+            return RK4(*args, **kwargs)
+        else:
+            raise NotImplementedError(f"Solver '{method}' is not implemented.")
+

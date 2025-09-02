@@ -34,7 +34,7 @@ class Observer:
 
     def position_net(self, *args):
         '''
-        Generate and position net, prepare particle impulses
+        Position net, prepare particle impulses
         '''
 
         xyz = net(*args)        
@@ -42,7 +42,7 @@ class Observer:
         pass
 
     
-    def setup_geod_ic(self, particle: Particle, *args):
+    def setup_ic(self, particle: Particle, *args):
         
         P = None
 

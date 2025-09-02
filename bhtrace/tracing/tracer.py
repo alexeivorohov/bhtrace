@@ -4,11 +4,10 @@ import pickle
 import time
 from abc import abstractmethod
 from ..geometry import Spacetime, Particle
-from ..functional import ODE, print_status_bar
+from ..functional.odeint import ODEint, Euler, RK4
 
 
 class Tracer():
-
     '''
     Base class for tracing particle trajectories in a given spacetime.
     '''
@@ -16,109 +15,117 @@ class Tracer():
     def __init__(self, ode_method='Euler'):
         '''
         Initialize the Tracer with a specified ODE integration method.
-
         Parameters:
-        - ode_method: str - The ODE integration method to use (default: 'Euler').
+        - ode_method: str - The ODE integration method to use ('Euler', 'RK4').
         '''
-        self.odeint = ODE(ode_method)
+        if ode_method == 'Euler':
+            self.ode_solver_class = Euler
+        elif ode_method == 'RK4':
+            self.ode_solver_class = RK4
+        else:
+            raise NotImplementedError(f"ODE method '{ode_method}' not supported.")
 
     @abstractmethod
     def __term__(self,
-                 t,
+                 t: float,
                  X: torch.Tensor,
                  P: torch.Tensor
-                 ):
+                 ) -> tuple[torch.Tensor, torch.Tensor]:
         '''
         Abstract method to define the term for ODE integration.
-
+        This function should be vectorized to handle batches of particles.
         Parameters:
         - t: float - The current time.
-        - XP: torch.Tensor - The current state vector (position and momentum).
-
+        - X: torch.Tensor [batch_size, 4] - Current positions.
+        - P: torch.Tensor [batch_size, 4] - Current momenta.
         Returns:
-        - torch.Tensor: The term for ODE integration.
+        - tuple[torch.Tensor, torch.Tensor]: A tuple (dX, dP) representing the derivatives.
         '''
         pass
 
     def evnt(self,
-             t,
-             X: torch.Tensor,
-             P: torch.Tensor
-             ):
-
-        # cr1 = self.particle.crit(XP[:4], XP[4:])
-        cr1 = torch.less(self.max_proper_t, XP[0])
-        cr2 = torch.less(self.r_max, torch.abs(XP[1]))
-        # integration continues while function returns false
-        return cr1 + cr2
+             t: float,
+             X: torch.Tensor, 
+             P: torch.Tensor,
+             ) -> torch.Tensor:
+        '''
+        Event function to stop integration. Operates on a batch of particles.
+        Integration stops for a particle if the function returns True for it.
+        Parameters:
+        - t: float - The current time.
+        - X: torch.Tensor [batch_size, 4] - Current positions.
+        - P: torch.Tensor [batch_size, 4] - Current momenta.
+        Returns:
+        - torch.Tensor [batch_size]: A boolean tensor, True where integration should stop.
+        '''
+        # Stop if radial coordinate > r_max or proper time > max_proper_t
+        cr1 = torch.greater(X[:, 0], self.max_proper_t)
+        cr2 = torch.greater(torch.abs(X[:, 1]), self.r_max)
+        return cr1 | cr2
 
     def forward(self,
                 particle: Particle,
                 X0: torch.Tensor,
                 P0: torch.Tensor,
-                T,
-                nsteps=128,
-                r_max=30.0,
-                max_proper_t=500.0,
-                dev='cpu',
-                eps=1e-3):
+                T: float,
+                nsteps: int = 128,
+                r_max: float = 30.0,
+                max_proper_t: float = 500.0,
+                dev: str = 'cpu',
+                eps: float = 1e-3):
         '''
-        Trace particle trajectories.
-
+        Trace particle trajectories in parallel.
         Parameters:
         - particle: Particle - The particle to trace.
         - X0: torch.Tensor [n, 4] - Initial positions.
-        - P0: torch.Tensor [n, 4] - Initial impulses.
+        - P0: torch.Tensor [n, 4] - Initial momenta.
         - T: float - Simulation time on observer's clock.
-        - nsteps: int - Number of steps per trajectory (default: 128).
-        - r_max: float - Distance from center, on which computation should be stopped (default: 30.0).
-        - max_proper_t: float - Particle proper time, on which computation should be stopped (default: 500.0).
-        - dev: str - Device to perform computation (default: 'cpu').
-        - eps: float - Parameter for numerical differentiation (default: 1e-3).
-
+        - nsteps: int - Number of steps per trajectory.
+        - r_max: float - Distance from center to stop computation.
+        - max_proper_t: float - Particle proper time to stop computation.
+        - dev: str - Device to perform computation on.
+        - eps: float - Parameter for numerical differentiation.
         Returns:
-        - tuple: (X, P) where X is the positions and P is the impulses.
+        - tuple: (X, P) where X and P are tensors of shape (nsteps+1, n, 4).
         '''
-
         self.particle = particle
         self.spc = particle.spacetime
-
-        self.Nt = nsteps
         self.Ni = X0.shape[0]
         self.eps = eps
 
+        # Move initial conditions to the target device
+        X0 = X0.to(dev)
+        P0 = P0.to(dev)
+
+        # Setup stopping conditions
         self.r_max = torch.tensor([r_max], device=dev)
         self.max_proper_t = torch.tensor([max_proper_t], device=dev)
 
-        self.X = torch.zeros(nsteps, self.Ni, 4, device=dev)
-        self.P = torch.zeros(nsteps, self.Ni, 4, device=dev)
-        self.X[0, :, :] = X0
-        self.P[0, :, :] = P0
-
-        T0 = torch.tensor([0.0], device=dev)
-
+        # --- Vectorized Integration ---
+        dt = T / nsteps
+        odeint = self.ode_solver_class(dt=dt, event_fn=self.evnt)
+        
+        print(f"Starting vectorized integration of {self.Ni} particles with {self.ode_solver_class.__name__}...")
         start_time = time.time()
 
-        print_status_bar(0, self.Ni, 0)
+        solution = odeint.forward(
+            term=self.__term__,
+            Y0=(X0, P0),
+            t0=0.0,
+            n_steps=nsteps
+        )
 
-        for n in range(self.Ni):
+        elapsed_time = time.time() - start_time
+        print(f"Integration finished in {elapsed_time:.2f} seconds.")
 
-            XP0 = torch.cat((X0[n], P0[n]))
-            sol = self.odeint.forward(
-                term=self.__term__,
-                X0=XP0,
-                T=(0.0, T),
-                nsteps=nsteps,
-                event_fn=self.evnt,
-                reg=self.reg
-            )
+        # Process results
+        # solution['Y'] is a list of tuples [(X0, P0), (X1, P1), ...]
+        # We stack them to get tensors of shape (nsteps+1, batch_size, 4)
+        x_steps = [item[0] for item in solution['Y']]
+        p_steps = [item[1] for item in solution['Y']]
 
-            self.X[:, n, :] = sol['X'][:, :4]
-            self.P[:, n, :] = sol['X'][:, 4:]
-            elapsed_time = time.time() - start_time
-            print_status_bar(n + 1, self.Ni, elapsed_time)
-        
-        print('')
+        self.X = torch.stack(x_steps)
+        self.P = torch.stack(p_steps)
 
         return self.X, self.P
 
@@ -177,22 +184,23 @@ class MockTracer(Tracer):
         self.name = self.__class__.__name__
         super().__init__(ode_method)
 
-    def __term__(self, t, XP):
+    def __term__(self, t, X, P):
         '''
         Define the term for ODE integration.
 
         Parameters:
-        - t: float - The current time.
-        - XP: torch.Tensor - The current state vector (position and momentum).
+        - t: float - The current time
+        - X: torch.Tensor - Current coordinates
+        - P: torch.Tensor - Current momentum
 
         Returns:
-        - torch.Tensor: The term for ODE integration.
+        - Tuple[torch.Tensor]: The term for ODE integration.
         '''
 
-        dX = self.spc.ginv(XP[:4]) @ XP[4:]
-        dP = -self.particle.dHmlt(XP[:4], XP[4:], self.eps)
+        dX = self.spc.ginv(X) @ P
+        dP = -self.particle.dHmlt(X, P, self.eps)
 
-        return torch.cat((dX, dP))
+        return (dX, dP)
 
 
     def evnt(self,
@@ -204,8 +212,10 @@ class MockTracer(Tracer):
         Event function for ODE integration.
 
         Parameters:
-        - t: float - The current time.
-        - XP: torch.Tensor - The current state vector (position and momentum).
+        - t: float - The current time
+        - X: torch.Tensor - Current coordinates
+        - P: torch.Tensor - Current momentum
+
 
         Returns:
         - bool: Whether the event condition is met.
@@ -213,29 +223,4 @@ class MockTracer(Tracer):
         return False
 
 
-    def reg(self,
-            t,
-            X,
-            P
-            ):
-        '''
-        Regularization function for ODE integration.
 
-        Parameters:
-        - t: float - The current time.
-        - XP: torch.Tensor - The current state vector (position and momentum).
-
-        Returns:
-        - torch.Tensor: The regularized state vector.
-        '''
-        return XP
-    
-    
-    def evaluate(self, 
-                 X,
-                 P
-                 ):
-        '''
-        
-        '''
-        return NotImplementedError

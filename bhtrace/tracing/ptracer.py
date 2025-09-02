@@ -5,7 +5,6 @@ This file contains description of hamiltonian ray-tracer, which uses general cov
 
     dp^{i}/dt = - dH/dx^{i}
 
-
 '''
 
 import torch
@@ -74,11 +73,12 @@ class PTracer(Tracer):
                 P: torch.Tensor
                 ):
 
-        ginvX = self.spc.ginv(XP[..., :4])
+        ginvX = self.spc.ginv(X)
+
         # dX^mu = g^{mu nu} P_nu 
         # dP_nu = - partial_nu H
-        dX = torch.einsum('...uv, ...u -> ...v', ginvX, XP[..., 4: ])
-        dP = - self.particle.dHmlt(XP[..., :4], XP[..., 4:], self.eps)
+        dX = torch.einsum('...uv, ...u -> ...v', ginvX, P)
+        dP = - self.particle.dHmlt(X, P, self.eps)
         
         return torch.cat((dX, dP))
     
@@ -96,8 +96,8 @@ class PTracer(Tracer):
 
             g^{ik} p_i p_k
         '''
-        X = XP[..., :4]
-        P = XP[..., 4:]
+        # Should be moved to Photon class
+  
         ginvX = self.spc.ginv(X)
         
         outp = torch.einsum('...uv, ...u, ...v -> ...', ginvX, P, P)

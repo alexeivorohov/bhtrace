@@ -1,100 +1,27 @@
 import torch
-import time
 
 from ..geometry import Spacetime, Particle
 from .tracer import Tracer
-from ..functional import print_status_bar, ODE
 
 class CTracer(Tracer):
 
-  def __init__(self, ode_method='Euler'):
+  def __init__(self, ode_method='RK4'):
 
     self.name = 'CTracer'
     self.m_param = None
     super().__init__(ode_method=ode_method)
 
 
-    pass
+  def __term__(self, 
+               t: float, 
+               X: torch.Tensor, 
+               P: torch.Tensor
+               ) -> tuple[torch.Tensor, torch.Tensor]:
 
-  
-  def reg(self, t, XP):
-
-    return XP
-
-
-  def __term__(self, t, XP):
-
-    X, P = XP[:4], XP[4:]
     G_ = self.spc.conn(X)
 
     dX = P
-    dP = - G_ @ P @ P
+    # Contract Christoffel symbols: dP_i = - G^j_ik P_j P_k
+    dP = -torch.einsum('...jik,...j,...k->...i', G_, P, P)
 
-    return torch.cat([dX, dP]).view(8)
-  
-        
-  # def forward(self, 
-  #   particle: Particle,
-  #   X0, 
-  #   P0,
-  #   T,
-  #   nsteps = 128,
-  #   r_max = 30.0,
-  #   max_proper_t=500.0,
-  #   dev = 'cpu',
-  #   ):
-  #   '''
-    
-  #   '''
-
-  #   self.particle = particle
-  #   self.spc = particle.spacetime
-
-
-  #   self.Nt = nsteps
-  #   self.Ni = X0.shape[0]
-  #   self.X = torch.zeros(nsteps, self.Ni, 4)
-  #   self.P = torch.zeros(nsteps, self.Ni, 4)
-  #   self.X[0, :, :] = X0
-  #   self.P[0, :, :] = P0
-
-  #   N_tr = X0.shape[0]
-  #   XP0 = torch.cat([X0, P0], axis=1)
-  #   print(XP0.shape)
-
-    # # Задаём тензор начальных времён
-    # t_eval = torch.linspace(0, T, nsteps).reshape(1, -1)
-
-    # # Инициализируем ДУ из нашей функции
-    # term = tode.ODETerm(self.__term__)
-
-    # # Отправляем тензор начальных условий и временную сетку в память устройства,
-    # # на котором хотим производить вычисления
-    # XP0.to(dev)
-    # t_eval.to(dev)
-
-    # # Выбираем решатель и контроллер шага
-    # step_method = tode.Dopri5(term=term)
-    # step_size_controller = tode.IntegralController(atol=1e-6, rtol=1e-3)
-
-    # solver = tode.AutoDiffAdjoint(step_method, step_size_controller)
-    # dt0 = torch.full((1,), 0.01)
-
-    # # Выполняем jit-компиляцию кода решателя напрямую в машинный код, чтобы
-    # # избежать затрат на интерпретацию при каждом вызове
-    # solver = torch.compile(solver)
-
-    # start_time = time.time()
-    
-    # for i in range(self.Ni):
-    #   Y0 = XP0[i, :].view(1, 8)
-    #   sol = solver.solve(tode.InitialValueProblem(y0=Y0, t_eval=t_eval), dt0=dt0)
-
-    #   self.X[:, i, :] = sol.ys[0, :, :4]
-    #   self.P[:, i, :] = sol.ys[0, :, 4:]
-    #   elapsed_time = time.time() - start_time
-    #   print_status_bar(i, self.Ni, elapsed_time)
-
-    # print('\n Done!')
-
-    # return self.X, self.P
+    return dX, dP

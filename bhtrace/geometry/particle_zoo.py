@@ -1,6 +1,7 @@
 import torch
 from .particle import Particle
 from .spacetime import Spacetime
+from ..functional.diff import Grad
 
 
 class Photon(Particle):
@@ -28,20 +29,13 @@ class Photon(Particle):
 
 
     def dHmlt(self, X, P, eps):
+        # Wrapper for the Hamiltonian to match the signature expected by Grad
+        hmlt_func = lambda x: self.Hmlt(x, P)
 
-        dim = X.shape[-1]
-
-        dH = torch.zeros(*X.shape)
-        dX = torch.eye(dim).view(*[1] * (X.ndim-1), dim, dim)
-
-        hmlt = self.Hmlt(X, P)
-
-        dH[..., 0] = (self.Hmlt(X + dX[..., 0], P) - hmlt)/eps
-        dH[..., 1] = (self.Hmlt(X + dX[..., 1], P) - hmlt)/eps
-        dH[..., 2] = (self.Hmlt(X + dX[..., 2], P) - hmlt)/eps
-        dH[..., 3] = (self.Hmlt(X + dX[..., 3], P) - hmlt)/eps
-
-        return dH
+        # Use 2nd order central difference gradient from functional.diff
+        grad_calculator = Grad(hmlt_func, eps=eps, order=2)
+        
+        return grad_calculator(X)
 
 
     def GetNullMomentum(self,

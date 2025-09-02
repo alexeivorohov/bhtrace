@@ -16,7 +16,6 @@ from .graphics import *
 # [x] Routines documentation
 # [ ] Routines unittests
 # [x] Odeint baseclass
-# [ ] Ode schemes
+# [X] Ode schemes
 # [ ] Documentation
 # [ ] Unittests
-# [ ] Rewrite net generation functionality as separate class
