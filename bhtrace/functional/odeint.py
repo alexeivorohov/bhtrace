@@ -1,347 +1,181 @@
 import torch
-import torch.jit as jit
+from typing import Tuple, List, Dict, Any
 from abc import ABC, abstractmethod
+import inspect
 
-class ODEint:
+class ODEint(ABC):
     '''
-    Base class for ODE integration methods.
+    Base class for all ODE solvers. An instance of a solver can be reused for different ODE problems.
 
-    Main methods:
+    An example of an event_fn that stops integration when the first component of Y crosses 0.0:
+    def event_fn(t, Y):
+        return Y[0] > 0.0
 
-    - forward - solves ODE for given i.c.
-    - __step__ - stepping method, which is defined by implementation
-    - 
+    An example of a step_fn for adaptive step size control (e.g., for Euler):
+    def step_fn(dt, LTE, eps):
+        if LTE is None or LTE <= 0:
+            return dt
+        safety_factor = 0.9
+        return dt * safety_factor * (eps / LTE)**0.5
     '''
 
-    def __init__(self):
+    __variable_step__ = False
 
-        # super().__init__() # N: No super class!
-        self.__native_dyn_dt__ = False
-        self.outX = None
-        self.LTE = None
-        self.t_s = None
-
-
-    def forward(self,
-                term,
-                X0: torch.Tensor, 
-                T=None,
-                tspan=None,
-                dt=0.15, 
-                nsteps=128, 
-                eps=1e-3, 
-                event_fn=None, 
-                step_fn=None, 
-                variable_step=False, 
-                reg=None
-                ):
+    def __init__(self,
+                 dt: float,
+                 step_fn: callable = None,
+                 event_fn: callable = None,
+                 eps: float = 1e-3,
+                 ):
         '''
-        Solving first-order ODE, defined by f(t, X) = X' for given initial conditions T0, X0
-
-        ### Input:
-        - term: callable(t, *X) - equation function, representing x'
-        - X0: initial conditions
-        only one of the followed must be specified:
-        - T: tuple (T0, T1), nsteps
-        - tspan: time grid, default - None
-
-        Other options:
-        - event_fn: callable(t, *X) - event function, f <= 0 - integration stops
-        - step_fn: callable(t, LTE, *X) - step-controlling function.
-
-        ### Output format: 
-        - sol: dict, keywords
-            sol['X'] - coordinates of the solution, shape[nt, dim]
-            sol['T'] - time grid of the solution(s)
-            sol['LTE'] - local truncation error on each time step
-        if tracking events:
-            sol['event_T'] - time of the event (-1 if not achieved)
+        Initializes the ODE solver with task-independent parameters.
         '''
-        self.__NullState__()
-
-        # Determine stepping strategy
-        if tspan is not None:
-            self.t_s = tspan
-            variable_step = False
-        elif T is not None:
-            self.t_s = torch.linspace(T[0], T[1], nsteps)
-        elif variable_step and self.__native_dyn_dt__ is not None:
-            self.step_control = self.__native_dyn_dt__
-            self.t_s = torch.zeros(nsteps)
+        self.dt = dt
+        self.eps = eps
+        
+        self.step_fn = None
+        if self.__variable_step__ and step_fn is not None:
+            self.step_fn = step_fn
         elif step_fn is not None:
-            self.step_control = step_fn
-            variable_step = True
+            print('Variable step is not supported for this solver, skipping step_fn.')
+
+        self.event_fn = event_fn
+        self.__event_tracking__ = event_fn is not None
+        
+        self.term = None
+        self.solution: Dict[str, List] = {}
+        self.ntensors = 0
+        self.step_n = 0
+        self.t = 0.0
+        self.Y0: Tuple[torch.Tensor, ...] | None = None
+
+    def set_event(self, event_fn: callable):
+        self.event_fn = event_fn
+        self.__event_tracking__ = event_fn is not None
+
+    def set_stepping_strategy(self, step_fn: callable):
+        if self.__variable_step__ and step_fn is not None:
+            self.step_fn = step_fn
         else:
-            raise NotImplementedError('Cannot establish task: configuration not supported')
+            print('Variable step is not supported for this solver, skipping.')
 
-        # Update regularizing function:
-        if reg is not None:
-            self.reg = reg
+    def attach_task(self, term: callable, Y0: Tuple[torch.Tensor, ...], t0: float):
+        self.term = term
+        self.ntensors = len(Y0)
+        self.Y0 = Y0
+        self.t0 = t0
+        self.t = t0
+        self.step_n = 0
+        self.solution = {'t': [], 'Y': [], 'LTE': []}
 
-        # Read event_fn
-        if event_fn is not None:
-            self.event_control = event_fn
+    def __post_step__(self, t: float, Y: Tuple[torch.Tensor, ...], dY: Tuple[torch.Tensor, ...], lte: Any) -> bool:
+        stop = False
+        if self.__event_tracking__ and self.event_fn is not None:
+            params = inspect.signature(self.event_fn).parameters
+            args = {}
+            if 't' in params: args['t'] = t
+            if 'Y' in params: args['Y'] = Y
+            if 'dY' in params: args['dY'] = dY
+            if 'lte' in params: args['lte'] = lte
+            
+            mask = self.event_fn(**args)
+            if torch.any(mask):
+                print(f"Event detected at t={t}. Stopping.")
+                stop = True
 
-        # Pre-definitions
-        self.dim = X0.shape[0]
-        self.outX = torch.zeros(nsteps, self.dim)
-        self.LTE = torch.zeros(nsteps, self.dim)
-        event_T = -1
+        if self.__variable_step__ and self.step_fn is not None:
+            params = inspect.signature(self.step_fn).parameters
+            args = {'dt': self.dt, 'eps': self.eps}
+            if 't' in params: args['t'] = t
+            if 'Y' in params: args['Y'] = Y
+            if 'dY' in params: args['dY'] = dY
+            if 'LTE' in params: args['LTE'] = lte
 
-        self.outX[0, :] = X0
+            self.dt = self.step_fn(**args)
+        
+        return stop
 
-        # Solving loop
-        for nt in range(nsteps - 1):
-            t, dt = self.step_control(nt)
-            if self.event_control(t=t, XP=self.outX[nt, :]):
-                self.outX[nt:, :] = self.outX[nt, :]
-                event_T = self.t_s[nt]
+    def solve(self, n_steps: int) -> Dict[str, List]:
+        if self.term is None or self.Y0 is None:
+            raise RuntimeError("No task attached. Call attach_task() before solve().")
+
+        self.solution['t'].append(self.t0)
+        self.solution['Y'].append(self.Y0)
+
+        y = self.Y0
+
+        for i in range(n_steps):
+            y_new, dY = self.__step__(self.t, y)
+            lte = self.__LTE__(self.t, *y)
+
+            self.t += self.dt
+            self.step_n += 1
+            
+            self.solution['t'].append(self.t)
+            self.solution['Y'].append(y_new)
+            if lte is not None:
+                self.solution['LTE'].append(lte)
+
+            if self.__post_step__(self.t, y_new, dY, lte):
                 break
-            self.outX[nt, :] = self.reg(t, self.outX[nt, :])
-            self.outX[nt + 1, :], self.LTE[nt + 1, :] = self.__step__(term=term, t=t, X=self.outX[nt, :], dt=dt)
+            
+            y = y_new
+        
+        return self.solution
 
-        sol = {'X': self.outX, 'T': self.t_s, 'LTE': self.LTE, 'event_T': event_T}
-
-        return sol
+    def forward(self, term: callable, Y0: Tuple[torch.Tensor, ...], t0: float, n_steps: int) -> Dict[str, List]:
+        self.attach_task(term, Y0, t0)
+        return self.solve(n_steps)
 
     @abstractmethod
-    def __step__(self, term, t, X,):
-        '''
-        Abstract method for performing a single integration step.
-
-        ### Input:
-        - term: callable(t, x) - equation function, representing x'
-        - t: current time
-        - X: current state
-        ===== dt: time step
-
-        ### Output:
-        - X_: updated state
-        - LTE: local truncation error
-        '''
+    def __step__(self, t: float, Y: Tuple[torch.Tensor, ...]) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
         pass
 
+    @abstractmethod
+    def __LTE__(self, t: float, *Y: torch.Tensor) -> torch.Tensor:
+        pass
 
-    def reg(self, t, X):
-        '''
-        Regularization function for the state.
+    def state_dict(self) -> Dict[str, Any]:
+        return {
+            'dt': self.dt,
+            'eps': self.eps,
+            'step_n': self.step_n,
+            't': self.t,
+            'solution': self.solution,
+            'ntensors': self.ntensors,
+        }
 
-        ### Input:
-        - t: current time
-        - X: current state
-
-        ### Output:
-        - X: regularized state
-        '''
-        return X
-
-
-    def __NullState__(self):
-        '''
-        Restore solver initial state.
-        '''
-        self.event_control = self.__event_control__
-        self.step_control = self.__step_control__
-
-
-    def step_control(self, nt):
-        '''
-        Step control function.
-
-        ### Input:
-        - nt: current step index
-
-        ### Output:
-        - t: current time
-        - dt: time step
-        '''
-        raise NotImplementedError('Step controller was not set during initialization')
-
-
-    def __step_control__(self, nt):
-        '''
-        Default step control function.
-
-        ### Input:
-        - nt: current step index
-
-        ### Output:
-        - t: current time
-        - dt: time step
-        '''
-        dt = self.t_s[nt + 1] - self.t_s[nt]
-        return self.t_s[nt], dt
-
-    def event_control(self, t, X):
-        '''
-        Event control function.
-
-        ### Input:
-        - t: current time
-        - X: current state
-
-        ### Output:
-        - bool: whether the event condition is met
-        '''
-        return False
-
-
-    def __event_control__(self, nt):
-        '''
-        Default event control function.
-
-        ### Input:
-        - nt: current step index
-
-        ### Output:
-        - bool: whether the event condition is met
-        '''
-        return False
-
+    def load_state_dict(self, state_dict: Dict[str, Any]):
+        self.dt = state_dict['dt']
+        self.eps = state_dict['eps']
+        self.step_n = state_dict['step_n']
+        self.t = state_dict['t']
+        self.solution = state_dict['solution']
+        self.ntensors = state_dict['ntensors']
 
 class Euler(ODEint):
-    '''
-    Euler integration method.
-    '''
+    def __step__(self, t: float, Y: Tuple[torch.Tensor, ...]) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        dY = self.term(t, *Y)
+        Y_new = tuple(Y[i] + dY[i] * self.dt for i in range(self.ntensors))
+        return Y_new, dY
 
-    def __init__(self):
-        super().__init__()
+    def __LTE__(self, t: float, *Y: torch.Tensor) -> None:
+        print("LTE calculation for Euler is not implemented.")
+        return None
 
+class RK4(ODEint):
+    def __step__(self, t: float, Y: Tuple[torch.Tensor, ...]) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        dt = self.dt
+        k1 = self.term(t, *Y)
+        Y_k2 = tuple(Y[i] + k1[i] * dt / 2.0 for i in range(self.ntensors))
+        k2 = self.term(t + dt / 2.0, *Y_k2)
+        Y_k3 = tuple(Y[i] + k2[i] * dt / 2.0 for i in range(self.ntensors))
+        k3 = self.term(t + dt / 2.0, *Y_k3)
+        Y_k4 = tuple(Y[i] + k3[i] * dt for i in range(self.ntensors))
+        k4 = self.term(t + dt, *Y_k4)
+        new_Y = tuple(Y[i] + (k1[i] + 2*k2[i] + 2*k3[i] + k4[i]) * dt / 6.0 for i in range(self.ntensors))
+        return new_Y, k1
 
-    def __step__(self, t, *Y):
-
-        f0 = self.__term__(t, *Y)
-        
-        Y_prev = copy(Y)
-        
-        for i, y_ in enumerate(Y):
-            y_ += f0[i] * self.dt
-
-        t_ = t + self.dt
-
-        # TODO:
-        # [ ] fix LTE evaluation  
-
-        # Local truncation error
-        f1 = self.__term__(t_, *Y)
-        f2 = self.__term__(t, *Y)
-        df_t = (f1 - f0) / dt
-        df_x = (f2 - f0) / dt
-        LTE = 0.5 * (dt ** 2) * (df_t + f0 * df_x)
-
-        return *Y, LTE
-
-
-class RKF23b(ODEint):
-    '''
-    Runge-Kutta-Fehlberg 2(3) integration method.
-    '''
-
-    def __init__(self, N=5, varistep=False):
-        
-        super().__init__()
-        self.C = torch.Tensor([0.0, 0.25, 27 / 40, 1.0])
-        self.A = torch.Tensor([
-            [0.0, 0.0, 0.0, 0.0],
-            [0.25, 0.0, 0.0, 0.0],
-            [-189 / 800, 729 / 800, 0.0, 0.0],
-            [214 / 891, 1 / 33, 650 / 891, 0.0]
-        ])
-        self.B = torch.Tensor([214 / 891, 1 / 33, 650 / 891, 0.0])
-        self.E = torch.Tensor([41 / 162, 0.0, 800 / 1053, -1 / 78])
-        self.E = self.E - self.B
-        self.h = 0.05
-
-        self.max_dt = 1e-2
-        self.min_dt = 1e-6
-
-
-    def step_control(self, t, X, LTE):
-        self.h = self.h * 0.9 * torch.pow(self.eps / (LTE + self.eps * 1e-2), 0.2)
-
-
-    def eof_dyn_dt(self, t, X, Y, LTE, dt):
-        t_, dt = self.__step_control__(t, X, LTE)
-        if LTE < self.eps:
-            X_ = X + Y @ self.B
-            t_ = t + dt
-            self.N = 10
-            return t_, X_, LTE
-        elif self.N > 0:
-            self.N -= 1
-            self.h = dt * 0.9 * torch.pow(self.eps / (LTE + self.eps * 1e-2), 0.2)
-            return self.__step__(term, t, X)
-        else:
-            return t, X, LTE
-
-
-    def eof_const_dt(self, t, X, Y, LTE, dt):
-
-        X_ = X + Y @ self.B
-        t_ = t + dt
-        return t_, X_, LTE
-
-
-    def __step__(self, term, t, X):
-
-        Y = torch.zeros(X.shape[0], 4)
-        dt = self.h
-        Y[:, 0] = term(t, X)  # 1 step
-
-        dX1 = self.A[1, 0] * Y[:, 0] * dt
-        dT1 = self.C[1] * dt
-        Y[:, 1] = term(t + dT1, X + dX1)  # 2 step
-
-        dX2 = (self.A[2, 0] * Y[:, 0] + self.A[2, 1] * Y[:, 1]) * dt
-        dT2 = self.C[2] * dt
-        Y[:, 2] = term(t + dT2, X + dX2)  # 3 step
-
-        dX3 = (self.A[3, 0] * Y[:, 0] + self.A[3, 1] * Y[:, 1] + self.A[3, 2] * Y[:, 2]) * dt
-        dT3 = self.C[3] * dt
-        Y[:, 3] = term(t + dT3, X + dX3)  # 4 step
-
-        LTE = torch.linalg.vector_norm(Y @ self.E, ord=1)
-
-        return self.eof(t, X, Y, LTE, dt)
-
-class Verlet(ODEint):
-    '''
-    Verlet integration method.
-    '''
-
-    def __init__(self):
-        super().__init__()
-
-
-    def __step__(self,
-                 t,
-                 *Y
-                 ):
-
-        X_half = X + 0.5 * term(t, X) * self.dt
-        t_half = t + 0.5 * self.dt
-        X_ = X + term(t_half, X_half) * dt
-
-        LTE = torch.zeros_like(X)  # Verlet method does not provide LTE estimation
-
-        return X_, LTE
-
-
-ODE_SCHEMES = {'RKF23b': RKF23b, 'Euler': Euler, 'Verlet': Verlet}
-
-
-def ODE(name='Euler', *args, **kwargs):
-    '''
-    Factory method for creating ODE integrator instances.
-
-    ### Input:
-    - name: str - Name of the ODE integration method.
-    - *args, **kwargs: Additional arguments for the ODE integrator.
-
-    ### Output:
-    - ODEint: Instance of the specified ODE integration method.
-    '''
-    if name in ODE_SCHEMES:
-        return ODE_SCHEMES[name](*args, **kwargs)
-    else:
-        raise ValueError(f"ODE scheme {name} is not known")
+    def __LTE__(self, t: float, *Y: torch.Tensor) -> None:
+        print("LTE calculation for RK4 is not implemented.")
+        return None
