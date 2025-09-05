@@ -3,8 +3,8 @@ import os
 import pickle
 import time
 from abc import abstractmethod
-from ..geometry import Spacetime, Particle
-from ..functional.odeint import ODEint, Euler, RK4
+from bhtrace.geometry import Spacetime, Particle
+from bhtrace.functional.odeint import ODEint, Euler, RK4
 
 
 class Tracer():

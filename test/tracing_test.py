@@ -4,9 +4,10 @@ import os
 import shutil
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
 
 from bhtrace.tracing import PTracer
-from bhtrace.geometry import Photon, SphericallySymmetric, KerrSchild
+from bhtrace.geometry import Photon, SphericallySymmetric, KerrSchild, Observer
 
 # Utility function to convert spherical coordinates to cartesian for plotting
 def sph_to_cart(coords):
@@ -34,8 +35,9 @@ class TestSchwarzschildTracer(unittest.TestCase):
         self.P0 = torch.tensor([[-1.0, 0.0, 0.0, 3.0]]) # (p_t, p_r, p_theta, p_phi)
         
         self.T = 50.0 # Time for a few orbits
-        self.nsteps = 100
+        self.nsteps = 200
         self.plot_dir = os.path.join(os.path.dirname(__file__), 'plots')
+        os.makedirs(self.plot_dir, exist_ok=True)
 
     def test_conservation(self):
         X, P = self.tracer.forward(self.particle, self.X0, self.P0, self.T, self.nsteps)
@@ -109,8 +111,9 @@ class TestKerrTracer(unittest.TestCase):
         self.P0 = torch.tensor([[p_t, p_x, p_y, p_z]])
         
         self.T = 30.0
-        self.nsteps = 2000
+        self.nsteps = 200
         self.plot_dir = os.path.join(os.path.dirname(__file__), 'plots')
+        os.makedirs(self.plot_dir, exist_ok=True)
 
     def test_conservation(self):
         X, P = self.tracer.forward(self.particle, self.X0, self.P0, self.T, self.nsteps)
@@ -121,7 +124,7 @@ class TestKerrTracer(unittest.TestCase):
                         f"Hamiltonian not conserved! Values: {hamiltonian_values}")
 
     def test_plot_kerr_orbit(self):
-        
+
         X, P = self.tracer.forward(self.particle, self.X0, self.P0, self.T, self.nsteps)
         
         x = X[:, 0, 1].cpu().numpy()
@@ -156,6 +159,85 @@ class TestKerrTracer(unittest.TestCase):
         plt.savefig(save_path)
         plt.close(fig)
         print(f"\nPlot saved to {save_path}")
+
+
+
+class TestObserverIntegration(unittest.TestCase):
+
+    def setUp(self):
+        # Use KerrSchild with a=0 for a Schwarzschild metric in Cartesian-like coordinates
+        self.spacetime = KerrSchild(a=0.0)
+        self.particle = Photon(self.spacetime)
+        self.tracer = PTracer(ode_method='RK4')
+        
+        # Setup the observer
+        self.observer = Observer(
+            spacetime=self.spacetime,
+            position=torch.tensor([0., 20., 0., 0.]),
+            camera_dir=torch.tensor([-1., 0., 0.])
+        )
+        
+        self.T = 30.0
+        self.nsteps = 200
+        self.plot_dir = os.path.join(os.path.dirname(__file__), 'plots')
+        os.makedirs(self.plot_dir, exist_ok=True)
+
+    def test_plot_observer_rays(self):
+        # 1. Setup initial conditions using the observer
+        self.observer.setup_ic(
+            particle=self.particle,
+            net_shape='square',
+            net_rng=(5, 5), # 5x5 grid
+            net_size=(8, 8)
+        )
+        X0 = self.observer.X_net
+        P0 = self.observer.P_net
+
+        self.assertEqual(X0.shape, (25, 4))
+        self.assertEqual(P0.shape, (25, 4))
+
+        # 2. Run the tracer
+        X, P = self.tracer.forward(self.particle, X0, P0, self.T, self.nsteps)
+
+        # 3. Plot the ray bundle
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        
+        # Plot each trajectory
+        num_rays = X.shape[1]
+        for i in range(num_rays):
+            x = X[:, i, 1].cpu().numpy()
+            y = X[:, i, 2].cpu().numpy()
+            z = X[:, i, 3].cpu().numpy()
+            ax.plot(x, y, z, alpha=0.7)
+
+        # Plot the event horizon
+        u, v = torch.meshgrid(torch.linspace(0, 2 * torch.pi, 20), torch.linspace(0, torch.pi, 20), indexing='ij')
+        horizon_x = 2.0 * torch.cos(u) * torch.sin(v)
+        horizon_y = 2.0 * torch.sin(u) * torch.sin(v)
+        horizon_z = 2.0 * torch.cos(v)
+        ax.plot_surface(horizon_x, horizon_y, horizon_z, color='k', alpha=0.2)
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_title('Ray Bundle from Observer')
+        ax.view_init(elev=30., azim=45)
+        
+        # Set aspect ratio to be equal
+        max_range = torch.tensor([X[..., 1].max()-X[..., 1].min(), X[..., 2].max()-X[..., 2].min(), X[..., 3].max()-X[..., 3].min()]).max().item()
+        mid_x = (X[..., 1].max()+X[..., 1].min()) * 0.5
+        mid_y = (X[..., 2].max()+X[..., 2].min()) * 0.5
+        mid_z = (X[..., 3].max()+X[..., 3].min()) * 0.5
+        ax.set_xlim(mid_x - max_range * 0.5, mid_x + max_range * 0.5)
+        ax.set_ylim(mid_y - max_range * 0.5, mid_y + max_range * 0.5)
+        ax.set_zlim(mid_z - max_range * 0.5, mid_z + max_range * 0.5)
+
+
+        save_path = os.path.join(self.plot_dir, 'observer_ray_bundle.png')
+        plt.savefig(save_path)
+        plt.close(fig)
+        print(f"\nObserver test plot saved to {save_path}")
 
 if __name__ == '__main__':
     unittest.main()

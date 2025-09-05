@@ -8,7 +8,7 @@ root_path = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
-from bhtrace.functional.routines import EulerRotation, points_generate, net, bisection, def_fspace, levi_civita_tensor, print_status_bar
+from bhtrace.functional.routines import EulerRotation, points_generate, net, bisection, def_fspace, levi_civita_tensor, print_status_bar, rotate_points_cloud
 
 class TestRoutines(unittest.TestCase):
 
@@ -111,6 +111,38 @@ class TestRoutines(unittest.TestCase):
         # Check if the output is close to the expected output
         self.assertTrue(torch.allclose(output, expected_output, atol=1e-4))
 
+
+    def test_rotate_point_cloud(self):
+        # Case 1: Simple 90-degree rotation
+        points1 = torch.tensor([[10., 5., 2.]])
+        dir_a1 = torch.tensor([1., 0., 0.])
+        dir_b1 = torch.tensor([0., 1., 0.])
+        rotated1 = rotate_points_cloud(points1, dir_a1, dir_b1)
+        expected1 = torch.tensor([[-5., 10., 2.]])
+        self.assertTrue(torch.allclose(rotated1, expected1, atol=1e-4))
+
+        # Case 2: Identity rotation (a == b)
+        points2 = torch.tensor([[1., 2., 3.]])
+        dir_a2 = torch.tensor([0., 1., 0.])
+        rotated2 = rotate_points_cloud(points2, dir_a2, dir_a2)
+        self.assertTrue(torch.allclose(rotated2, points2, atol=1e-4))
+
+        # Case 3: 180-degree rotation (anti-parallel)
+        points3 = torch.tensor([[10., 5., 2.]])
+        dir_a3 = torch.tensor([1., 0., 0.])
+        dir_b3 = torch.tensor([-1., 0., 0.])
+        rotated3 = rotate_points_cloud(points3, dir_a3, dir_b3)
+        expected3 = torch.tensor([[-10., -5., 2.]])
+        self.assertTrue(torch.allclose(rotated3, expected3, atol=1e-4))
+
+        # Case 4: Rotation with additional angle
+        points4 = torch.tensor([[10., 0., 0.]])
+        dir_a4 = torch.tensor([1., 0., 0.])
+        dir_b4 = torch.tensor([0., 1., 0.])
+        angle4 = np.pi / 2.0
+        rotated4 = rotate_points_cloud(points4, dir_a4, dir_b4, angle=angle4)
+        expected4 = torch.tensor([[0., 0., 10.]])
+        self.assertTrue(torch.allclose(rotated4, expected4, atol=1e-4))
 
 
 if __name__ == '__main__':

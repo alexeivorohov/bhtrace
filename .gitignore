@@ -15,3 +15,4 @@ environment.yml
 *.html
 /build
 /package-lock.json
+*.png

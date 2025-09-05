@@ -227,15 +227,15 @@ def print_status_bar(progress, total, elapsed_time):
     sys.stdout.flush()
 
 
-def rotate_point_cloud(points, dir_a, dir_b, angle=0.0):
+def rotate_points_cloud(points, dir_a, dir_b, gamma=0.0):
     """
-    Rotate a point cloud so that dir_a aligns with dir_b, then rotate around dir_b.
+    Rotate a point cloud so that dir_a aligns with dir_b, then rotate around dir_b by angle gamma.
 
     Args:
         points (torch.Tensor): Nx3 tensor of points.
         dir_a (torch.Tensor): Original orientation vector, shape (3,).
         dir_b (torch.Tensor): Target orientation vector, shape (3,).
-        angle (float): Additional rotation angle (radians) around dir_b.
+        gamma (float): Additional rotation angle (in radians) around dir_b.
 
     Returns:
         torch.Tensor: Rotated point cloud Nx3.
@@ -269,7 +269,7 @@ def rotate_point_cloud(points, dir_a, dir_b, angle=0.0):
 
     # Rotation matrix around dir_b by 'angle'
     axis_b = v2
-    R_rotate = rotation_matrix(axis_b, angle)
+    R_rotate = rotation_matrix(axis_b, gamma)
 
     # Combined rotation: first align, then rotate around dir_b
     R = R_rotate @ R_align
@@ -279,7 +279,7 @@ def rotate_point_cloud(points, dir_a, dir_b, angle=0.0):
     return rotated_points
 
 
-def rotation_matrix(axis, angle):
+def rotation_matrix(axis: torch.Tensor, angle: float):
     """
     Rodrigues' rotation formula for rotation matrix around a given axis.
 
@@ -290,6 +290,7 @@ def rotation_matrix(axis, angle):
     Returns:
         torch.Tensor: 3x3 rotation matrix.
     """
+    angle = torch.Tensor([angle])
     axis = axis / axis.norm()
     K = torch.tensor([[0, -axis[2], axis[1]],
                       [axis[2], 0, -axis[0]],

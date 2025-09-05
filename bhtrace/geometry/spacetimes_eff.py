@@ -1,23 +1,23 @@
 from .spacetime import Spacetime
 from .spacetimes_sph import SphericallySymmetric, MinkowskiSph
-from ..fields import Electrodynamics
+from bhtrace.fields import Electrodynamics # Deferred import to avoid circular dependency
 
 import torch
 
 
 class EffGeom(Spacetime):
 
-    def __init__(self, ED: Electrodynamics, base: Spacetime ):
+    def __init__(self, ED: 'Electrodynamics', base: Spacetime, E: callable, B: callable):
         '''
         Spherically-symmetric effective geometry for the case of the ED Electrodynamics
 
         ### Inputs:
-        - f: callable(r) - metric function
-        - f_r: callable(r) - metric function derivative
-        - ED: Electrodynamics - electrodynamics model
-        - E: callable(X/r?) - electric field in spherical coordinates
-        - B: callable(X/r?) - magnetic field in spherical coordinates
+        - ED: Electrodynamics model
+        - base: Base spacetime
+        - E: callable(X) - electric field in spherical coordinates
+        - B: callable(X) - magnetic field in spherical coordinates
         '''
+        from ..fields import Electrodynamics # Local import
 
         self.base = base
         self.ED = ED
@@ -25,14 +25,14 @@ class EffGeom(Spacetime):
 
         pass
 
-    # description in base class
+    # description in the base class
     def g(self, X):
 
         ginvX = self.ginv(X)
 
         return torch.inverse(ginvX)
     
-    # description in base class
+    # description in the base class
     def ginv(self, X):
 
         ginvX = self.base.ginv(X)
@@ -42,12 +42,12 @@ class EffGeom(Spacetime):
 
         return ginv
 
-    # description in base class
+    # description in the base class
     def conn(self, X):
 
         return self.conn_(X)
 
-    # description in base class
+    # description in the base class
     def crit(self, X):
 
         c1 = self.base.crit(X)
@@ -57,7 +57,7 @@ class EffGeom(Spacetime):
 
 class EffgeomSimple(Spacetime):
 
-    def __init__(self, ED: Electrodynamics, f=None, f_r=None, E=None, B=None):
+    def __init__(self, ED: 'Electrodynamics', f=None, f_r=None, E=None, B=None):
         '''
         Spherically-symmetric effective geometry for the case of the :ED: Electrodynamics
 

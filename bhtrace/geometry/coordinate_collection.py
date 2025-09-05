@@ -22,9 +22,10 @@ class Spherical(Coordinates):
         super().__init__(*args, **kwargs)
 
 
-class Cylindric(Coordinates):
+
+class Axial(Coordinates):
     '''
-    Cylindric coordinate system
+    Axial coordinate system
     '''
     def __init__(self, *args, **kwargs):
 

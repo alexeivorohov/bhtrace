@@ -80,7 +80,7 @@ class PTracer(Tracer):
         dX = torch.einsum('...uv, ...u -> ...v', ginvX, P)
         dP = - self.particle.dHmlt(X, P, self.eps)
         
-        return torch.cat((dX, dP))
+        return dX, dP
     
 
     def evaluation(self,

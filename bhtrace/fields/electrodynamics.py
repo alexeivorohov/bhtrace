@@ -1,16 +1,13 @@
 from abc import ABC, abstractmethod
-from ..geometry import Spacetime
-from ..functional import levi_civita_tensor
+from bhtrace.geometry import Spacetime
+from bhtrace.functional import levi_civita_tensor
 
 import torch
 
 
-# In this and other files we use _ to distinguish computed quantities
-# from computation methods (F vs _F, g vs _g and etc.)
-
 class Electrodynamics(ABC):
     '''
-    Serves as base class for all ED models
+    Base class for all electrodynamics models
     ''' 
     # def __new__(self, model: str, *args, **kwargs):
 
