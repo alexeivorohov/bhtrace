@@ -1,13 +1,13 @@
 from .spacetime import Spacetime
 from .spacetimes_sph import SphericallySymmetric, MinkowskiSph
-from bhtrace.fields import Electrodynamics # Deferred import to avoid circular dependency
+from .electrodynamics import Electrodynamics
 
 import torch
 
 
 class EffGeom(Spacetime):
 
-    def __init__(self, ED: 'Electrodynamics', base: Spacetime, E: callable, B: callable):
+    def __init__(self, ED: Electrodynamics, base: Spacetime, E: callable, B: callable):
         '''
         Spherically-symmetric effective geometry for the case of the ED Electrodynamics
 
@@ -17,7 +17,6 @@ class EffGeom(Spacetime):
         - E: callable(X) - electric field in spherical coordinates
         - B: callable(X) - magnetic field in spherical coordinates
         '''
-        from ..fields import Electrodynamics # Local import
 
         self.base = base
         self.ED = ED

@@ -92,7 +92,7 @@ class KerrSchild(Spacetime):
 
     def geom_R(self, X):
         
-        return torch.einsum('...u, ...u -> ...', X[..., 1:], X[..., 1:])
+        return torch.sqrt(torch.einsum('...u, ...u -> ...', X[..., 1:], X[..., 1:]))
 
 
     def ginv(self, X):  
@@ -109,12 +109,6 @@ class KerrSchild(Spacetime):
 
         return r
         
-
-    # def conn(self, X):
-
-    #     # TODO: Implement this
-    #     pass
-
 
 class SchwSchild(Spacetime):
 

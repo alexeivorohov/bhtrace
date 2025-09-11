@@ -3,6 +3,8 @@ from .spacetime import Spacetime
 
 class MinkowskiSph(Spacetime):
 
+    __analytic_conn__ = True
+
     def __init__(self):
         '''
         Minkowski spacetime in spherical coordinates.
@@ -74,6 +76,8 @@ class MinkowskiSph(Spacetime):
 
 
 class SphericallySymmetric(Spacetime):
+
+    __analytic_conn__ = True
 
     def __init__(self, A=None, A_r=None, B=None, B_r=None):
         '''

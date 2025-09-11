@@ -1,5 +1,5 @@
 '''
-Submodule for working with spacetime geometry, particles and fields
+Submodule for working with spacetime geometry and fields
 
 
 '''
@@ -12,17 +12,11 @@ from .spacetimes_eff import *
 from .particle import *
 from .particle_zoo import *
 
-from .coordinates import *
-from .coordinate_collection import *
-
-from .transformation import *
-from .transformation_collection import *
-
 from .observer import *
 
 
 _SPACETIMES_ = {
-    'mock': mock_spacetime,
+    'mock': MockSpacetime,
     'MinkowskiCart': MinkowskiCart,
     # 'KerrSchild': KerrSchild,
     # 'SchwSchild': SchwSchild,
@@ -30,22 +24,28 @@ _SPACETIMES_ = {
     'SphericallySymmetric': SphericallySymmetric,
 }
 
-_COORDINATES_ = {
-    'mock' : None,
-    'Cartesian' : Cartesian
-}
-
-
-_TRANSFORMATIONS_ = {
-    'Shift': Shift,
-    'Scale': None,
-    'Ax2Cart': Ax2Cart,
-    'Cart2Ax': Cart2Ax
-}
 _PARTICLES_ = {
     'mock' : None,
     'Photon' : Photon,
 }
+
+from .electrodynamics import *
+from .ed_models import *
+
+_ED_MODELS_ = {
+    'Maxwell': Maxwell,
+    'ParametricPostMaxwell': ParametricPostMaxwell,
+    'EulerHeisenberg': EulerHeisenberg,
+    'Bardeen': Bardeen,
+    'ModMax': ModMax
+    }
+
+### Status:
+# [x] One-parameter models
+# [] Two-parameter models
+# [x] Documentation
+# [] Unittests
+
 
 ## Status:
 # TODO:
@@ -60,17 +60,9 @@ _PARTICLES_ = {
 # [] Collection unittests
 # [] Particle descriptions
 # [x] Effective geometry baseclass
-# [] Effective geometry base models
-# [] Baseclass unittests
+# [] Effective geometry unittests
 # [ ] Models unittests
 # [ ] Descriptions
-# [X] Coordinates base class
-# [ ] Coordinate systems implementations
-# [ ] Coordinate systems unittests
-# [X] Transformations baseclass
-# [ ] Transformations unittests
-# [ ] Descriptions
-# [ ] Factory methods
 
 
 if __name__ == "__main__":

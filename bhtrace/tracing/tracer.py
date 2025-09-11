@@ -10,6 +10,8 @@ from bhtrace.functional.odeint import ODEint, Euler, RK4
 class Tracer():
     '''
     Base class for tracing particle trajectories in a given spacetime.
+
+    For 
     '''
 
     def __init__(self, ode_method='Euler'):
@@ -51,6 +53,7 @@ class Tracer():
         '''
         Event function to stop integration. Operates on a batch of particles.
         Integration stops for a particle if the function returns True for it.
+
         Parameters:
         - t: float - The current time.
         - X: torch.Tensor [batch_size, 4] - Current positions.
@@ -165,6 +168,11 @@ class Tracer():
         print(f'Results saved at {full_path}')
 
         return full_path
+    
+
+    def to(dev = None, dtype = None):
+
+        pass
 
 
 class MockTracer(Tracer):
@@ -215,7 +223,6 @@ class MockTracer(Tracer):
         - t: float - The current time
         - X: torch.Tensor - Current coordinates
         - P: torch.Tensor - Current momentum
-
 
         Returns:
         - bool: Whether the event condition is met.

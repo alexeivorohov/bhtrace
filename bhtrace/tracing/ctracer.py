@@ -18,10 +18,10 @@ class CTracer(Tracer):
                P: torch.Tensor
                ) -> tuple[torch.Tensor, torch.Tensor]:
 
-    G_ = self.spc.conn(X)
+    uv_Gma_p = self.spc.conn(X)
 
     dX = P
-    # Contract Christoffel symbols: dP_i = - G^j_ik P_j P_k
-    dP = -torch.einsum('...jik,...j,...k->...i', G_, P, P)
+    # Contract Christoffel symbols: dP_q = - G_uv^q P^u, p^v
+    dP = -torch.einsum('...jik,...j,...k->...i', uv_Gma_p, P, P)
 
     return dX, dP

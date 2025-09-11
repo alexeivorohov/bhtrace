@@ -345,7 +345,7 @@ class ED_FJ(ED_logic):
     '''
     Class for performing computations within L(F, J_4) models.
 
-    J_4 can be defined as F^{mn}F_{nk}F^{kl}F_{lm}
+    J_4 is an electrodynamic invariant F^{mn}F_{nk}F^{kl}F_{lm}, which with invariant F forms alternative basis of for invariant quantities in electrodynamics.
     
     '''
 

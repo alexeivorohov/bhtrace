@@ -5,25 +5,82 @@ import shutil
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
+import uniplot as uplt
 
 from bhtrace.tracing import PTracer
 from bhtrace.geometry import Photon, SphericallySymmetric, KerrSchild, Observer
 
-# Utility function to convert spherical coordinates to cartesian for plotting
-def sph_to_cart(coords):
-    """Converts a batch of spherical coordinates (t, r, theta, phi) to Cartesian (x, y, z)."""
-    r = coords[..., 1]
-    theta = coords[..., 2]
-    phi = coords[..., 3]
-    x = r * torch.sin(theta) * torch.cos(phi)
-    y = r * torch.sin(theta) * torch.sin(phi)
-    z = r * torch.cos(theta)
-    return x.cpu().numpy(), y.cpu().numpy(), z.cpu().numpy()
 
-class TestSchwarzschildTracer(unittest.TestCase):
+def mpl_plot(
+        
+):
+    '''
+    
+    '''
+    x, y, z = sph_to_cart(X[:, 0, :])
+    r = X[:, 0, 1].cpu().numpy()
+    t = X[:, 0, 0].cpu().numpy()
+
+    fig = plt.figure(figsize=(12, 5))
+    fig.suptitle('PTracer in Schwarzschild Spacetime (Photon Sphere)')
+
+    # 1. Initial conditions plot
+    ax1 = fig.add_subplot(121, projection='3d')
+    ax1.plot(x, y, z, label='Photon Orbit')
+    # Plot the event horizon
+    u, v = torch.meshgrid(torch.linspace(0, 2 * torch.pi, 20), torch.linspace(0, torch.pi, 20))
+    horizon_x = 2.0 * torch.cos(u) * torch.sin(v)
+    horizon_y = 2.0 * torch.sin(u) * torch.sin(v)
+    horizon_z = 2.0 * torch.cos(v)
+    ax1.plot_surface(horizon_x, horizon_y, horizon_z, color='k', alpha=0.3)
+    ax1.set_xlabel('X')
+    ax1.set_ylabel('Y')
+    ax1.set_zlabel('Z')
+    ax1.set_title('3D Trajectory')
+    ax1.legend()
+    ax1.view_init(elev=30., azim=45)
+    ax1.set_box_aspect([1,1,1])
+
+    # 2. Plot trajectories
+
+    # 3. Plot GRRT image
+
+    # 4. Constraint violation plot
+
+    # 5. Plot LTE (if possible)
+
+
+    # Radius vs Time Plot
+    ax2 = fig.add_subplot(122)
+    ax2.plot(t, r)
+    ax2.axhline(y=3.0, color='r', linestyle='--', label='r=3M')
+    ax2.set_xlabel('Coordinate Time (t)')
+    ax2.set_ylabel('Radius (r)')
+    ax2.set_title('Orbital Radius')
+    ax2.legend()
+    ax2.grid(True)
+    
+    return fig
+
+def console_plot():
+    '''
+    
+    '''
+    # 1. 2d trajectory plot (X-Y plane)
+    
+    # 2. Image plot (if possible?)
+
+    # 3. Constraint violation plot
+
+    # 4. LTE plot (if possible)
+
+    pass
+
+
+class TestTracers(unittest.TestCase):
 
     def setUp(self):
-        # Schwarzschild spacetimsude with M=1 (so event horizon is at r=2.0)
+        # Schwarzschild spacetime with M=1 (so event horizon is at r=2.0)
         self.spacetime = SphericallySymmetric() 
         self.particle = Photon(self.spacetime)
         self.tracer = PTracer(ode_method='RK4')
@@ -42,7 +99,7 @@ class TestSchwarzschildTracer(unittest.TestCase):
     def test_conservation(self):
         X, P = self.tracer.forward(self.particle, self.X0, self.P0, self.T, self.nsteps)
         
-        # Check Hamiltonian conservation (mass-shell constraint H=0 for photons)
+        # Check Hamiltonian conservation
         hamiltonian_values = self.tracer.evaluation(None, X, P)
         self.assertTrue(torch.all(torch.abs(hamiltonian_values) < 1e-4),
                         f"Hamiltonian not conserved! Values: {hamiltonian_values}")
@@ -51,39 +108,7 @@ class TestSchwarzschildTracer(unittest.TestCase):
 
         X, P = self.tracer.forward(self.particle, self.X0, self.P0, self.T, self.nsteps)
         
-        x, y, z = sph_to_cart(X[:, 0, :])
-        r = X[:, 0, 1].cpu().numpy()
-        t = X[:, 0, 0].cpu().numpy()
 
-        fig = plt.figure(figsize=(12, 5))
-        fig.suptitle('PTracer in Schwarzschild Spacetime (Photon Sphere)')
-
-        # 3D Trajectory Plot
-        ax1 = fig.add_subplot(121, projection='3d')
-        ax1.plot(x, y, z, label='Photon Orbit')
-        # Plot the event horizon
-        u, v = torch.meshgrid(torch.linspace(0, 2 * torch.pi, 20), torch.linspace(0, torch.pi, 20))
-        horizon_x = 2.0 * torch.cos(u) * torch.sin(v)
-        horizon_y = 2.0 * torch.sin(u) * torch.sin(v)
-        horizon_z = 2.0 * torch.cos(v)
-        ax1.plot_surface(horizon_x, horizon_y, horizon_z, color='k', alpha=0.3)
-        ax1.set_xlabel('X')
-        ax1.set_ylabel('Y')
-        ax1.set_zlabel('Z')
-        ax1.set_title('3D Trajectory')
-        ax1.legend()
-        ax1.view_init(elev=30., azim=45)
-        ax1.set_box_aspect([1,1,1])
-
-        # Radius vs Time Plot
-        ax2 = fig.add_subplot(122)
-        ax2.plot(t, r)
-        ax2.axhline(y=3.0, color='r', linestyle='--', label='r=3M')
-        ax2.set_xlabel('Coordinate Time (t)')
-        ax2.set_ylabel('Radius (r)')
-        ax2.set_title('Orbital Radius')
-        ax2.legend()
-        ax2.grid(True)
 
         plt.tight_layout(rect=[0, 0.03, 1, 0.95])
         save_path = os.path.join(self.plot_dir, 'schwarzschild_photon_sphere.png')

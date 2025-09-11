@@ -10,6 +10,9 @@ Submodule for hanlding several routines:
 from .routines import *
 from .odeint import *
 from .graphics import *
+from .diff import *
+from .linalg import *
+from .transform import *
 
 # TODO: 
 # [x] Routines

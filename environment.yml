@@ -10,5 +10,6 @@ dependencies:
 - uniplot
 - jupyter
 - pytorch
+- tqdm
 - scipy
 - sympy
