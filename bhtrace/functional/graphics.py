@@ -1,20 +1,19 @@
 
 import matplotlib.pyplot as plt
-
+from typing import Iterable
 
 # todo:
 # - Add pre-set line coloring routines
 # 
 
-def opt_mosaic(ax_ids, fill_None=True, filler=None, rot=False):
+def opt_mosaic(ax_ids: Iterable, fill_None=True, filler=None, rot=False):
     '''
-    Function that composes graphs from list to an optimal mosaic
+    Function that composes graphs from list to a visually optimal mosaic
 
     Returns: 
     - shape: tuple(h_n, w_n)
     - mosaic: nested list 
     '''
-
     shape_cases = {
         1: (1, 1),
         2: (2, 1),
@@ -46,3 +45,5 @@ def opt_mosaic(ax_ids, fill_None=True, filler=None, rot=False):
         mosaic.append(row)
 
     return shape, mosaic
+
+

@@ -9,6 +9,8 @@ class MinkowskiSph(Spacetime):
         '''
         Minkowski spacetime in spherical coordinates.
         '''
+        super().__init__()
+        self.__coords__ = 'spherical'
         pass
 
 
@@ -79,7 +81,7 @@ class SphericallySymmetric(Spacetime):
 
     __analytic_conn__ = True
 
-    def __init__(self, A=None, A_r=None, B=None, B_r=None):
+    def __init__(self, A=None, A_r=None, B=None, B_r=None, r_s=2.0):
         '''
         Class for handling spherically-symmetric spacetimes of type
 
@@ -93,7 +95,6 @@ class SphericallySymmetric(Spacetime):
         - B: callable(r) - rr-component of the metric
         - B_r: callable(r) - it's derivative w.r.t. r
         '''
-        r_s = 2.0
 
         if A == None:
             self.A = lambda r: - (1.0 - r_s/r)
@@ -112,8 +113,10 @@ class SphericallySymmetric(Spacetime):
             self.B = B
             self.B_r = B_r
 
-        pass
+        self.__coords__ = 'spherical'
+        super().__init__()
 
+        pass
     
     def g(self, X):
         
@@ -131,7 +134,6 @@ class SphericallySymmetric(Spacetime):
 
         return outp
 
-    
     def ginv(self, X):
 
         outp = torch.zeros(*X.shape, 4)
@@ -145,7 +147,6 @@ class SphericallySymmetric(Spacetime):
         outp[..., 3, 3] = torch.pow(X[..., 1]*torch.sin(X[..., 2]), -2)
 
         return outp
-
 
     def conn(self, X):
         
@@ -185,8 +186,13 @@ class SphericallySymmetric(Spacetime):
 
         return outp
 
-
     def crit(self, X):
 
         return abs(self.A(X[..., 1]))
 
+
+class KerrSchildSph(Spacetime):
+
+    def __init__(self):
+        pass
+    

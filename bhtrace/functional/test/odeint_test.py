@@ -14,16 +14,24 @@ _SOLVERS_ = {
 
 torch.random.manual_seed(42)
 
+# ToDo: fix shape misalignment between exact y and result y
+
 class ODETestProblem:
 
     def __init__(self, y0: Tuple[torch.Tensor] = None):
 
         if y0 == None:
-            self.shape = (5, 1)
+            self.batch = 5
+            self.shape = (self.batch, 1)
             y0 = (torch.randn(*self.shape), )
+        else:
+            self.y0 = y0
+            self.batch = y0[0].shape[0]
+            self.shape = (self.batch, )
+
         self.y0 = y0
         self.t0 = torch.tensor([0.0])
-        self.tview = (-1, *[1 for _ in self.shape])
+        self.tview = (self.batch, -1)
         
     @abstractmethod
     def term(self, t, Y):
@@ -61,7 +69,7 @@ class Linear(ODETestProblem):
 
     def y(self, t):
         
-        return tuple(y_ + self.v0*t.view(*self.tview) for y_ in self.y0)
+        return tuple(y_ + self.v0*t for y_ in self.y0)
 
 
 class Exponent(ODETestProblem):
@@ -78,11 +86,11 @@ class Exponent(ODETestProblem):
 
     def y(self, t):
 
-        return (self.y0[0]*torch.exp(self.k0*(t-self.t0).view(*self.tview)),)
+        return (self.y0[0]*torch.exp(self.k0*(t-self.t0)),)
 
     def dy(self, t):
 
-        return (self.y0[0]*self.k0*torch.exp(self.k0*(t-self.t0).view(*self.tview)), )
+        return (self.y0[0]*self.k0*torch.exp(self.k0*(t-self.t0)), )
     
 
 class Oscillator(ODETestProblem):
@@ -118,13 +126,13 @@ class Oscillator(ODETestProblem):
 
     def y(self, t):
         
-        phi = self.omega * t.view(*self.tview) + self.phi0
+        phi = self.omega * t + self.phi0
         x = self.A0 * torch.sin(phi)
         p = self.A0 * self.omega * torch.cos(phi)
         return (x, p)
 
     def dy(self, t):
-        phi = self.omega * t.view(*self.tview) + self.phi0
+        phi = self.omega * t + self.phi0
         dx = self.A0 * self.omega * torch.cos(phi)
         dp = -self.A0 * self.omega**2 * torch.sin(phi)
         return (dx, dp)
@@ -151,6 +159,8 @@ class TestODEint_logic(unittest.TestCase):
                 self.assertIsInstance(solver, ODEint)
             except Exception as e:
                 self.fail(f"Failed to initialize {name}: {e}")
+            
+        
 
 
     # def test_set_event_fn(self):
@@ -278,7 +288,7 @@ class TestODEint_problems(unittest.TestCase):
                 
                 result = solution['Y']
                 exact = p.y(solution['t'])
-
+                print(result[0].shape, exact[0].shape)
                 err = [abs(y_ - yt_).mean() for y_, yt_ in zip(result, exact)]
                 criterion_Err = sum(err) > self.tol
                 if criterion_Err:
@@ -286,8 +296,8 @@ class TestODEint_problems(unittest.TestCase):
                         if err[i] > self.tol:
                             for j in range(s.batch_size):
                                 ys = [
-                                    result[i][:,j,...].view(-1).cpu().numpy(),
-                                    exact[i][:,j,...].view(-1).cpu().numpy()
+                                    result[i][j,...].view(-1).cpu().numpy(),
+                                    exact[i][j,...].view(-1).cpu().numpy()
                                 ]
 
                                 xs = solution['t'].view(-1).cpu().numpy()

@@ -5,38 +5,63 @@ from ..functional.diff import Grad
 
 
 class Photon(Particle):
-    '''
-    Describes a photon in a given spacetime.
-        
-    In this class, helicity is not taken into account.
-    '''
+    """Represents a photon, a massless particle.
 
-    def __init__(self, spacetime: Spacetime):
-        '''
-        ### Inputs:
-        - spacetime: Spacetime() - spacetime
-        '''
-        super().__init__(spacetime=spacetime)
+    This class implements the dynamics of a photon, defined by a Hamiltonian
+    where the mass `mu` is zero.
+
+    Attributes:
+        mu (int): The mass of the particle, always 0 for a photon.
+        h (None): Helicity, not currently implemented.
+    """
+
+    def __init__(self, spacetime: Spacetime, **kwargs):
+        """Initializes the Photon instance.
+
+        Args:
+            spacetime (Spacetime): The spacetime in which the photon exists.
+            **kwargs: Additional keyword arguments passed to the base class.
+        """
+        super().__init__(spacetime=spacetime, **kwargs)
         self.mu = 0
         self.h = None
+  
+    def Hmlt(self, X: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
+        """Calculates the Hamiltonian for a photon.
 
-    
-    def Hmlt(self, X, P):
+        For a massless photon, the Hamiltonian is `H = 0.5 * g^uv * P_u * P_v`,
+        which evaluates to zero for a valid trajectory.
 
+        Args:
+            X (torch.Tensor): Spacetime coordinates, shape [..., 4].
+            P (torch.Tensor): Covariant 4-momentum `P_u`, shape [..., 4].
+
+        Returns:
+            torch.Tensor: The Hamiltonian value, shape [...].
+        """
         ginv = self.spacetime.ginv(X)
+        return 0.5 * torch.einsum('...uv, ...u, ...v -> ...', ginv, P, P)
 
-        return 0.5*torch.einsum('...uv, ...u, ...v -> ...', ginv, P, P)
+    def dHmlt(self, X: torch.Tensor, P: torch.Tensor, eps: float = 1e-4) -> torch.Tensor:
+        """Numerically calculates the partial derivatives of the Photon's Hamiltonian.
 
+        Args:
+            X (torch.Tensor): Spacetime coordinates, shape [..., 4].
+            P (torch.Tensor): Covariant 4-momentum `P_u`, shape [..., 4].
+            eps (float, optional): The step size for the finite difference.
+                                   Defaults to 1e-4.
 
-    def dHmlt(self, X, P, eps):
-        # Wrapper for the Hamiltonian to match the signature expected by Grad
-        hmlt_func = lambda x: self.Hmlt(x, P)
+        Returns:
+            torch.Tensor: The Hamiltonian derivatives `dH/dX^p` at each point,
+                          shape [..., 4].
+        """
 
         # Use 2nd order central difference gradient from functional.diff
+        def hmlt_func(X):
+            return self.Hmlt(X, P)
         grad_calculator = Grad(hmlt_func, eps=eps, order=2)
         
         return grad_calculator(X)
-
 
     def GetNullMomentum(self,
                         X: torch.Tensor,
@@ -44,21 +69,41 @@ class Photon(Particle):
                         ):
         '''
         Get covariant momentum
+
+        Args:
+            X: torch.Tensor - position
+            V: torch.Tensor - direction (contravariant, spatial part only)
+        Returns:
+            p: torch.Tensor - covariant momentum (downstairs, contravariant)
         '''
-        # E = self.spacetime.tetrad(X)
-        gX = self.spacetime.g(X)
-        # Step 2: invert tetrad to get e^\mu_a
-        # E_inv = torch.inverse(E)  # E = e^a_mu, so E_inv = e^\mu_a^T
-        # e_mu_a = E_inv.nT  # shape (4,4)
+        g = self.spacetime.g(X)
+        v_spatial = V
+        
+        # For a null vector, g_uv V^u V^v = 0.
+        # This is a quadratic equation for V^0:
+        # g_00 (V^0)^2 + 2 g_0i V^0 V^i + g_ij V^i V^j = 0
+        
+        g00 = g[..., 0, 0]
+        g0i = g[..., 0, 1:]
+        gij = g[..., 1:, 1:]
 
-        # Transform to coordinate basis and lower index, 
-        p = torch.einsum('...wu, ...vu, ...v -> ...v', gX, E_inv, V)  # shape (4,)
+        a = g00
+        b = 2 * torch.einsum('...i,...i->...', g0i, v_spatial)
+        c = torch.einsum('...ij,...i,...j->...', gij, v_spatial, v_spatial)
 
-        # norm_check = torch.einsum.
-        # assert torch.allclose()
+        # Solve the quadratic equation for V0
+        # We choose the positive root for future-pointing vectors.
+        V0 = (-b + torch.sqrt(b**2 - 4*a*c)) / (2*a)
 
+        V4 = torch.cat([V0.unsqueeze(-1), v_spatial], dim=-1)
+
+        p = torch.einsum('...wu, ...u -> ...w', g, V4)
+    
         return p
 
+    def energy(self, X, P, u):
+        
+        return torch.einsum('...v, ...v -> ...', P, u)
 
     def GetDirection(self, X, P):
         '''
@@ -70,7 +115,6 @@ class Photon(Particle):
         v = torch.einsum('...uv, ...u -> v', ginvX, P)
         return v[1:]
 
-
     def MomentumNorm(self, X, P):
 
         ginvX_spatial = self.spacetime.ginv(X)[..., 1:, 1:]
@@ -79,18 +123,7 @@ class Photon(Particle):
         
         P[..., 1:] = P[..., 1:] * torch.pow(p2_spatial, -0.5)
         
-        return P
-    
-
-    def energy(self, X, P, u):
-        '''
-        Inputs
-        - X: torch.Tensor - point in spacetime
-        - P: P_{mu} - 4-impulse of photon 
-        - u: u^{mu} 4-velocity of source (medium)
-        '''
-
-        return torch.einsum('...u, ...u -> ...', P, u)        
+        return P     
 
 
     def normp(self, X, P):
@@ -100,12 +133,12 @@ class Photon(Particle):
 
 class EffPhoton(Particle):
 
-    def __init__(self, spacetime: Spacetime):
+    def __init__(self, spacetime: Spacetime, **kwargs):
         '''
         ### Inputs:
         - spacetime: Spacetime() - spacetime
         '''
-        super().__init__(spacetime=spacetime)
+        super().__init__(spacetime=spacetime, **kwargs)
         self.mu = 0
         self.h = 0 # helicity
         pass
@@ -113,9 +146,9 @@ class EffPhoton(Particle):
 
 class PhotonR(Photon):
 
-    def __init__(self, spacetime):
+    def __init__(self, spacetime, **kwargs):
 
-        super().__init__(spacetime)
+        super().__init__(spacetime=spacetime, **kwargs)
         self.mu = 0
 
 

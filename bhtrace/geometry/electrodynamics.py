@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import inspect
 from bhtrace.geometry import Spacetime
 from bhtrace.functional import levi_civita_tensor
 
@@ -6,44 +7,116 @@ import torch
 
 
 class Electrodynamics(ABC):
-    '''
-    Base class for all electrodynamics models
-    ''' 
-    # def __new__(self, model: str, *args, **kwargs):
+    """Abstract base class for all nonlinear electrodynamics models.
 
-    #     pass
+    This class defines the interface for electrodynamics models and provides
+    methods to calculate field quantities and model-specific Lagrangians.
+    It also acts as a factory for creating specific model instances.
 
+    To create an electrodynamics model instance, use the factory pattern:
+        `maxwell = Electrodynamics(name='Maxwell')`
+        `eh = Electrodynamics(name='EulerHeisenberg', h=1.0)`
+    """
+    def __new__(cls, name: str = None, **kwargs):
+        """Creates an instance of a specific electrodynamics subclass via a factory.
 
-    def __init__(self):
-        
+        Args:
+            name (str, optional): The name of the electrodynamics subclass to create.
+            **kwargs: Keyword arguments to pass to the subclass's constructor.
+
+        Returns:
+            An instance of an `Electrodynamics` subclass.
+        """
+        if isinstance(name, str):
+            from bhtrace.geometry.electrodynamics_factory import create_electrodynamics
+            return create_electrodynamics(name, **kwargs)
+        return super().__new__(cls)
+
+    def __init__(self, name: str = None, **kwargs):
+        """Initializes the Electrodynamics instance.
+
+        Note:
+            The arguments are primarily for factory usage and are ignored here.
+        """
         self.lct4 = levi_civita_tensor(4).float() 
         self.L = None
         self.L_F = None
         self.L_FF = None
-
         self.L_G = None
         self.L_GG = None
         self.L_FG = None
 
+    def state_dict(self) -> dict:
+        """Returns a dictionary representing the state of the electrodynamics model.
 
-    def calculate(self,
+        Returns:
+            dict: A dictionary containing the model's name and parameters.
+        """
+        state = {'name': self.__class__.__name__}
+        sig = inspect.signature(self.__class__.__init__)
+        for param in sig.parameters.values():
+            if param.name != 'self' and hasattr(self, param.name):
+                attr = getattr(self, param.name)
+                if isinstance(attr, (int, float, str, bool)):
+                     state[param.name] = attr
+        return state
+
+    @classmethod
+    def from_dict(cls, state: dict):
+        """Creates an Electrodynamics object from a state dictionary.
+
+        Args:
+            state (dict): A dictionary containing the model's state.
+
+        Returns:
+            An instance of an `Electrodynamics` subclass.
+        """
+        from bhtrace.geometry.electrodynamics_factory import create_electrodynamics
+        name = state.pop('name')
+        return create_electrodynamics(name, **state)
+
+
+    def calculate(
+        self,
         X: torch.Tensor,
         gX: torch.Tensor,
         U: torch.Tensor,
-        ginvX = None,
-        ) -> None:
-        '''
-        Computes fields and model quantities at the point
-        '''
+        ginvX: torch.Tensor = None,
+    ) -> None:
+        """Computes all relevant field and model quantities at a point.
+
+        This method orchestrates the calculation of field strengths (E, B),
+        the Maxwell tensor (F_uv), and the model-specific Lagrangian and its
+        derivatives.
+
+        Args:
+            X (torch.Tensor): Spacetime coordinates.
+            gX (torch.Tensor): Covariant metric tensor `g_uv`.
+            U (torch.Tensor): Observer/frame 4-velocity `u^u`.
+            ginvX (torch.Tensor, optional): Contravariant metric tensor `g^uv`.
+                                             If not provided, it may be calculated
+                                             if needed. Defaults to None.
+        """
         self.process_fields.forward(ED=self, X=X, gX=gX, U=U, ginvX=ginvX)
         self.process_model.forward(ED=self, X=X, gX=gX, U=U, ginvX=ginvX)
 
 
-    def set_regime(self, 
-        fields = 'B',
-        model_type = 'F',
-        verbose=False
-        ):
+    def set_regime(self, fields: str = 'B', model_type: str = 'F', verbose: bool = False):
+        """Sets the computational regime based on the fields and model type.
+
+        This method selects the appropriate low-level logic classes for
+        calculating field and model quantities, optimizing for cases where
+        only certain fields (E or B) or Lagrangian dependencies (F or F,G)
+        are present.
+
+        Args:
+            fields (str, optional): The field configuration ('E', 'B', or 'EB').
+                                    Defaults to 'B'.
+            model_type (str, optional): The type of Lagrangian model ('F', 'FG', 'FJ').
+                                        Defaults to 'F'.
+            verbose (bool, optional): If True, prints status information.
+                                      Defaults to False.
+        """
 
         if fields == 'B':
             self.process_fields = ED_B

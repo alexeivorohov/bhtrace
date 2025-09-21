@@ -1,7 +1,8 @@
 import torch
+from itertools import permutations
 
 
-def tetrad_linalg(self, X : torch.Tensor, verify=False):
+def tetrad_linalg(spacetime, X : torch.Tensor, verify=False):
         '''
         Given a coordinate4x4 metric tensor g (symmetric), find tetrad matrix E such that
         g = E^T @ eta @ E (index positions arranged accordingly).
@@ -14,7 +15,7 @@ def tetrad_linalg(self, X : torch.Tensor, verify=False):
             satisfying g_{mu nu} = eta_{ab} e^a_mu e^b_nu
         '''
 
-        g = self.g(X)
+        g = spacetime.g(X)
 
         shape_a = (*[1] * (X.ndim -1), 4, 4)
 
@@ -58,7 +59,7 @@ def tetrad_linalg(self, X : torch.Tensor, verify=False):
         return E
     
     
-def tetrad_gd(self, X, lr=1e-2, steps=200, verbose=False):
+def tetrad_gd(spacetime, X, lr=1e-2, steps=200, verbose=False):
     """
     Find tetrad matrix E (4x4) such that g = E^T eta E by gradient descent.
 
@@ -72,7 +73,7 @@ def tetrad_gd(self, X, lr=1e-2, steps=200, verbose=False):
         E: torch.Tensor (4,4), tetrad matrix.
     """
 
-    gX = self.g(X)
+    gX = spacetime.g(X)
     shape_a = (*[1] * (X.ndim -1), 4, 4)
     shape_b = (*X.shape[:-1], 4, 4)
 

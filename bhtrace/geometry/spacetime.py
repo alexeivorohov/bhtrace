@@ -35,117 +35,195 @@ symbols. The abstract class Spacetime contains the following methods:
 '''
 
 from abc import ABC, abstractmethod
+import inspect
 
 # from typing_extensions import ParamSpecArgs
 
 import torch
 
+from bhtrace.functional.linalg import tetrad_gd, tetrad_linalg
+
 # May be derivatives and connections should be moved to another class?
 # In this case, dealing with different coordinate systems may be simpler (?)
 
 class Spacetime(ABC):
-    '''
-    Base class for handling different spacetimes.
+    """Abstract base class for all spacetime geometries.
 
-    Required methods:
-    - g(X): expression for metric function
-    - ginv(X): expression for inverse metric function
-    
-    Optional methods:
-    - conn(X): Connection symbols Gamma^p_uv
+    This class defines the interface for spacetime metrics, including methods
+    for calculating the metric tensor, its inverse, and connection coefficients.
+    It also acts as a factory for creating specific spacetime instances.
 
-    '''
+    To create a spacetime instance, use the factory pattern:
+        `minkowski = Spacetime(name='MinkowskiCart')`
+        `kerr = Spacetime(name='KerrSchild', a=0.99)`
+
+    Attributes:
+        __analytic_conn__ (bool): Flag indicating if the connection coefficients
+                                  are defined analytically.
+    """
     __analytic_conn__ = False
 
+    def __new__(cls, name: str = None, **kwargs):
+        """Creates an instance of a specific spacetime subclass using a factory.
+
+        This method intercepts the instantiation of the `Spacetime` class
+        and uses a factory to return an instance of the correct subclass
+        (e.g., `KerrSchild`) instead.
+
+        Args:
+            name (str, optional): The name of the spacetime subclass to create.
+            **kwargs: Keyword arguments to pass to the subclass's constructor.
+
+        Returns:
+            An instance of a `Spacetime` subclass.
+        """
+        if isinstance(name, str):
+            # Import locally to prevent circular dependencies
+            from bhtrace.geometry.spacetime_factory import create_spacetime
+            return create_spacetime(name, **kwargs)
+        return super().__new__(cls)
+
+    def __init__(self, **kwargs):
+        """Initializes the Spacetime instance.
+
+        Note:
+            The arguments to this constructor are primarily for factory usage in
+            `__new__` and are ignored here. Subclasses should call
+            `super().__init__()` to ensure attributes are set correctly.
+        """
+        self.__name__ = self.__class__.__name__
+
+    def state(self) -> dict:
+        """Returns a dictionary representing the state of the spacetime.
+
+        Returns:
+            dict: A dictionary containing the name of the spacetime class
+                  and its parameters.
+        """
+        state = {'name': self.__class__.__name__}
+
+        sig = inspect.signature(self.__class__.__init__)
+        for param in sig.parameters.values():
+            if param.name != 'self' and hasattr(self, param.name):
+                attr = getattr(self, param.name)
+                # To avoid serializing things that are not parameters
+                if isinstance(attr, (int, float, str, bool, torch.Tensor)):
+                     state[param.name] = attr
+        return state
+
+    def horizon(self, X: torch.Tensor) -> torch.Tensor:
+        '''
+        Function for determining apparent horizon (and, possibly, other horizons?)
+        
+        Should be positive in outer space, zero on horizon and negative under the horizon
+
+        '''
+        return NotImplementedError            
+
+    @classmethod
+    def from_dict(cls, state: dict):
+        """Creates a Spacetime object from a state dictionary.
+
+        Args:
+            state (dict): A dictionary containing the spacetime's name and parameters.
+
+        Returns:
+            An instance of a `Spacetime` subclass.
+        """
+        from bhtrace.geometry.spacetime_factory import create_spacetime
+        name = state.pop('name')
+        return create_spacetime(name, **state)
+
     @abstractmethod
-    def g(self, X):
-        '''
-        Metric tensor evaluated at a batch of coordinates
+    def g(self, X: torch.Tensor) -> torch.Tensor:
+        """Calculates the metric tensor (covariant) at a given set of coordinates.
 
-        ## Input
-        X: torch.Tensor [..., 4] - coordinates
+        Args:
+            X (torch.Tensor): A tensor of shape [..., 4] representing the
+                              spacetime coordinates.
 
-        ## Output
-        g: torch.Tensor [..., 4, 4] - metric tensor at each coordinate
-        '''
+        Returns:
+            torch.Tensor: The metric tensor `g_uv` at each coordinate, with
+                          shape [..., 4, 4].
+        """
         pass
 
     @abstractmethod
-    def ginv(self, X):
-        '''
-        Metric inverse evaluated at a batch of coordinates
+    def ginv(self, X: torch.Tensor) -> torch.Tensor:
+        """Calculates the inverse metric tensor (contravariant) at a given set of coordinates.
 
-        ## Input
-        X: torch.Tensor [..., 4] - coordinates
+        Args:
+            X (torch.Tensor): A tensor of shape [..., 4] representing the
+                              spacetime coordinates.
 
-        ## Output
-        g: torch.Tensor [..., 4, 4] - metric inverse at each coordinate
-        '''
-
+        Returns:
+            torch.Tensor: The inverse metric tensor `g^uv` at each coordinate,
+                          with shape [..., 4, 4].
+        """
         pass
 
+    def dg(self, X: torch.Tensor, eps: float = 2e-5) -> torch.Tensor:
+        """Numerically calculates the partial derivatives of the metric tensor.
 
-    def dg(self, X, eps=2e-5) -> torch.Tensor:
-        '''
-        Numerical derviative of the metric
+        This method uses a first-order finite difference scheme.
 
-        ## Input:
-        - X: torch.Tensor of shape [..., 4] - point for which to evaluate
-        - eps: float (2e-5 default)
+        Args:
+            X (torch.Tensor): A tensor of shape [..., 4] representing the
+                              point(s) at which to evaluate the derivative.
+            eps (float, optional): The step size for the finite difference.
+                                   Defaults to 2e-5.
 
-        ## Output
-
-        - dg: torch.Tensor of shape [..., 4, 4, 4]
-        '''
-
+        Returns:
+            torch.Tensor: The partial derivatives of the metric `d_p g_uv`
+                          at each point, with shape [..., 4, 4, 4].
+        """
         gX = self.g(X)
-        dgX = torch.zeros(*X.shape[:-1], 4, 4, 4)
+        dgX = torch.zeros(*X.shape[:-1], 4, 4, 4, device=X.device, dtype=X.dtype)
 
-        dVec = torch.eye(4).repeat(*X.shape[:-1], 1, 1) * eps
+        dVec = torch.eye(4, device=X.device, dtype=X.dtype).repeat(*X.shape[:-1], 1, 1) * eps
 
-
-        dgX[..., 0, :, :] = (self.g(X + dVec[..., 0, :]) - gX) / eps
-        dgX[..., 1, :, :] = (self.g(X + dVec[..., 1, :]) - gX) / eps
-        dgX[..., 2, :, :] = (self.g(X + dVec[..., 2, :]) - gX) / eps
-        dgX[..., 3, :, :] = (self.g(X + dVec[..., 3, :]) - gX) / eps
+        for i in range(4):
+            dgX[..., i, :, :] = (self.g(X + dVec[..., i, :]) - gX) / eps
 
         return dgX
 
-
     def conn(self, X: torch.Tensor) -> torch.Tensor:
-        '''
-        Computes the Levi-Civita connection coefficients (Christoffel symbols) 
-        via a method specified down the line.
-        
-        ### Inputs:
-        - X: torch.Tensor [..., 4] - evaluation point(s)
+        """Computes the Levi-Civita connection coefficients (Christoffel symbols).
 
-        ### Outputs:
-        - G: torch.Tensor [..., 4, 4, 4] - connection symbols
-        First index is contravariant, the other two are covariant.
-        '''
+        This method serves as a public interface, dispatching to the
+        appropriate concrete implementation (analytical or numerical).
 
+        Args:
+            X (torch.Tensor): A tensor of shape [..., 4] representing the
+                              evaluation point(s).
+
+        Returns:
+            torch.Tensor: The connection symbols `Gamma^p_uv` at each point,
+                          with shape [..., 4, 4, 4]. The first index is
+                          contravariant, the other two are covariant.
+        """
         return self.conn_(X, method='standard')
 
+    def conn_(self, X: torch.Tensor, method: str = 'standard') -> torch.Tensor:
+        """Numerically evaluates connection symbols from metric derivatives.
 
-    def conn_(self, X, method='standard'):
-        '''
-        Evaluate connection symbols by numerical differentiation. 
-        Relies on method dg(X) in computing derivatives of the metric
+        Args:
+            X (torch.Tensor): A tensor of shape [..., 4] representing the
+                              evaluation point(s).
+            method (str, optional): The numerical method to use. Currently,
+                                    only 'standard' is implemented. Defaults to 'standard'.
 
-        ### Inputs:
-        - X: torch.Tensor [4] - coordinates
-        ### Outputs:
-        - G: torch.Tensor [4, 4, 4] - connection symbols
-        First index is contravariant, others are covariant.
-        '''
-
+        Returns:
+            torch.Tensor: The connection symbols `Gamma^p_uv` at each point,
+                          with shape [..., 4, 4, 4].
+        """
         if method == 'standard':
             g_duv = self.dg(X)
             ginv_ = self.ginv(X)
             
         elif method == 'horder':
-            g_duv = self.gd_horder(X)
+            # g_duv = self.dg_horder(X) # Not implemented
+            raise NotImplementedError("High-order derivative method not implemented.")
             ginv_ = self.ginv(X)
 
         dg0 = torch.einsum('...md, ...duv ->...muv', ginv_, g_duv)
@@ -155,35 +233,40 @@ class Spacetime(ABC):
         return 0.5*( - dg0 + dg1 + dg2)
     
 
-    def tetrad(self, X: torch.Tensor, method='gd'):
-
+    def tetrad(self, X: torch.Tensor, method: str = 'gd'):
+        """Computes the tetrad frame. (Not fully implemented)."""
         if method == 'gd':
-            return self.tetrad_gd(X)
+            return tetrad_gd(self, X)
         else:
-            return self.tetrad_linalg(X)
-
+            return tetrad_linalg(self, X)
 
     @abstractmethod
-    def crit(self, X: torch.Tensor):
-        '''
-        Function of "distance" to the metric singularities
-        F: X -> (0, inf)
+    def crit(self, X: torch.Tensor) -> torch.Tensor:
+        """Calculates a function of "distance" to the metric singularities.
 
-        Used to control step size or stop integration.
-        '''
+        This value can be used to control integration step size or to stop
+        the integration, where a value of 0 indicates a singularity.
 
+        Args:
+            X (torch.Tensor): A tensor of shape [..., 4] representing the
+                              spacetime coordinates.
+
+        Returns:
+            torch.Tensor: A scalar tensor for each point in the batch,
+                          representing the proximity to a singularity.
+        """
         return None
     
-
     def compile(self):
-        '''
-        Compile the class with torch.jit.script
-        '''
-
+        """Compiles the class with `torch.jit.script` for performance.
+        
+        Note:
+            This is experimental and may not work for all subclasses.
+        """
         return torch.jit.script(self)
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__class__.__name__
     
 
@@ -193,7 +276,7 @@ class MockSpacetime(Spacetime):
         '''
         :class:`Spacetime()` implementation, used for test purposes.
         '''
-
+        super().__init__(name='MockSpacetime')
         self.coefs = coefs
         pass
 

@@ -145,7 +145,9 @@ class ODEint(ABC):
         
     def attach_task(self, term: callable, Y0: Tuple[torch.Tensor, ...], t0: float):
         '''
-        
+        :param term: - callable, which represents ODE term and returns tuple(dY)
+        :param Y0: - tuple of torch.Tensors, which represenrt initial values of variables. First dimension of each tensor should be a batch dimension of the same size.
+
         Notice, that step function will unpack values with starred expression, when passing them to the term function.
 
         This allows more nautral way of operation with variables within a term.
@@ -216,33 +218,35 @@ class ODEint(ABC):
 
         # Init solution storage
         self.solution = {}
-        self.solution['t'] = torch.zeros(nsteps, device=self.Y0[0].device, dtype=self.Y0[0].dtype)
-        self.solution['Y'] = tuple(torch.zeros(nsteps, *Y0i.shape, device=Y0i.device, dtype=Y0i.dtype) for Y0i in self.Y0)
+        self.solution['t'] = torch.zeros(nsteps + 1, device=self.Y0[0].device, dtype=self.Y0[0].dtype)
+        self.solution['Y'] = tuple(torch.zeros(self.batch_size, nsteps + 1, *Y0i.shape[1:], device=Y0i.device, dtype=Y0i.dtype) for Y0i in self.Y0)
         
         # Set initial conditions
         self.solution['t'][0] = self.t0
         for i, y_ in enumerate(self.Y0):
-            self.solution['Y'][i][0, ...] = y_
+            self.solution['Y'][i][:, 0, ...] = y_
 
         self.batch_mask = torch.ones(self.batch_size, dtype=torch.bool, device=self.Y0[0].device)
 
         if self.__evaluate_LTE__:
-            self.solution['LTE'] = torch.zeros(nsteps, self.batch_size, device=self.Y0[0].device, dtype=self.Y0[0].dtype)
+            self.solution['LTE'] = torch.zeros(self.batch_size, nsteps, device=self.Y0[0].device, dtype=self.Y0[0].dtype)
 
-        for i in trange(nsteps - 1):
+        msg = '\nFinished: Reached maximum number of steps.\n'
+
+        for i in trange(nsteps):
             if not torch.any(self.batch_mask):
                 # All trajectories stopped, fill rest of solution and break
                 last_t = self.solution['t'][i]
                 self.solution['t'][i+1:] = last_t
                 for j in range(self.n_vars):
-                    last_y = self.solution['Y'][j][i, ...]
+                    last_y = self.solution['Y'][j][:, i, ...]
                     # Unsqueeze to allow broadcasting to the remaining steps
-                    self.solution['Y'][j][i+1:, ...] = last_y.unsqueeze(0)
-                print('\nFinished: All trajectories have stopped.\n')
+                    self.solution['Y'][j][:, i+1:, ...] = last_y.unsqueeze(1)
+                msg = '\nFinished: All trajectories have stopped.\n'
                 break
 
             # Get current state for active trajectories
-            y = tuple(s[i] for s in self.solution['Y'])
+            y = tuple(s[:, i] for s in self.solution['Y'])
             t = self.solution['t'][i]
 
             y_new, dy = self.__step__(t, y)
@@ -251,17 +255,18 @@ class ODEint(ABC):
             # Update solution for active trajectories
             for j in range(self.n_vars):
                 # Create a view for the next step
-                next_y_slice = self.solution['Y'][j][i+1, ...]
+                next_y_slice = self.solution['Y'][j][:, i+1, ...]
                 # Copy previous state
-                next_y_slice[...] = self.solution['Y'][j][i, ...]
+                next_y_slice[...] = self.solution['Y'][j][:, i, ...]
                 # Update only active ones
                 next_y_slice[self.batch_mask, ...] = y_new[j][self.batch_mask, ...]
             
             self.solution['t'][i+1] = t
 
             # Post-step for new state
-            self.__post_step__(step_n=i, t=t, Y=tuple(s[i+1] for s in self.solution['Y']), dY=dy)
+            self.__post_step__(step_n=i, t=t, Y=tuple(s[:, i+1] for s in self.solution['Y']), dY=dy)
 
+        print(msg)
         return self.solution
     
 

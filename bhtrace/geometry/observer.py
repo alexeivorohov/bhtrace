@@ -43,6 +43,41 @@ class Observer:
         self.X_net = None
         self.P_net = None
 
+        self.__ic_method__ = 'x0'
+
+    def state_dict(self) -> dict:
+        """Returns a dictionary representing the state of the observer.
+
+        Returns:
+            dict: A dictionary containing the observer's parameters.
+        """
+        return {
+            'spacetime': self.spacetime.state_dict(),
+            'position': self.position.tolist(),
+            'camera_dir': self.camera_dir.tolist(),
+            'u': self.u.tolist()
+        }
+
+    @classmethod
+    def from_dict(cls, state: dict):
+        """Creates an Observer object from a state dictionary.
+
+        Args:
+            state (dict): A dictionary containing the observer's state.
+
+        Returns:
+            An instance of `Observer`.
+        """
+        from bhtrace.geometry.spacetime import Spacetime
+        spacetime_state = state.pop('spacetime')
+        spacetime = Spacetime.from_dict(spacetime_state)
+        
+        for key in ['position', 'camera_dir', 'u']:
+            if key in state:
+                state[key] = torch.tensor(state[key])
+                
+        return cls(spacetime=spacetime, **state)
+
     def setup_ic(self,
                  particle: Particle,
                  net_shape='square',
@@ -85,11 +120,11 @@ class Observer:
         
         # For covariant momentum p_u in Minkowski: p_0 = -E, p_i = E*d_i
         # We set the initial energy E=1.
-        p_t = -torch.ones(num_rays, 1)
-        p_spatial = self.camera_dir.expand(num_rays, -1)
-        
-        self.P_net = torch.cat([p_t, p_spatial], dim=-1)
+        v_spatial = self.camera_dir.expand(num_rays, -1)
+        self.P_net = particle.GetNullMomentum(self.X_net, v_spatial)
 
         # For compatibility with tracers that might expect a specific dtype
         self.X_net = self.X_net.to(dtype=torch.float32)
         self.P_net = self.P_net.to(dtype=torch.float32)
+
+        return self.X_net, self.P_net

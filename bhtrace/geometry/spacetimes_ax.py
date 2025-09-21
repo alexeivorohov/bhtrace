@@ -4,6 +4,8 @@ from .spacetime import Spacetime
 
 class KerrAx(Spacetime):
 
+    __coord__ = 'BoyerLindquist'
+
     def __init__(self, a: float):
         '''
         a: float - rotation parameter in units a/M
@@ -12,6 +14,8 @@ class KerrAx(Spacetime):
         self.Dlta = lambda r: r**2 - 2*r + a**2
         self.Sgma = lambda r, th: r**2 + a**2 * torch.cos(th)**2
         self.P = lambda r, l: r**2+a**2-a*l
+
+        super().__init__(self)
     
 
     def uR(self, r, l_s, q_s):

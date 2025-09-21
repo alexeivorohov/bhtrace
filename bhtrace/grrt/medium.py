@@ -2,7 +2,7 @@ import torch
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from ..geometry import Spacetime, Coordinates, Particle
+from ..geometry import Spacetime, Particle
 from .utils import i2_r
 
 # TODO:
@@ -19,13 +19,12 @@ class Medium(ABC):
                  spacetime: Spacetime,
                  position: torch.Tensor, 
                  direction: torch.Tensor,
-                 coordinates: Coordinates
+                #  coordinates: Coordinates
                  ):
 
         self.spacetime = spacetime
-        self.coordinates = coordinates
+        # self.coordinates = coordinates
         self.position = position
-        self.coordinates = coordinates
         
         pass
     

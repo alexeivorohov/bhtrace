@@ -38,18 +38,19 @@ class PTracer(Tracer):
 
 
     def evnt(self,
-             t,
-             X: torch.Tensor,
-             P: torch.Tensor
-             ):
+             t: float,
+             Y: tuple[torch.Tensor, torch.Tensor],
+             dY: tuple[torch.Tensor, torch.Tensor] | None = None,
+             ) -> torch.Tensor:
 
+        X, P = Y
         # TODO:
         # [ ] refactor this method
         # cr1 = self.particle.crit(XP[..., :4], XP[..., 4:])
         cr1 = torch.less(self.max_proper_t, X[..., 0])
         cr2 = torch.less(self.r_max, torch.abs(X[..., 1]))
         # integration continues while function returns false
-        return cr1 + cr2
+        return cr1 | cr2
     
 
     def reg(self,

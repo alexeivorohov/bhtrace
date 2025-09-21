@@ -1,5 +1,15 @@
 import torch
 
+def sph2cart(coords):
+    """
+    Converts a batch of spherical coordinates (t, r, theta, phi) to Cartesian (x, y, z).
+    """
+    t, r, theta, phi = coords[..., 0], coords[..., 1], coords[..., 2], coords[..., 3]
+    x = r * torch.sin(theta) * torch.cos(phi)
+    y = r * torch.sin(theta) * torch.sin(phi)
+    z = r * torch.cos(theta)
+    return x, y, z
+
 def EulerRotation(
         X: torch.Tensor,
         dphi: float | torch.Tensor,

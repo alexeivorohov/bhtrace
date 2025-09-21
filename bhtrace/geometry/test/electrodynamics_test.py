@@ -10,25 +10,20 @@ root_path = '/home/alexey/Work/bhtrace-dev'
 sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
-from bhtrace.geometry import MinkowskiCart, MinkowskiSph
-from bhtrace.fields import Electrodynamics, _ED_MODELS_
+from bhtrace.geometry import MinkowskiCart, MinkowskiSph, Electrodynamics, _ED_MODELS_
 
 
 class TestElectrodynamics(unittest.TestCase):
-    
-    
-    def __init__(self, *args, **kwargs):
+    def setUp(self):
         '''
         Collect all subclasses of Electrodynamics and instantate tests
         '''
-        super(TestElectrodynamics, self).__init__(*args, **kwargs)
-
         self.base_class = Electrodynamics
 
         self.impls = {}
 
         all_impls = inspect.getmembers(
-            sys.modules['bhtrace.electrodynamics'], inspect.isclass
+            sys.modules['bhtrace.geometry.electrodynamics_models'], inspect.isclass
         )
 
         for name, obj in all_impls:
@@ -149,6 +144,20 @@ class TestElectrodynamics(unittest.TestCase):
         #     ED.set_regime(fields=regime, model_type=model_type)
 
         #     ED.calculate(X, gX, U)
+
+    def test_save_load(self):
+        '''
+        Test if ED models can be saved and loaded.
+        '''
+        for name, ed in self.instance_to_test.items():
+            with self.subTest(name=name):
+                try:
+                    state = ed.state_dict()
+                    new_ed = Electrodynamics.from_dict(state)
+                    new_state = new_ed.state_dict()
+                    self.assertEqual(state, new_state)
+                except Exception as e:
+                    self.fail(f"Save/load failed for {name}: {e}")
 
 
 if __name__ == '__main__':

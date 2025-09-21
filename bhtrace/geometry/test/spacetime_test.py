@@ -8,7 +8,7 @@ sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
 
-from bhtrace.geometry import mock_spacetime
+from bhtrace.geometry import MockSpacetime
 from bhtrace.geometry import _SPACETIMES_
 # from bhtrace.functional import sph2cart, cart2sph
 # from bhtrace.tracing import PTracer, CTracer
@@ -19,7 +19,7 @@ class TestSpacetimeBase(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestSpacetimeBase, self).__init__(*args, **kwargs)
         self.n_eval = 10
-        self.mock_st = mock_spacetime()
+        self.mock_st = MockSpacetime()
 
     
     def test_metric(self):
@@ -67,26 +67,43 @@ class TestSpacetimeBase(unittest.TestCase):
 
 class TestSpacetimeCollection(unittest.TestCase):
 
-    def __init__(self, *args, **kwargs):
-        super(TestSpacetimeCollection, self).__init__(*args, **kwargs)
+    def setUp(self):
         self.ST_dict = {}
         self.n_eval = 10
-
+        for name, constructor in _SPACETIMES_.items():
+            try:
+                if name == 'KerrSchild':
+                    st = constructor(a=0.9, m=1.0, Q=0.1)
+                elif name == 'KerrAx':
+                    st = constructor(a=0.9)
+                elif name == 'SchwSchild':
+                    st = constructor(m=1.0, Q=0.1)
+                elif name in ['EffGeom', 'EffgeomSimple']:
+                    continue # Skip these as they require complex objects
+                else:
+                    st = constructor()
+                self.ST_dict[name] = st
+            except Exception as e:
+                print(f"Failed to initialize {name}: {e}")
 
     def test_init(self):
         '''
         Test if all spacetimes can be initialized
         '''
-        for name, constructor in _SPACETIMES_.items():
+        self.assertTrue(len(self.ST_dict) > 0)
 
-            try:
-                ST = constructor()
-                self.ST_dict[name] = ST
-            except Exception as e:  
-                print(f"Failed to initialize {name}: {e}")
-                continue
+    def test_save_load(self):
+        '''
+        Test if spacetimes can be saved and loaded.
+        '''
+        st = MockSpacetime()
+        state = st.state_dict()
+        expected_state = {'name': 'MockSpacetime'}
+        self.assertEqual(state, expected_state)
 
-        pass
+        new_st = Spacetime.from_dict(state)
+        new_state = new_st.state_dict()
+        self.assertEqual(state, new_state)
 
 
     def test_metric(self):
@@ -100,8 +117,8 @@ class TestSpacetimeCollection(unittest.TestCase):
         for ST in self.ST_dict.values():
             try:
                 g = ST.g(test_coords)
-                invg = ST.invg(test_coords)
-                self.assertTrue(torch.allclose(g @ invg, torch.eye(4), atol=1e-5))
+                ginv = ST.ginv(test_coords)
+                self.assertTrue(torch.allclose(g @ ginv, torch.eye(4), atol=1e-5))
             except Exception as e:
                 print(f"Failed to compute metric for {ST}: {e}")
                 continue
@@ -118,7 +135,7 @@ class TestSpacetimeCollection(unittest.TestCase):
         conn = 0
         '''
 
-        ref_ST = mock_spacetime()
+        ref_ST = MockSpacetime()
         test_coords = torch.randn(self.n_eval, 4)
 
         ref_g = ref_ST.g(test_coords)
@@ -127,11 +144,11 @@ class TestSpacetimeCollection(unittest.TestCase):
         ref_conn = ref_ST.conn(test_coords)
 
         for ST in self.ST_dict.values():
-            if ST._reduction_params_ is None:
+            if not hasattr(ST, '_reduction_params_') or ST._reduction_params_ is None:
                 continue
 
             test_g = ST.g(test_coords)
-            test_ginv = ST.invg(test_coords)
+            test_ginv = ST.ginv(test_coords)
             test_dg = ST.dg(test_coords)
             test_conn = ST.conn(test_coords)
 
@@ -147,15 +164,14 @@ class TestSpacetimeCollection(unittest.TestCase):
         X = torch.randn(1, 1, 4)
 
         for ST in self.ST_dict.values():
+            with self.subTest(name=ST.__class__.__name__):
+                eta = torch.diag(torch.tensor([-1.0, 1.0, 1.0, 1.0], device=X.device, dtype=X.dtype))
 
-            eta = torch.diag(torch.tensor([-1, 1, 1, 1]))
-
-            E = ST.tetrad(X)
-            g_recon = torch.einsum('...ab, ...bc, ... cd -> ...ad', E.swapaxes(-1, -2), eta, E)
-
-            # Check if close to g
-            if not torch.allclose(g, g_recon, atol=1e-5):
-                print("Warning: Reconstruction error in tetrad factorization.")
+                E = ST.tetrad(X)
+                g_recon = torch.einsum('...ab, ...bc, ...cd -> ...ad', E.swapaxes(-1, -2), eta, E)
+                g = ST.g(X)
+                # Check if close to g
+                self.assertTrue(torch.allclose(g, g_recon, atol=1e-5))
 
 
     def test_JIT(self):

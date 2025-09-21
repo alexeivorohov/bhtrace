@@ -13,16 +13,7 @@ from .particle import *
 from .particle_zoo import *
 
 from .observer import *
-
-
-_SPACETIMES_ = {
-    'mock': MockSpacetime,
-    'MinkowskiCart': MinkowskiCart,
-    # 'KerrSchild': KerrSchild,
-    # 'SchwSchild': SchwSchild,
-    'MinkowskiSph': MinkowskiSph,
-    'SphericallySymmetric': SphericallySymmetric,
-}
+from .spacetime_factory import create_spacetime, SPACETIME_REGISTRY as _SPACETIMES_
 
 _PARTICLES_ = {
     'mock' : None,
@@ -30,7 +21,7 @@ _PARTICLES_ = {
 }
 
 from .electrodynamics import *
-from .ed_models import *
+from .electrodynamics_models import *
 
 _ED_MODELS_ = {
     'Maxwell': Maxwell,
@@ -63,10 +54,3 @@ _ED_MODELS_ = {
 # [] Effective geometry unittests
 # [ ] Models unittests
 # [ ] Descriptions
-
-
-if __name__ == "__main__":
-    
-    # Test calls here
-
-    pass

@@ -1,5 +1,7 @@
 from .medium import Medium
-from ..geometry import Spacetime, Axial
+from ..geometry import Spacetime
+
+
 from typing import Type
 
 import torch
@@ -30,7 +32,7 @@ class ThinKeplerianDisk(Medium):
             spacetime=Spacetime,
             position=position,
             direction=direction,
-            coordinates=Axial()
+            # coordinates=Axial()
             )
         
 
