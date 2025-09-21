@@ -70,10 +70,11 @@ class Tracer():
         - torch.Tensor [batch_size]: A boolean tensor, True where integration should stop.
         '''
         X, P = Y
-        # Stop if radial coordinate > r_max or proper time > max_proper_t
+        # Stop if proper time > max_proper_t
         cr1 = torch.greater(X[:, 0], self.max_proper_t)
-        cr2 = torch.greater(torch.abs(X[:, 1]), self.r_max)
-        return cr1 | cr2
+        # 
+
+        return cr1 
 
     def forward(self,
                 particle: Particle,

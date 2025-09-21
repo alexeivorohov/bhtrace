@@ -4,7 +4,7 @@ from .spacetime import Spacetime
 
 class KerrAx(Spacetime):
 
-    __coord__ = 'BoyerLindquist'
+    __coords__ = 'BoyerLindquist'
 
     def __init__(self, a: float):
         '''

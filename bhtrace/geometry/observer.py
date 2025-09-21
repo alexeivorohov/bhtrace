@@ -2,7 +2,7 @@ import torch
 
 from . import Spacetime, Particle
 from ..functional import net, rotate_points_cloud
-
+from .transformation_collection import relation_dict
 
 class Observer:
 
@@ -111,20 +111,19 @@ class Observer:
         global_screen_points_spatial = rotated_screen_points + self.position[1:] + self.camera_dir * net_dist
         
         time_coord = torch.full((global_screen_points_spatial.shape[0], 1), self.position[0].item())
-        self.X_net = torch.cat([time_coord, global_screen_points_spatial], dim=-1)
+        pos = torch.cat([time_coord, global_screen_points_spatial], dim=-1)
 
-        # 4. Calculate initial 4-momenta for parallel rays.
-        # This simplified implementation is for Cartesian Minkowski spacetime.
-        # A general implementation would need a robust GetNullMomentum method from the particle class.
-        num_rays = self.X_net.shape[0]
+        # 4. Calculate sample 4-momenta for parallel rays:
+    
+        vel = torch.ones(pos.shape[0], 4)
+        vel[:, 1:] = self.camera_dir
         
-        # For covariant momentum p_u in Minkowski: p_0 = -E, p_i = E*d_i
-        # We set the initial energy E=1.
-        v_spatial = self.camera_dir.expand(num_rays, -1)
-        self.P_net = particle.GetNullMomentum(self.X_net, v_spatial)
+        # 5. Translate to required CS:
+        if particle.__coords__ != 'Cartesian':
+            pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel)
 
-        # For compatibility with tracers that might expect a specific dtype
-        self.X_net = self.X_net.to(dtype=torch.float32)
-        self.P_net = self.P_net.to(dtype=torch.float32)
+        # Prepare null momenta and translate to given dtype
+        self.X_net = pos.to(dtype=torch.float32)
+        self.P_net = particle.GetNullMomentum(pos, vel).to(dtype=torch.float32)
 
         return self.X_net, self.P_net

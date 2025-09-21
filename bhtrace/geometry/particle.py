@@ -52,6 +52,7 @@ class Particle(ABC):
             raise ValueError("A valid Spacetime object must be provided.")
 
         self.spacetime = spacetime
+        self.__coords__ = spacetime.__coords__
         self.mu = None  # Particle mass
         self.r_max = torch.tensor([30.0])
         self.gtol = torch.tensor([1e-6, 1e6])

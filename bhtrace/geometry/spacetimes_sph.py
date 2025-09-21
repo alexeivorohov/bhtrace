@@ -4,13 +4,14 @@ from .spacetime import Spacetime
 class MinkowskiSph(Spacetime):
 
     __analytic_conn__ = True
+    __coords__ = 'Spherical'
 
     def __init__(self):
         '''
         Minkowski spacetime in spherical coordinates.
         '''
         super().__init__()
-        self.__coords__ = 'spherical'
+    
         pass
 
 
@@ -76,10 +77,10 @@ class MinkowskiSph(Spacetime):
         
         return abs(X[..., 1])
 
-
 class SphericallySymmetric(Spacetime):
 
     __analytic_conn__ = True
+    __coords__ = 'Spherical'
 
     def __init__(self, A=None, A_r=None, B=None, B_r=None, r_s=2.0):
         '''
@@ -113,7 +114,7 @@ class SphericallySymmetric(Spacetime):
             self.B = B
             self.B_r = B_r
 
-        self.__coords__ = 'spherical'
+        
         super().__init__()
 
         pass
@@ -178,7 +179,7 @@ class SphericallySymmetric(Spacetime):
         outp[..., 2, 2, 1] = outp[..., 2, 1, 2]
         outp[..., 2, 3, 3] = -0.5*torch.sin(2*th)
 
-        #phi
+        # phi
         outp[..., 3, 3, 1] = 1/r
         outp[..., 3, 1, 3] = outp[..., 3, 3, 1]
         outp[..., 3, 3, 2] = 1/torch.tan(th)
@@ -190,9 +191,10 @@ class SphericallySymmetric(Spacetime):
 
         return abs(self.A(X[..., 1]))
 
-
 class KerrSchildSph(Spacetime):
+
+    __coords__ = 'Spherical'
 
     def __init__(self):
         pass
-    
+

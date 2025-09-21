@@ -5,10 +5,12 @@ from .spacetime import Spacetime
 
 class MinkowskiCart(Spacetime):
 
+    __coords__ = 'Cartesian'
+
     def __init__(self):
         super().__init__()
 
-        self.__coords__ = 'cartesian'
+
         pass
 
 
@@ -54,6 +56,8 @@ class KerrSchild(Spacetime):
         Q (float): The charge of the black hole (Q).
     """
 
+    __coords__ = 'Cartesian'
+
     def __init__(self, a: float = 0.6, m: float = 1.0, Q: float = 0.0):
         """Initializes the KerrSchild spacetime.
 
@@ -63,8 +67,7 @@ class KerrSchild(Spacetime):
             Q (float, optional): The charge (Q). Defaults to 0.0.
         """
         super().__init__()
-        
-        self.__coords__ = 'cartesian'
+
         self.a = a
         self.a2 = a*a
         self.m = m
@@ -154,9 +157,11 @@ class KerrSchild(Spacetime):
 
 class SchwSchild(Spacetime):
 
+    __coords__ = 'Cartesian'
+
     def __init__(self, m=1.0, Q=0.0):
         super().__init__()
-        self.__coords__ = 'cartesian'
+
         self.m = m
         self.Q = Q
         self.Q2 = Q*Q

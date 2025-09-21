@@ -19,6 +19,7 @@ class EffGeom(Spacetime):
         '''
 
         self.base = base
+        self.__coords__ = base.__coords__
         self.ED = ED
         self.ED.attach_fields(E, B)
 
@@ -55,6 +56,8 @@ class EffGeom(Spacetime):
     
 
 class EffgeomSimple(Spacetime):
+
+    __coords__ = 'Spherical'
 
     def __init__(self, ED: 'Electrodynamics', f=None, f_r=None, E=None, B=None):
         '''
