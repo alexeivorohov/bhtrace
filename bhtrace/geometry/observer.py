@@ -120,7 +120,7 @@ class Observer:
         
         # 5. Translate to required CS:
         if particle.__coords__ != 'Cartesian':
-            pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel)
+            pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel, [True])
 
         # Prepare null momenta and translate to given dtype
         self.X_net = pos.to(dtype=torch.float32)

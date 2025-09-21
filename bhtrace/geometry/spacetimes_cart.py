@@ -13,7 +13,6 @@ class MinkowskiCart(Spacetime):
 
         pass
 
-
     def g(self, X):
 
         outp = torch.zeros(*X.shape[:-1], 4, 4)
@@ -25,7 +24,6 @@ class MinkowskiCart(Spacetime):
 
         return outp
 
-
     def ginv(self, X):
 
         outp = torch.zeros(*X.shape[:-1], 4, 4)
@@ -36,7 +34,6 @@ class MinkowskiCart(Spacetime):
         outp[..., 3, 3] = 1
 
         return outp
-
 
     def crit(self, X):
 
@@ -228,15 +225,3 @@ class SchwSchild(Spacetime):
         r = torch.sqrt(r2)
 
         return r
-
-
-
-    def crit(self, X):
-
-        p = X[..., 1:]
-        rho = self.geom_R(X)
-        r2 = 0.5*(rho + torch.sqrt(rho**2))
-        r = torch.sqrt(r2)
-
-        return r
-

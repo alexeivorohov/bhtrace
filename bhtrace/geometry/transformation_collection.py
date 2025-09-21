@@ -41,8 +41,8 @@ class Cartesian2Spherical(CoordinateTransformation):
             inverse = Spherical2Cartesian(inverse=self)
         super().__init__(inverse=inverse)
 
-    @classmethod
-    def __call__(cls, X: torch.Tensor):
+
+    def __call__(self, X: torch.Tensor):
         '''
         Transform vector from cartesian to spherical coordinates
         '''
@@ -64,7 +64,7 @@ class Cartesian2Spherical(CoordinateTransformation):
         Outputs:
         '''
 
-        j = torch.zeros((*X.shape[:-1], 4, 4), device=X.device, dtype=X.dtype)
+        j = torch.zeros((*X.shape, 4), device=X.device, dtype=X.dtype)
         
         j[..., 0, 0] = 1.
 
@@ -270,14 +270,6 @@ class Shift(CoordinateTransformation):
 
         return I.repeat(*X.shape[:-1],1,1)
 
-
-    def tensor(self, X, A):
-
-        X_new = X + self.pos
-
-        return X_new, A
-
-
 class Rotation(CoordinateTransformation):
 
     # TODO: Implement this class
@@ -303,12 +295,6 @@ class Rotation(CoordinateTransformation):
 
         return I.repeat(*X.shape[:-1],1,1)
 
-
-    def tensor(self, X, A):
-
-        X_new = X + self.pos
-
-        return X_new, A
 
 
 relation_dict: Dict[str, Dict[str, CoordinateTransformation]] = {

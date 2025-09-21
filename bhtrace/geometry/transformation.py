@@ -48,34 +48,49 @@ class CoordinateTransformation(ABC):
         coord_dim = len(X.shape) - 1
         rank = len(A.shape) - coord_dim
 
+        # --- Shape checks ---
+        assert X.shape[-1] == 4, 'Coordinate dimension must be 4'
+        if rank > 0:
+            assert A.shape[-rank:] == tuple([4]*rank), 'Tensor dimensions must be 4'
+        assert X.shape[:-1] == A.shape[:-rank], 'Batch dimensions of coordinates and tensor do not match'
+        # --- End of shape checks ---
+
         X_new = self.__call__(X)
         
+        if rank == 0:
+            return X_new, A # Scalar does not transform
+
+        # jac is J^new_old = dx'/dx, ijac is (J^-1)^old_new = dx/dx'
         jac = self.jac(X)
         ijac = None
 
         if valence == None:
-            
             valence = [True] * rank
 
         assert len(valence) == rank, 'Described valences and tensor rank do not match'
 
         if not all(valence):
-            # inverse jacobian
+            # inverse jacobian is needed for covariant components
             ijac = self.inverse.jac(X_new)
 
-        in_idx = [k for k in range(rank)]
-        out_idx = [k+rank for k in range(rank)]
+        in_idx = list(range(rank))
+        out_idx = list(range(rank, 2*rank))
+        # This einsum call is equivalent to building a string like '...ab,...ca,...bd->...cd'
+        # for a (1,1) tensor, but avoids string manipulation.
         args = [A, [..., *in_idx]]
 
         for k in range(rank):
             if valence[k]:
+                # Contravariant: A'^k = J^k_i A^i. einsum: ...i,...ki->...k
                 args.append(jac)
+                args.append([..., out_idx[k], in_idx[k]])
             else:
+                # Covariant: A'_l = (J^-1)^j_l A_j. einsum: ...j,...jl->...l
                 args.append(ijac)
+                args.append([..., in_idx[k], out_idx[k]])
         
-            args.append([..., in_idx[k], out_idx[k]])
-        
-        args.append(out_idx)
+        args.append([..., *out_idx])
+        # print(*args)
             
         A_new = torch.einsum(*args)
             

@@ -31,8 +31,8 @@ if not os.path.exists(file_path + '.traj'):
         )
 
     tracer = PTracer(ode_method='RK4')
-    traj = tracer.forward(photon, X0, P0, T=0.1, nsteps=2, r_max=30, max_proper_t = 500, eps=1e-3)
-    # traj.save(file_path + '.traj')
+    traj = tracer.forward(photon, X0, P0, T=30, nsteps=128, r_max=30, max_proper_t = 500, eps=1e-3)
+    traj.save(file_path + '.traj')
 else:
     traj = Trajectory.load(file_path + '.traj')
 
@@ -47,3 +47,6 @@ fig3.savefig(file_path + '_impulses' + formats[0])
 
 fig4 = traj.plot_coords()
 fig4.savefig(file_path + '_coords' + formats[0])
+
+fig5 = traj.plot_metrics()
+fig5.savefig(file_path + '_metrics' + formats[0])

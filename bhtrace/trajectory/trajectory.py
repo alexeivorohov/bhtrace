@@ -187,7 +187,7 @@ class Trajectory:
         ax = fig.add_subplot(111)
 
         ax.plot(vH.detach().cpu().numpy().T)
-        ax.set_title('Hamiltonian consservation along trajectory')
+        ax.set_title('Hamiltonian conservation along trajectory')
         ax.set_xlabel('time step')
         ax.set_ylabel('$\\log_{10} |H - \\mu|$')
         ax.grid(True)
@@ -231,7 +231,48 @@ class Trajectory:
             axs[i].set_xlabel('time step')
             axs[i].grid(True)
 
-        return fig    
+        return fig
+
+    def plot_metrics(self, mask=None):
+        '''
+        Plots 10 independent metric components along the trajectory.
+        '''
+        if mask is None:
+            mask = torch.ones(self.ntraj, dtype=torch.bool)
+
+        g = self.spacetime.g(self.X)
+        g = g[mask, :, :, :].detach().cpu()
+
+        labels = []
+        components = []
+        for i in range(4):
+            for j in range(i, 4):
+                labels.append(f'g_{i}{j}')
+                components.append(g[:, :, i, j])
+
+        fig, axs = plt.subplots(5, 2, figsize=(15, 25))
+        axs = axs.flatten()
+
+        for i, label in enumerate(labels):
+            ax = axs[i]
+            ax.plot(components[i].numpy().T)
+            ax.set_title(f'{label} along trajectory')
+            ax.set_ylabel(f'{label}')
+            ax.set_xlabel('time step')
+            ax.grid(True)
+        
+        fig.tight_layout()
+        return fig
+
+    def plot3d(self, **kwargs):
+        """
+        Placeholder for plotting the trajectory.
+        """
+        raise NotImplementedError("Plotting is not yet implemented.") 
+    
+    def plot_metric(self, mask=None):
+
+        pass
 
     def plot3d(self, **kwargs):
         """
