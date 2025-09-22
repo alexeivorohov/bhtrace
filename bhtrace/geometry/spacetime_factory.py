@@ -20,7 +20,7 @@ SPACETIME_REGISTRY = {
     'EffgeomSimple': EffgeomSimple,
 }
 
-def create_spacetime(name: str, **kwargs):
+def create_spacetime(name: str, *args, **kwargs):
     '''
     Factory function to create a spacetime object by name.
 
@@ -38,4 +38,4 @@ def create_spacetime(name: str, **kwargs):
         raise ValueError(f"Spacetime '{name}' not recognized. Available spacetimes are: {list(SPACETIME_REGISTRY.keys())}")
 
     spacetime_class = SPACETIME_REGISTRY[name]
-    return spacetime_class(**kwargs)
+    return spacetime_class(*args, **kwargs)

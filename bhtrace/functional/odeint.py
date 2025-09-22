@@ -27,12 +27,15 @@ class ODEint(ABC):
 
     Event Function Example:
     An `event_fn` can be used to stop integration when a condition is met.
-    It should accept `t` and `Y` and return a boolean tensor indicating event occurrence for each item in the batch.    
+    It should accept `t`, `Y` and `dY` and change components of tracer`s boolean tensor to indicate event occurence for item in the batch.    
     
     def event_fn(t, Y):
-        return Y[0] > 0.0
+    
+        self.batch_mask.logical_and_(Y[0] > 0.0)
 
-    This example stops integration when the first component of Y crosses 0.0
+    
+
+    This example stops integration batch-wise when the first component of Y crosses 0.0
 
     '''
 
@@ -193,10 +196,11 @@ class ODEint(ABC):
 
         if self.__event_tracking__:
             event_args = {k: args[k] for k in self.event_fn_signature if k in args}
-            self.batch_mask.logical_and_(~self.event_fn(**event_args))
+            self.event_fn(**event_args)
 
         if self.__has_adjoints__:
             for f in self.adjoint_fns:
+                # TODO: implement this logic
                 pass
 
         if self.__variable_step__:
@@ -205,7 +209,7 @@ class ODEint(ABC):
                 args['LTE'] = self.solution['LTE'][step_n]
             
             step_args = {k: args[k] for k in self.step_fn_signature if k in args}
-            self.dt = self.step_fn(**step_args)
+            self.step_fn(**step_args)
 
 
     def solve(self, nsteps: int, track_LTE: bool = False) -> Dict[str, torch.Tensor | Tuple[torch.Tensor]]:

@@ -135,21 +135,21 @@ class KerrSchild(Spacetime):
         return torch.inverse(self.g(X))
 
 
-    def crit(self, X: torch.Tensor) -> torch.Tensor:
-        """Calculates the Boyer-Lindquist radius `r` as the criticality criterion.
+    # def crit(self, X: torch.Tensor) -> torch.Tensor:
+    #     """Calculates the Boyer-Lindquist radius `r` as the criticality criterion.
 
-        Args:
-            X (torch.Tensor): Spacetime coordinates, shape [..., 4].
+    #     Args:
+    #         X (torch.Tensor): Spacetime coordinates, shape [..., 4].
 
-        Returns:
-            torch.Tensor: The value of the Boyer-Lindquist radius `r`.
-        """
-        p = X[..., 1:]
-        rho = self.geom_R(X) - self.a2
-        r2 = 0.5 * (rho + torch.sqrt(rho**2 + 4.0 * self.a2 * p[..., 2]**2))
-        r = torch.sqrt(r2)
+    #     Returns:
+    #         torch.Tensor: The value of the Boyer-Lindquist radius `r`.
+    #     """
+    #     p = X[..., 1:]
+    #     rho = self.geom_R(X) - self.a2
+    #     r2 = 0.5 * (rho + torch.sqrt(rho**2 + 4.0 * self.a2 * p[..., 2]**2))
+    #     r = torch.sqrt(r2)
 
-        return r
+    #     return r
         
 
 class SchwSchild(Spacetime):
@@ -217,11 +217,11 @@ class SchwSchild(Spacetime):
         return torch.inverse(self.g(X))
 
 
-    def crit(self, X):
+    # def crit(self, X):
 
-        p = X[..., 1:]
-        rho = self.geom_R(X)
-        r2 = 0.5*(rho + torch.sqrt(rho**2))
-        r = torch.sqrt(r2)
+    #     p = X[..., 1:]
+    #     rho = self.geom_R(X)
+    #     r2 = 0.5*(rho + torch.sqrt(rho**2))
+    #     r = torch.sqrt(r2)
 
-        return r
+    #     return r

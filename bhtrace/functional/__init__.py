@@ -13,6 +13,7 @@ from .graphics import *
 from .diff import *
 from .linalg import *
 from .transform import *
+from .caching import *
 
 # TODO: 
 # [x] Routines

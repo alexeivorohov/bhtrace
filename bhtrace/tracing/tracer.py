@@ -13,6 +13,9 @@ class Tracer():
     For 
     '''
 
+    __use_event_fn__ = True
+    __g00_tol__ = -0.11
+
     def __init__(self, ode_method='Euler'):
         '''
         Initialize the Tracer with a specified ODE integration method.
@@ -52,29 +55,6 @@ class Tracer():
         - tuple[torch.Tensor, torch.Tensor]: A tuple (dX, dP) representing the derivatives.
         '''
         pass
-
-    def evnt(self,
-             t: float,
-             Y: tuple[torch.Tensor, torch.Tensor],
-             dY: tuple[torch.Tensor, torch.Tensor] | None = None,
-             ) -> torch.Tensor:
-        '''
-        Event function to stop integration. Operates on a batch of particles.
-        Integration stops for a particle if the function returns True for it.
-
-        Parameters:
-        - t: float - The current time.
-        - Y: tuple[torch.Tensor, torch.Tensor] - Current state (X, P).
-        - dY: tuple[torch.Tensor, torch.Tensor] | None - Current derivatives (dX, dP).
-        Returns:
-        - torch.Tensor [batch_size]: A boolean tensor, True where integration should stop.
-        '''
-        X, P = Y
-        # Stop if proper time > max_proper_t
-        cr1 = torch.greater(X[:, 0], self.max_proper_t)
-        # 
-
-        return cr1 
 
     def forward(self,
                 particle: Particle,
@@ -116,12 +96,12 @@ class Tracer():
 
         # --- Vectorized Integration ---
         dt = T / nsteps
-        odeint = self.ode_solver_class(dt=dt, event_fn=self.evnt)
+        self.odeint = self.ode_solver_class(dt=dt, event_fn=self.evnt)
         
         print(f"Starting vectorized integration of {self.Ni} particles with {self.ode_solver_class.__name__}...")
         start_time = time.time()
 
-        solution = odeint.forward(
+        solution = self.odeint.forward(
             term=self.__term__,
             Y0=(X0, P0),
             t0=0.0,
@@ -136,6 +116,31 @@ class Tracer():
         P = solution['Y'][1]
 
         return Trajectory(X, P, particle, self)
+    
+    def evnt(self,
+             t: float,
+             Y: tuple[torch.Tensor, torch.Tensor],
+             dY: tuple[torch.Tensor, torch.Tensor] | None = None,
+             ) -> torch.Tensor:
+        '''
+        Event function to stop integration. Operates on a batch of particles.
+        Integration stops for a particle if the function returns True for it.
+
+        Parameters:
+        - t: float - The current time.
+        - Y: tuple[torch.Tensor, torch.Tensor] - Current state (X, P).
+        - dY: tuple[torch.Tensor, torch.Tensor] | None - Current derivatives (dX, dP).
+        Returns:
+        - torch.Tensor [batch_size]: A boolean tensor, True where integration should stop.
+        '''
+        X, P = Y
+        
+        g_ = self.spc.g(X)
+
+        cr1 = torch.less(g_[..., 0, 0], self.__g00_tol__)
+
+        self.odeint.batch_mask.logical_and_(cr1)
+        # print(self.odeint.batch_mask)
     
     def to(self, dev = None, dtype = None):
 

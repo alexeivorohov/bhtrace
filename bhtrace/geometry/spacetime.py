@@ -37,11 +37,10 @@ symbols. The abstract class Spacetime contains the following methods:
 from abc import ABC, abstractmethod
 import inspect
 
-# from typing_extensions import ParamSpecArgs
-
 import torch
 
 from bhtrace.functional.linalg import tetrad_gd, tetrad_linalg
+from bhtrace.functional import Cacher
 
 # May be derivatives and connections should be moved to another class?
 # In this case, dealing with different coordinate systems may be simpler (?)
@@ -62,36 +61,53 @@ class Spacetime(ABC):
                                   are defined analytically.
     """
     __analytic_conn__ = False
+    _g00_tol = -0.1
 
-    def __new__(cls, name: str = None, **kwargs):
-        """Creates an instance of a specific spacetime subclass using a factory.
+    def __new__(cls, *args, **kwargs):
+        """Creates an instance of a specific spacetime subclass.
 
         This method intercepts the instantiation of the `Spacetime` class
         and uses a factory to return an instance of the correct subclass
         (e.g., `KerrSchild`) instead.
 
         Args:
-            name (str, optional): The name of the spacetime subclass to create.
+            name (str): The name of the spacetime subclass to create.
+            *args: Positional arguments to pass to the subclass's constructor.
             **kwargs: Keyword arguments to pass to the subclass's constructor.
 
         Returns:
             An instance of a `Spacetime` subclass.
         """
-        if isinstance(name, str):
-            # Import locally to prevent circular dependencies
+        if cls is Spacetime:
+            # Pop 'name' from kwargs for factory use.
+            name = kwargs.pop('name', None)
+
+            # Fallback to positional argument for backward compatibility.
+            if name is None:
+                if args and isinstance(args[0], str):
+                    name = args[0]
+                    args = args[1:]
+                else:
+                    raise TypeError(
+                        "Spacetime() factory requires a 'name' keyword argument "
+                        "or a spacetime name as the first positional argument."
+                    )
+
+            # Import locally to prevent circular dependencies.
             from bhtrace.geometry.spacetime_factory import create_spacetime
-            return create_spacetime(name, **kwargs)
+            return create_spacetime(name, *args, **kwargs)
+
+        # For subclasses, delegate to the default object creation.
         return super().__new__(cls)
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Initializes the Spacetime instance.
 
         Note:
-            The arguments to this constructor are primarily for factory usage in
-            `__new__` and are ignored here. Subclasses should call
-            `super().__init__()` to ensure attributes are set correctly.
+            Subclasses should call `super().__init__()`. Any arguments passed
+            to the base class constructor are ignored.
         """
-        self.__name__ = self.__class__.__name__
+        pass
 
     def state(self) -> dict:
         """Returns a dictionary representing the state of the spacetime.
@@ -113,12 +129,12 @@ class Spacetime(ABC):
 
     def horizon(self, X: torch.Tensor) -> torch.Tensor:
         '''
-        Function for determining apparent horizon (and, possibly, other horizons?)
+        Function for determining apparent outer horizon (and, possibly, other horizons)
         
         Should be positive in outer space, zero on horizon and negative under the horizon
-
         '''
-        return NotImplementedError            
+        return NotImplementedError                
+
 
     @classmethod
     def from_dict(cls, state: dict):
@@ -134,7 +150,7 @@ class Spacetime(ABC):
         name = state.pop('name')
         return create_spacetime(name, **state)
 
-    @abstractmethod
+    @Cacher.cache
     def g(self, X: torch.Tensor) -> torch.Tensor:
         """Calculates the metric tensor (covariant) at a given set of coordinates.
 
@@ -148,7 +164,7 @@ class Spacetime(ABC):
         """
         pass
 
-    @abstractmethod
+    @Cacher.cache
     def ginv(self, X: torch.Tensor) -> torch.Tensor:
         """Calculates the inverse metric tensor (contravariant) at a given set of coordinates.
 
@@ -232,31 +248,13 @@ class Spacetime(ABC):
         
         return 0.5*( - dg0 + dg1 + dg2)
     
-
     def tetrad(self, X: torch.Tensor, method: str = 'gd'):
         """Computes the tetrad frame. (Not fully implemented)."""
         if method == 'gd':
             return tetrad_gd(self, X)
         else:
             return tetrad_linalg(self, X)
-
-    @abstractmethod
-    def crit(self, X: torch.Tensor) -> torch.Tensor:
-        """Calculates a function of "distance" to the metric singularities.
-
-        This value can be used to control integration step size or to stop
-        the integration, where a value of 0 indicates a singularity.
-
-        Args:
-            X (torch.Tensor): A tensor of shape [..., 4] representing the
-                              spacetime coordinates.
-
-        Returns:
-            torch.Tensor: A scalar tensor for each point in the batch,
-                          representing the proximity to a singularity.
-        """
-        return None
-    
+   
     def compile(self):
         """Compiles the class with `torch.jit.script` for performance.
         
@@ -264,7 +262,6 @@ class Spacetime(ABC):
             This is experimental and may not work for all subclasses.
         """
         return torch.jit.script(self)
-
 
     def __str__(self) -> str:
         return self.__class__.__name__
@@ -276,7 +273,7 @@ class MockSpacetime(Spacetime):
         '''
         :class:`Spacetime()` implementation, used for test purposes.
         '''
-        super().__init__(name='MockSpacetime')
+        super().__init__()
         self.coefs = coefs
         pass
 
@@ -299,12 +296,5 @@ class MockSpacetime(Spacetime):
         outp[..., 1, 1] = 1/self.coefs[1]
         outp[..., 2, 2] = 1/self.coefs[2]
         outp[..., 3, 3] = 1/self.coefs[3]
-
-        return outp
-
-    
-    def crit(self, X):
-
-        outp = abs(X[...,1]-6) + abs(X[...,2]-6) + abs(X[...,3]-6)
 
         return outp

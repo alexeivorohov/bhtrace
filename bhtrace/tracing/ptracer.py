@@ -36,38 +36,6 @@ class PTracer(Tracer):
         self.name = 'PTracer'
         pass
 
-
-    def evnt(self,
-             t: float,
-             Y: tuple[torch.Tensor, torch.Tensor],
-             dY: tuple[torch.Tensor, torch.Tensor] | None = None,
-             ) -> torch.Tensor:
-
-        X, P = Y
-        # TODO:
-        # [ ] refactor this method
-        # cr1 = self.particle.crit(XP[..., :4], XP[..., 4:])
-        cr1 = torch.less(self.max_proper_t, X[..., 0])
-        cr2 = torch.less(self.r_max, torch.abs(X[..., 1]))
-        # integration continues while function returns false
-        return cr1 | cr2
-    
-
-    def reg(self,
-            t,
-            X: torch.Tensor,
-            P: torch.Tensor
-            ):
-
-        # TODO:
-        # [ ] refactor this method
-        # X = XP[..., :4]
-        # P = self.particle.MomentumNorm(XP[..., :4], XP[..., 4:])
-        # return torch.cat([X, P])
-
-        return X, P
-
-
     def __term__(self,
                 t,
                 X: torch.Tensor,
@@ -82,26 +50,4 @@ class PTracer(Tracer):
         dP = - self.particle.dHmlt(X, P, self.eps)
         
         return dX, dP
-    
-
-    def evaluation(self,
-                    t,
-                    X: torch.Tensor,
-                    P: torch.Tensor
-                    ):
-        '''
-        Evaluation method.
-
-        
-        Checks constraint violation for photons
-
-            g^{ik} p_i p_k
-        '''
-        # Should be moved to Photon class
-  
-        ginvX = self.spc.ginv(X)
-        
-        outp = torch.einsum('...uv, ...u, ...v -> ...', ginvX, P, P)
-
-        return outp
 
