@@ -1,6 +1,7 @@
 import unittest
 import torch
-from bhtrace.geometry import Observer, KerrSchild
+from bhtrace.geometry.observer import Observer
+from bhtrace.geometry.spacetime import KerrSchild
 
 class TestObserver(unittest.TestCase):
     def setUp(self):
@@ -16,11 +17,10 @@ class TestObserver(unittest.TestCase):
         )
 
     def test_save_load(self):
-        state = self.observer.state_dict()
+        state = self.observer.state()
         loaded_observer = Observer.from_dict(state)
-        new_state = loaded_observer.state_dict()
+        new_state = loaded_observer.state()
 
-        # Compare spacetime separately
         self.assertEqual(state['spacetime'], new_state['spacetime'])
 
         # Compare tensors

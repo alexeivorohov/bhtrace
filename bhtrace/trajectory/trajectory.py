@@ -10,9 +10,10 @@ import torch
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-from bhtrace.geometry import Spacetime, Particle
+from bhtrace.geometry.spacetime.base import Spacetime
+from bhtrace.geometry.particle import Particle
 from bhtrace.functional import opt_mosaic
-from bhtrace.geometry.transformation_collection import relation_dict
+from bhtrace.geometry.transformation import relation_dict
 
 
 class Trajectory:
@@ -261,6 +262,62 @@ class Trajectory:
             ax.set_xlabel('time step')
             ax.grid(True)
         
+        fig.tight_layout()
+        return fig
+
+    def plot_quantity(self, func, mask=None, name='Q'):
+        '''
+        Plots values of a given func(X) over the trajectory.
+        func(X) can produce scalar or tensor output.
+        '''
+        import math
+
+        if mask is None:
+            mask = torch.ones(self.ntraj, dtype=torch.bool)
+
+        quantity = func(self.X)
+        quantity = quantity[mask, ...].detach().cpu()
+
+        # Flatten tensor components
+        if quantity.ndim > 2:
+            flat_quantity = quantity.view(*quantity.shape[:2], -1)
+        else:
+            flat_quantity = quantity.unsqueeze(-1)
+
+        n_components = flat_quantity.shape[2]
+
+        labels = []
+        if n_components == 1 and quantity.ndim == 2:
+            labels.append(f'{name}')
+        else:
+            for i in range(n_components):
+                labels.append(f'{name}_{i}')
+        
+        components = [flat_quantity[:, :, i] for i in range(n_components)]
+
+        if n_components == 1:
+            nrows, ncols = 1, 1
+            figsize = (10, 5)
+        else:
+            ncols = 2
+            nrows = math.ceil(n_components / ncols)
+            figsize = (15, 5 * nrows)
+
+        fig, axs = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
+        axs = axs.flatten()
+
+        for i, label in enumerate(labels):
+            ax = axs[i]
+            ax.plot(components[i].numpy().T)
+            ax.set_title(f'{label} along trajectory')
+            ax.set_ylabel(f'{label}')
+            ax.set_xlabel('time step')
+            ax.grid(True)
+        
+        # Hide unused subplots
+        for i in range(n_components, len(axs)):
+            axs[i].set_visible(False)
+
         fig.tight_layout()
         return fig
 

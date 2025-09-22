@@ -1,12 +1,13 @@
 '''
-Provides a factory function to create spacetime objects.
+This module provides a factory function to create spacetime objects and
+exposes the concrete spacetime classes.
 '''
 
-from .spacetime import MockSpacetime
-from .spacetimes_cart import MinkowskiCart, KerrSchild, SchwSchild
-from .spacetimes_sph import MinkowskiSph, SphericallySymmetric
-from .spacetimes_ax import KerrAx
-from .spacetimes_eff import EffGeom, EffgeomSimple
+from .base import Spacetime, MockSpacetime
+from .cartesian import MinkowskiCart, KerrSchild, SchwSchild
+from .spherical import MinkowskiSph, SphericallySymmetric
+from .axial import KerrAx
+from .effective import EffGeom, EffgeomSimple
 
 SPACETIME_REGISTRY = {
     'MockSpacetime': MockSpacetime,
@@ -20,7 +21,7 @@ SPACETIME_REGISTRY = {
     'EffgeomSimple': EffgeomSimple,
 }
 
-def create_spacetime(name: str, *args, **kwargs):
+def create(name: str, *args, **kwargs):
     '''
     Factory function to create a spacetime object by name.
 

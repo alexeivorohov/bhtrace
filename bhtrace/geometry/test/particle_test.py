@@ -4,10 +4,13 @@ import unittest
 import sys
 sys.path.append('.')
 
-from bhtrace.geometry import Particle, Photon,\
-    MinkowskiCart, MinkowskiSph, SphericallySymmetric
-
-from bhtrace.geometry.spacetimes_cart import KerrSchild
+from bhtrace.geometry.particle import Particle, Photon
+from bhtrace.geometry.spacetime import (
+    MinkowskiCart, 
+    MinkowskiSph, 
+    SphericallySymmetric,
+    KerrSchild
+)
 
 
 # from bhtrace.functional import sph2cart, cart2sph, points_generate
@@ -43,7 +46,7 @@ class TestPhoton(unittest.TestCase):
             with self.subTest(spacetime=name):
                 # Points and velocities
                 X = torch.tensor([2, 3, 3, 3], dtype=torch.float32)
-                v = torch.tensor([0.8, 0.6, 0.0])
+                v = torch.tensor([0.0, 0.8, 0.6, 0.0])
 
                 # Calculate impulse
                 P = photon.GetNullMomentum(X, v)
@@ -62,7 +65,7 @@ class TestPhoton(unittest.TestCase):
                 self.assertTrue(torch.isclose(normP, exp_normP, atol=self.atol, rtol=self.rtol),
                 f'GetNullMomentum returned momentum of incorrect norm: {normP} for {name}')
 
-                self.assertTrue(torch.allclose(v, v_, atol=self.atol, rtol=self.rtol),
+                self.assertTrue(torch.allclose(v[1:], v_, atol=self.atol, rtol=self.rtol),
                 f'Direction reconstructed unsucessfully from generated momentum for {name}')
 
 
@@ -76,7 +79,7 @@ class TestPhoton(unittest.TestCase):
             with self.subTest(spacetime=name):
                 # Set up coordinates, velocities and impulses
                 X = torch.tensor([2, 3, 3, 3], dtype=torch.float32)
-                v_unnorm = torch.tensor([1., 1., 1.], dtype=X.dtype)
+                v_unnorm = torch.tensor([0., 1., 1., 1.], dtype=X.dtype)
                 v = v_unnorm / torch.norm(v_unnorm)
                 P = photon.GetNullMomentum(X, v)
 
@@ -101,7 +104,7 @@ class TestPhoton(unittest.TestCase):
         for name, photon in self.photons.items():
             with self.subTest(spacetime=name):
                 X = torch.tensor([2, 3, 3, 3],  dtype=torch.float32)
-                v_unnorm = torch.tensor([1., 1., 1.], dtype=X.dtype)
+                v_unnorm = torch.tensor([0., 1., 1., 1.], dtype=X.dtype)
                 v = v_unnorm / torch.norm(v_unnorm)
                 P = photon.GetNullMomentum(X, v)
 
@@ -131,10 +134,8 @@ class TestPhoton(unittest.TestCase):
                 
                 self.assertEqual(state, new_state,
                                  f'State mismatch for {name}: \n original {state}:,\n loaded: {new_state}'
-                                 ) 
+                                 )
 
 
 if __name__ == '__main__':
     unittest.main()
-
-

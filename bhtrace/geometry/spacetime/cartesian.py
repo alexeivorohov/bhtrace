@@ -1,6 +1,6 @@
 import torch
 import torch.linalg as LA
-from .spacetime import Spacetime
+from .base import Spacetime
 
 
 class MinkowskiCart(Spacetime):

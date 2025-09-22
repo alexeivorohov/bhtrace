@@ -11,8 +11,8 @@ import torch
 import os
 import pickle
 
-from ..geometry import Spacetime, Particle
-from ..functional import ODE
+from bhtrace.geometry import Spacetime, Particle
+from bhtrace.functional import ODE
 from .tracer import Tracer
 
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import inspect
-from bhtrace.geometry import Spacetime
+from bhtrace.geometry.spacetime.base import Spacetime
 from bhtrace.functional import levi_civita_tensor
 
 import torch
@@ -11,32 +11,15 @@ class Electrodynamics(ABC):
 
     This class defines the interface for electrodynamics models and provides
     methods to calculate field quantities and model-specific Lagrangians.
-    It also acts as a factory for creating specific model instances.
-
-    To create an electrodynamics model instance, use the factory pattern:
-        `maxwell = Electrodynamics(name='Maxwell')`
-        `eh = Electrodynamics(name='EulerHeisenberg', h=1.0)`
     """
-    def __new__(cls, name: str = None, **kwargs):
-        """Creates an instance of a specific electrodynamics subclass via a factory.
-
-        Args:
-            name (str, optional): The name of the electrodynamics subclass to create.
-            **kwargs: Keyword arguments to pass to the subclass's constructor.
-
-        Returns:
-            An instance of an `Electrodynamics` subclass.
-        """
-        if isinstance(name, str):
-            from bhtrace.geometry.electrodynamics_factory import create_electrodynamics
-            return create_electrodynamics(name, **kwargs)
+    def __new__(cls, *args, **kwargs):
+        if cls is Electrodynamics:
+            raise TypeError("Electrodynamics is an abstract class and cannot be instantiated directly. "
+                            "Use a concrete subclass or the factory function `bhtrace.geometry.electrodynamics.create()`.")
         return super().__new__(cls)
 
-    def __init__(self, name: str = None, **kwargs):
+    def __init__(self, **kwargs):
         """Initializes the Electrodynamics instance.
-
-        Note:
-            The arguments are primarily for factory usage and are ignored here.
         """
         self.lct4 = levi_civita_tensor(4).float() 
         self.L = None
@@ -46,7 +29,7 @@ class Electrodynamics(ABC):
         self.L_GG = None
         self.L_FG = None
 
-    def state_dict(self) -> dict:
+    def state(self) -> dict:
         """Returns a dictionary representing the state of the electrodynamics model.
 
         Returns:
@@ -57,7 +40,7 @@ class Electrodynamics(ABC):
         for param in sig.parameters.values():
             if param.name != 'self' and hasattr(self, param.name):
                 attr = getattr(self, param.name)
-                if isinstance(attr, (int, float, str, bool)):
+                if isinstance(attr, (int, float, str, bool, torch.Tensor)):
                      state[param.name] = attr
         return state
 
@@ -71,9 +54,9 @@ class Electrodynamics(ABC):
         Returns:
             An instance of an `Electrodynamics` subclass.
         """
-        from bhtrace.geometry.electrodynamics_factory import create_electrodynamics
+        from bhtrace.geometry.electrodynamics import create
         name = state.pop('name')
-        return create_electrodynamics(name, **state)
+        return create(name, **state)
 
 
     def calculate(
@@ -216,9 +199,9 @@ class ED_logic:
         Covariantly-constant levi-civita antisymmetric tensor
         '''
         ED._sqrtmg = torch.sqrt( - torch.linalg.det(gX))
-
-        ED._eps4 = ED.lct4.repeat(*gX.shape[:-2], 1, 1, 1, 1)/ED._sqrtmg
-  
+        
+        ED._eps4 = ED.lct4.repeat(*gX.shape[:-2], 1, 1, 1, 1)/ED._sqrtmg.view(*gX.shape[:-2], 1, 1, 1, 1)
+        
 
     def eta_pqu(ED: Electrodynamics, gX: torch.Tensor, U: torch.Tensor):
         '''
@@ -276,7 +259,7 @@ class ED_logic:
         '''
 
         return torch.einsum(
-            '...up, ...pq, ...qv->uv', 
+            '...up, ...pq, ...qv->...uv', 
             ED._Fuv, gX, ED._Fuv)
 
 
@@ -331,7 +314,7 @@ class ED_B(ED_logic):
 
         ED._Fuv = cls.Fuv_B(ED)
         
-        ED._B2 = gX @ ED._B @ ED._B 
+        ED._B2 = torch.einsum('...uv, ...u, ...v -> ...', gX, ED._B, ED._B )
         ED._E2 = torch.zeros_like(ED._B2)
         ED._uFFv = cls.FumFmv(ED, gX)
 

@@ -50,54 +50,14 @@ class Spacetime(ABC):
 
     This class defines the interface for spacetime metrics, including methods
     for calculating the metric tensor, its inverse, and connection coefficients.
-    It also acts as a factory for creating specific spacetime instances.
-
-    To create a spacetime instance, use the factory pattern:
-        `minkowski = Spacetime(name='MinkowskiCart')`
-        `kerr = Spacetime(name='KerrSchild', a=0.99)`
-
-    Attributes:
-        __analytic_conn__ (bool): Flag indicating if the connection coefficients
-                                  are defined analytically.
     """
     __analytic_conn__ = False
     _g00_tol = -0.1
 
     def __new__(cls, *args, **kwargs):
-        """Creates an instance of a specific spacetime subclass.
-
-        This method intercepts the instantiation of the `Spacetime` class
-        and uses a factory to return an instance of the correct subclass
-        (e.g., `KerrSchild`) instead.
-
-        Args:
-            name (str): The name of the spacetime subclass to create.
-            *args: Positional arguments to pass to the subclass's constructor.
-            **kwargs: Keyword arguments to pass to the subclass's constructor.
-
-        Returns:
-            An instance of a `Spacetime` subclass.
-        """
         if cls is Spacetime:
-            # Pop 'name' from kwargs for factory use.
-            name = kwargs.pop('name', None)
-
-            # Fallback to positional argument for backward compatibility.
-            if name is None:
-                if args and isinstance(args[0], str):
-                    name = args[0]
-                    args = args[1:]
-                else:
-                    raise TypeError(
-                        "Spacetime() factory requires a 'name' keyword argument "
-                        "or a spacetime name as the first positional argument."
-                    )
-
-            # Import locally to prevent circular dependencies.
-            from bhtrace.geometry.spacetime_factory import create_spacetime
-            return create_spacetime(name, *args, **kwargs)
-
-        # For subclasses, delegate to the default object creation.
+            raise TypeError("Spacetime is an abstract class and cannot be instantiated directly. "
+                            "Use a concrete subclass or the factory function `bhtrace.geometry.spacetime.create()`.")
         return super().__new__(cls)
 
     def __init__(self, *args, **kwargs):
@@ -123,8 +83,10 @@ class Spacetime(ABC):
             if param.name != 'self' and hasattr(self, param.name):
                 attr = getattr(self, param.name)
                 # To avoid serializing things that are not parameters
-                if isinstance(attr, (int, float, str, bool, torch.Tensor)):
+                if isinstance(attr, (int, float, str, bool)):
                      state[param.name] = attr
+                elif isinstance(attr, torch.Tensor):
+                        state[param.name] = attr.tolist()
         return state
 
     def horizon(self, X: torch.Tensor) -> torch.Tensor:
@@ -146,9 +108,9 @@ class Spacetime(ABC):
         Returns:
             An instance of a `Spacetime` subclass.
         """
-        from bhtrace.geometry.spacetime_factory import create_spacetime
+        from bhtrace.geometry.spacetime import create
         name = state.pop('name')
-        return create_spacetime(name, **state)
+        return create(name, **state)
 
     @Cacher.cache
     def g(self, X: torch.Tensor) -> torch.Tensor:
@@ -274,7 +236,7 @@ class MockSpacetime(Spacetime):
         :class:`Spacetime()` implementation, used for test purposes.
         '''
         super().__init__()
-        self.coefs = coefs
+        self.coefs = torch.tensor(coefs)
         pass
 
 

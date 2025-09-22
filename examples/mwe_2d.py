@@ -2,7 +2,7 @@ import os
 
 import torch
 
-from bhtrace.geometry import Spacetime, MinkowskiCart, KerrSchild, Photon, Particle, Observer
+from bhtrace.geometry import KerrSchild, Photon, Observer
 from bhtrace.tracing import PTracer
 from bhtrace import Trajectory
 
@@ -13,7 +13,7 @@ file_path = directory + file_name
 if not os.path.exists(file_path):
 
     spacetime = KerrSchild(a=0.0)
-    photon = Particle(name='Photon', spacetime=spacetime)
+    photon = Photon(spacetime=spacetime)
 
     obs = Observer(
         spacetime=spacetime,

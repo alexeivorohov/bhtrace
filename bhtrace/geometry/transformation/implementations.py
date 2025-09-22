@@ -1,6 +1,4 @@
-from typing import Dict
-
-from .transformation import *
+from .base import CoordinateTransformation
 import torch
 
 
@@ -294,31 +292,3 @@ class Rotation(CoordinateTransformation):
         I = torch.eye(4,4)
 
         return I.repeat(*X.shape[:-1],1,1)
-
-
-
-relation_dict: Dict[str, Dict[str, CoordinateTransformation]] = {
-
-    'Cartesian': {
-        'Cartesian': Shift,
-        'Spherical': Cartesian2Spherical, 
-        'Axial': Cartesian2Axial,
-        'Sym': None
-                  }, 
-
-    'Spherical': {
-        'Cartesian': Spherical2Cartesian,
-        'Spherical': None,
-        'Axial': None,
-        'Sym': None
-                  },
-
-    'Axial': {
-        'Cartesian': Axial2Cartesian,
-        'Spherical': None, 
-        'Axial': None,
-        'Sym' : None
-        },
-
-    'Sym': None
-}

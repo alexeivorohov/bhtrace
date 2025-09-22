@@ -1,9 +1,10 @@
 '''
-Provides a factory function to create particle objects.
+This module provides a factory function to create particle objects and
+exposes the concrete particle classes.
 '''
 
-from .particle import MockParticle
-from .particle_zoo import Photon, EffPhoton, PhotonR
+from .base import Particle, MockParticle
+from .implementations import Photon, EffPhoton, PhotonR
 
 PARTICLE_REGISTRY = {
     'MockParticle': MockParticle,
@@ -12,7 +13,7 @@ PARTICLE_REGISTRY = {
     'PhotonR': PhotonR,
 }
 
-def create_particle(name: str, **kwargs):
+def create(name: str, **kwargs):
     '''
     Factory function to create a particle object by name.
 

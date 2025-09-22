@@ -10,7 +10,8 @@ root_path = '/home/alexey/Work/bhtrace-dev'
 sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
-from bhtrace.geometry import MinkowskiCart, MinkowskiSph, Electrodynamics, _ED_MODELS_
+from bhtrace.geometry.spacetime import MinkowskiCart, MinkowskiSph
+from bhtrace.geometry.electrodynamics import Electrodynamics, ELECTRODYNAMICS_REGISTRY
 
 
 class TestElectrodynamics(unittest.TestCase):
@@ -23,7 +24,7 @@ class TestElectrodynamics(unittest.TestCase):
         self.impls = {}
 
         all_impls = inspect.getmembers(
-            sys.modules['bhtrace.geometry.electrodynamics_models'], inspect.isclass
+            sys.modules['bhtrace.geometry.electrodynamics.models'], inspect.isclass
         )
 
         for name, obj in all_impls:
@@ -33,7 +34,7 @@ class TestElectrodynamics(unittest.TestCase):
         keys_all = self.impls.keys()
         print(f'All impls: {keys_all}')
 
-        keys_cross = (_ED_MODELS_.keys() & 
+        keys_cross = (ELECTRODYNAMICS_REGISTRY.keys() &
                       self.impls.keys())
         print(f'Supported impls: {keys_cross}')
 
@@ -55,10 +56,6 @@ class TestElectrodynamics(unittest.TestCase):
         '''
         for key, obj in self.instance_to_test.items():
             self.assertIsInstance(obj, self.base_class, f"{key} is not a ")
-            # self.assertIsNotNone(TF.inverse, f"{key} inverse is None")
-            # self.assertIsInstance(TF.inverse, CoordinateTransformation, f"{key} inverse is not a CoordinateTransformation")
-            # self.assertIs(TF.inverse.inverse, TF, f"{key} inverse's inverse is not itself")
-
 
     def test_field_calculation(self):
 
@@ -66,7 +63,7 @@ class TestElectrodynamics(unittest.TestCase):
         model_type = 'F'
 
         # TODO: Different models
-        ED = _ED_MODELS_['Maxwell']()
+        ED = ELECTRODYNAMICS_REGISTRY['Maxwell']()
         
         ST = MinkowskiSph()
 
@@ -125,26 +122,6 @@ class TestElectrodynamics(unittest.TestCase):
         regime = 'EB'
         model_types = ['F', 'FG']
 
-        # TODO: Complete this test
-        
-        # ST = MinkowskiSph()
-
-        # # TODO: Different field configurations
-        # E = lambda X: torch.Tensor([0, -torch.pow(X[...,1],-2), 0, 0])
-        # B = lambda X: torch.Tensor([0, torch.pow(X[...,1],-2), 0, 0])
-        
-        # ED.attach_fields(E, B)
-
-        # X = torch.randn(1, 4)*10
-        # U = torch.tensor([1, 0, 0, 0]).repeat(*X.shape[:-1], 1).float()
-
-        # gX = ST.g(X).float()
-        # for model_type in model_types:
-
-        #     ED.set_regime(fields=regime, model_type=model_type)
-
-        #     ED.calculate(X, gX, U)
-
     def test_save_load(self):
         '''
         Test if ED models can be saved and loaded.
@@ -152,12 +129,15 @@ class TestElectrodynamics(unittest.TestCase):
         for name, ed in self.instance_to_test.items():
             with self.subTest(name=name):
                 try:
-                    state = ed.state_dict()
+                    state = ed.state()
                     new_ed = Electrodynamics.from_dict(state)
-                    new_state = new_ed.state_dict()
+                    new_state = new_ed.state()
+                    state.pop('name', None)
+                    new_state.pop('name', None)
                     self.assertEqual(state, new_state)
                 except Exception as e:
                     self.fail(f"Save/load failed for {name}: {e}")
+
 
 
 if __name__ == '__main__':

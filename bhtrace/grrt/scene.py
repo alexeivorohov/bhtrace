@@ -1,8 +1,8 @@
 
-from ..geometry import Spacetime, Photon
-from ..tracing import Tracer
-from ..functional import print_status_bar
-from ..geometry import Observer
+from bhtrace.geometry import Spacetime, Photon
+from bhtrace.tracing import Tracer
+from bhtrace.functional import print_status_bar
+from bhtrace.geometry.observer import Observer
 
 from .medium import Medium
 import torch

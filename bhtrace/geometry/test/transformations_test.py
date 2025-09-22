@@ -5,8 +5,8 @@ import inspect
 import unittest
 import torch
 
-from bhtrace.geometry.transformation import CoordinateTransformation
-from bhtrace.geometry.transformation_collection import (
+from bhtrace.geometry.transformation.base import CoordinateTransformation
+from bhtrace.geometry.transformation.implementations import (
     Ident,
     Cartesian2Spherical,
     Spherical2Cartesian,
@@ -25,7 +25,6 @@ _TRANSFORMATIONS_ = {
     'Shift': Shift,
     'Rotation': Rotation
 }
-
 
 class MockTransformation(CoordinateTransformation):
     def __init__(self, inverse=None):

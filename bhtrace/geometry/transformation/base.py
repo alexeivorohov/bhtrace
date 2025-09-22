@@ -153,4 +153,3 @@ class Sym(CoordinateTransformation):
         I = torch.eye(4)
 
         return I.repeat(*X.shape[:-1], 1, 1)
-    

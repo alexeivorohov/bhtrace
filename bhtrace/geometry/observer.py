@@ -1,8 +1,9 @@
 import torch
 
-from . import Spacetime, Particle
-from ..functional import net, rotate_points_cloud
-from .transformation_collection import relation_dict
+from .spacetime.base import Spacetime
+from .particle import Particle
+from bhtrace.functional import net, rotate_points_cloud
+from .transformation import relation_dict
 
 class Observer:
 
@@ -45,14 +46,14 @@ class Observer:
 
         self.__ic_method__ = 'x0'
 
-    def state_dict(self) -> dict:
+    def state(self) -> dict:
         """Returns a dictionary representing the state of the observer.
 
         Returns:
             dict: A dictionary containing the observer's parameters.
         """
         return {
-            'spacetime': self.spacetime.state_dict(),
+            'spacetime': self.spacetime.state(),
             'position': self.position.tolist(),
             'camera_dir': self.camera_dir.tolist(),
             'u': self.u.tolist()
@@ -68,7 +69,7 @@ class Observer:
         Returns:
             An instance of `Observer`.
         """
-        from bhtrace.geometry.spacetime import Spacetime
+        from bhtrace.geometry.spacetime.base import Spacetime
         spacetime_state = state.pop('spacetime')
         spacetime = Spacetime.from_dict(spacetime_state)
         

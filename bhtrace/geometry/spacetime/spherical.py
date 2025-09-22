@@ -1,5 +1,5 @@
 import torch
-from .spacetime import Spacetime
+from .base import Spacetime
 
 class MinkowskiSph(Spacetime):
 
@@ -197,4 +197,5 @@ class KerrSchildSph(Spacetime):
 
     def __init__(self):
         pass
+
 

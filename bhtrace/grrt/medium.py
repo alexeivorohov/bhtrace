@@ -2,7 +2,7 @@ import torch
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-from ..geometry import Spacetime, Particle
+from bhtrace.geometry import Spacetime, Particle
 from .utils import i2_r
 
 # TODO:

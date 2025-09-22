@@ -4,7 +4,7 @@ This file describes an abstract class Particle, which holds routines
 '''
 
 from abc import ABC, abstractmethod
-from .spacetime import Spacetime
+from bhtrace.geometry.spacetime.base import Spacetime
 
 import torch
 
@@ -13,39 +13,20 @@ class Particle(ABC):
     """Abstract base class for all particle types.
 
     This class defines the interface for particles, including methods for
-    calculating the Hamiltonian and its derivatives. It also acts as a factory
-    for creating specific particle instances (e.g., Photon).
-
-    To create a particle instance, use the factory pattern:
-        `photon = Particle(name='Photon', spacetime=my_spacetime)`
-
-    Attributes:
-        spacetime (Spacetime): The spacetime in which the particle exists.
-        mu (float): The mass of the particle.
+    calculating the Hamiltonian and its derivatives.
     """
 
-    def __new__(cls, name: str = None, **kwargs):
-        """Creates an instance of a specific particle subclass using a factory.
-
-        Args:
-            name (str, optional): The name of the particle subclass to create.
-            **kwargs: Keyword arguments to pass to the subclass's constructor.
-                      Must include `spacetime`.
-
-        Returns:
-            An instance of a `Particle` subclass.
-        """
-        if isinstance(name, str):
-            from bhtrace.geometry.particle_factory import create_particle
-            return create_particle(name, **kwargs)
+    def __new__(cls, *args, **kwargs):
+        if cls is Particle:
+            raise TypeError("Particle is an abstract class and cannot be instantiated directly. "
+                            "Use a concrete subclass or the factory function `bhtrace.geometry.particle.create()`.")
         return super().__new__(cls)
  
-    def __init__(self, spacetime: Spacetime, name: str = None, **kwargs):
+    def __init__(self, spacetime: Spacetime, **kwargs):
         """Initializes the Particle instance.
 
         Args:
             spacetime (Spacetime): The spacetime in which the particle exists.
-            name (str, optional): The name of the particle (for factory use).
             **kwargs: Additional keyword arguments.
         """
         if spacetime is None:
@@ -89,14 +70,14 @@ class Particle(ABC):
         Returns:
             An instance of a `Particle` subclass.
         """
-        from bhtrace.geometry.particle_factory import create_particle
+        from bhtrace.geometry.particle import create
         from bhtrace.geometry.spacetime import Spacetime
         state = state.copy()
 
         spacetime_state = state.pop('spacetime')
         spacetime = Spacetime.from_dict(spacetime_state)
         name = state.pop('name')
-        return create_particle(name=name, spacetime=spacetime, **state)
+        return create(name=name, spacetime=spacetime, **state)
 
     @abstractmethod
     def Hmlt(self, X: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
@@ -272,10 +253,3 @@ class MockParticle(Particle):
 
     def normp(self, X, P):
         return None
-
-
-if __name__ == "__main__":
-    
-    # Test calls here
-
-    pass

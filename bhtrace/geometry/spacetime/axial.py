@@ -1,5 +1,5 @@
 import torch
-from .spacetime import Spacetime
+from .base import Spacetime
 
 
 class KerrAx(Spacetime):
@@ -15,7 +15,7 @@ class KerrAx(Spacetime):
         self.Sgma = lambda r, th: r**2 + a**2 * torch.cos(th)**2
         self.P = lambda r, l: r**2+a**2-a*l
 
-        super().__init__(self)
+        super().__init__()
     
 
     def uR(self, r, l_s, q_s):

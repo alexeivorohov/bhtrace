@@ -2,13 +2,24 @@ import torch
 
 def sph2cart(coords):
     """
-    Converts a batch of spherical coordinates (t, r, theta, phi) to Cartesian (x, y, z).
+    Converts a batch of spherical coordinates (t, r, theta, phi) to Cartesian (t, x, y, z).
     """
     t, r, theta, phi = coords[..., 0], coords[..., 1], coords[..., 2], coords[..., 3]
     x = r * torch.sin(theta) * torch.cos(phi)
     y = r * torch.sin(theta) * torch.sin(phi)
     z = r * torch.cos(theta)
-    return x, y, z
+    return torch.stack([t, x, y, z], dim=-1)
+
+def cart2sph(coords):
+    """
+    Converts a batch of Cartesian coordinates (t, x, y, z) to spherical (t, r, theta, phi).
+    """
+    t, x, y, z = coords[..., 0], coords[..., 1], coords[..., 2], coords[..., 3]
+    x2y2 = x**2 + y**2
+    r = torch.sqrt(x2y2 + z**2)
+    theta = torch.acos(z / r)
+    phi = torch.arctan2(y, x)
+    return torch.stack([t, r, theta, phi], dim=-1)
 
 def EulerRotation(
         X: torch.Tensor,

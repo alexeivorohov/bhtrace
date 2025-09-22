@@ -1,4 +1,4 @@
-from .electrodynamics import Electrodynamics
+from .base import Electrodynamics
 import torch
 
 
@@ -121,11 +121,3 @@ class ParametricPostMaxwell(Electrodynamics):
         self.eta_2 = eta_2
 
         pass
-
-
-    
-
-
-
-        
-

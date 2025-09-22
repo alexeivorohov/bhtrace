@@ -1,6 +1,6 @@
 import torch
 
-from ..geometry import Spacetime, Particle
+from bhtrace.geometry import Spacetime, Particle
 from .tracer import Tracer
 
 class CTracer(Tracer):

@@ -1,8 +1,10 @@
 '''
-Provides a factory function to create electrodynamics model objects.
+This module provides a factory function to create electrodynamics model objects and
+exposes the concrete model classes.
 '''
 
-from .ed_models import (
+from .base import Electrodynamics
+from .models import (
     Maxwell,
     EulerHeisenberg,
     BornInfeld,
@@ -20,7 +22,7 @@ ELECTRODYNAMICS_REGISTRY = {
     'ParametricPostMaxwell': ParametricPostMaxwell,
 }
 
-def create_electrodynamics(name: str, **kwargs):
+def create(name: str, **kwargs):
     '''
     Factory function to create an electrodynamics model object by name.
 

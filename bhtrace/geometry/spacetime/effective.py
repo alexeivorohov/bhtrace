@@ -1,6 +1,6 @@
-from .spacetime import Spacetime
-from .spacetimes_sph import SphericallySymmetric, MinkowskiSph
-from .electrodynamics import Electrodynamics
+from .base import Spacetime
+from .spherical import SphericallySymmetric
+from ..electrodynamics import Electrodynamics
 
 import torch
 
@@ -21,7 +21,9 @@ class EffGeom(Spacetime):
         self.base = base
         self.__coords__ = base.__coords__
         self.ED = ED
+        self.ED.set_regime()
         self.ED.attach_fields(E, B)
+        self.U = torch.tensor([1., 0., 0., 0.])
 
         pass
 
@@ -37,8 +39,9 @@ class EffGeom(Spacetime):
 
         ginvX = self.base.ginv(X)
         gX = self.base.g(X)
-        self.ED.compute(X, gX, ginvX)
-        ginv = ginvX - 4*self.ED._L_FF/self.ED._L_F*self.ED._uFFv
+        self.ED.calculate(X, gX, self.U, ginvX)
+        eff = (4*self.ED._L_FF/self.ED._L_F).view(*X.shape[:-1], 1, 1)
+        ginv = ginvX - eff*self.ED._uFFv
 
         return ginv
 
@@ -77,6 +80,7 @@ class EffgeomSimple(Spacetime):
         
         
         self.ED = ED
+        self.ED.set_regime()
         self.ED.attach_fields(E, B)
 
         A = lambda r: self.w(r)*f(r)
@@ -149,4 +153,3 @@ class EffgeomSimple(Spacetime):
         c1 = self.base.crit(X)
 
         return c1
- 

@@ -1,5 +1,5 @@
 from .medium import Medium
-from ..geometry import Spacetime
+from bhtrace.geometry import Spacetime
 
 
 from typing import Type
@@ -29,7 +29,7 @@ class ThinKeplerianDisk(Medium):
         '''
 
         super().__init__(
-            spacetime=Spacetime,
+            spacetime=spacetime,
             position=position,
             direction=direction,
             # coordinates=Axial()
@@ -135,4 +135,4 @@ class SphericalAccretion(Medium):
 
     def __init__(self, spacetime: Spacetime):
 
-        super().__init__(spacetime=Spacetime)
+        super().__init__(spacetime=spacetime)
