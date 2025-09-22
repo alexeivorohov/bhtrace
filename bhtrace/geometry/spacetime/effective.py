@@ -40,8 +40,8 @@ class EffGeom(Spacetime):
         ginvX = self.base.ginv(X)
         gX = self.base.g(X)
         self.ED.calculate(X, gX, self.U, ginvX)
-        eff = (4*self.ED._L_FF/self.ED._L_F).view(*X.shape[:-1], 1, 1)
-        ginv = ginvX - eff*self.ED._uFFv
+
+        ginv = ginvX - 4*(self.ED._L_FF/self.ED._L_F).view(*X.shape[:-1], 1, 1)*self.ED._uFFv
 
         return ginv
 

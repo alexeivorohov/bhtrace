@@ -34,7 +34,7 @@ if not os.path.exists(file_path + '.traj'):
 
     tracer = PTracer(ode_method='RK4')
     traj = tracer.forward(photon, X0, P0, T=30, nsteps=128, r_max=30, max_proper_t = 500, eps=1e-3)
-    # traj.save(file_path + '.traj')
+    traj.save(file_path + '.traj')
 else:
     traj = Trajectory.load(file_path + '.traj')
 
@@ -52,3 +52,25 @@ fig4.savefig(file_path + '_coords' + formats[0])
 
 fig5 = traj.plot_metrics()
 fig5.savefig(file_path + '_metrics' + formats[0])
+
+from bhtrace.geometry.electrodynamics import EulerHeisenberg
+
+ED = EulerHeisenberg(h=1)
+def E(X):
+
+    return torch.zeros_like(X)
+
+def B(X):
+    B0 = 1.0
+    sgn = 1.0 # torch.sign(X[..., 2]-torch.pi/2)
+    sgn = torch.sign(X[..., 3])
+    R2 = X[..., 1]**2 + X[..., 2]**2 + X[..., 3]
+    B_r = B0/R2*sgn*torch.pow(1+2/X[..., 2], -0.5)
+
+    outp = torch.zeros_like(X)
+    outp[..., 1] = B_r
+    return outp
+
+
+fig6 = traj.plot_quantity(B, name='B')
+fig6.savefig(file_path + '_B' + formats[0])

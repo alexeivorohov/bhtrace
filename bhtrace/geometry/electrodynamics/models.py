@@ -33,7 +33,7 @@ class EulerHeisenberg(Electrodynamics):
         super().__init__()
         self.L = lambda F: -w*F + h1*F**2
         self.L_F = lambda F: -w + dh1*F
-        self.L_FF = lambda F: dh1
+        self.L_FF = lambda F: dh1*torch.ones_like(F)
         
         pass
 

@@ -14,24 +14,26 @@ pathname = '/data/mwe_2d_eff'
 formats = ['.png']
 file_path = directory + pathname
 
+ED = EulerHeisenberg(h=1)
+def E(X):
+
+    return torch.zeros_like(X)
+
+def B(X):
+    B0 = 1.0
+    sgn = 1.0 # torch.sign(X[..., 2]-torch.pi/2)
+    B_r = B0*torch.pow(X[..., 2], -2)*sgn*torch.pow(1+2/X[..., 2], -0.5)
+
+    outp = torch.zeros_like(X)
+    outp[..., 1] = B_r
+    return outp
+
+background = SphericallySymmetric()
+spacetime = EffGeom(ED, background, E, B)
+
 if not os.path.exists(file_path + '.traj'):
 
-    ED = EulerHeisenberg(h=1)
-    def E(X):
 
-        return torch.zeros_like(X)
-    
-    def B(X):
-        B0 = 1.0
-        sgn = 1.0 # torch.sign(X[..., 2]-torch.pi/2)
-        B_r = B0*torch.pow(X[..., 2], -2)*sgn*torch.pow(1+2/X[..., 2], -0.5)
-
-        outp = torch.zeros_like(X)
-        outp[..., 1] = B_r
-        return outp
-
-    background = SphericallySymmetric()
-    spacetime = EffGeom(ED, background, E, B)
     photon = Photon(spacetime=spacetime)
 
     obs = Observer(
@@ -71,3 +73,6 @@ fig4.savefig(file_path + '_coords' + formats[0])
 
 fig5 = traj.plot_metrics()
 fig5.savefig(file_path + '_metrics' + formats[0])
+
+fig6 = traj.plot_quantity(ED.B, name='B')
+fig6.savefig(file_path + '_B' + formats[0])
