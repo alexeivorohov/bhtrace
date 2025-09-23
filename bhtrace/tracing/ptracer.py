@@ -49,5 +49,11 @@ class PTracer(Tracer):
         dX = torch.einsum('...uv, ...u -> ...v', ginvX, P)
         dP = - self.particle.dHmlt(X, P, self.eps)
         
+        if self.__const_dx__:
+            s = torch.einsum('...u, ...u -> ...', P[..., 1:], dX[..., 1:])
+            s = torch.pow(s, -0.5).unsqueeze(-1)
+            dX *= s
+            dP *= s
+
         return dX, dP
 

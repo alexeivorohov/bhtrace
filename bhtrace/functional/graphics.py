@@ -47,3 +47,31 @@ def opt_mosaic(ax_ids: Iterable, fill_None=True, filler=None, rot=False):
     return shape, mosaic
 
 
+class Coloring:
+
+    @classmethod
+    def lensing_colors():
+
+        pass
+
+    @classmethod
+    def trajectory_colors():
+
+        pass
+
+    @classmethod
+    def image_colors():
+
+        pass
+
+class LensingPlot:
+
+    @classmethod
+    def plot(cls, traj, dphi, layout='joined'):
+
+        pass
+
+
+    def subplot_lf(b, dphi):
+
+        pass

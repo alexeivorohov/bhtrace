@@ -173,7 +173,6 @@ def print_status_bar(progress, total, elapsed_time):
 def last_non_nan(X):
     
     n = X.shape[0] - 1
-    n = X.shape[0] - 1
     mask = torch.isnan(X)
     nonnan = 0
     for k in range(n):
@@ -181,3 +180,43 @@ def last_non_nan(X):
             nonnan = X[n-k]
             break
     return nonnan
+
+
+def weightened_upsample_1d(
+        X: torch.Tensor,
+        tgt: torch.Tensor,
+        func: callable = lambda x: abs(tgt),
+        eps: float = 0.1,
+        fill: callable = lambda x, tgt: torch.nan
+        ) -> Tuple[torch.Tensor]:
+    '''
+    For given X, tgt, returns new array X:
+    
+    Args:
+        X: torch.tensor of shape (batch, ...)
+        tgt: torch.tensor of shape (batch, ...). If 
+        func: transformation for tgt func, if needed
+
+    Returns:
+    '''
+    w = func(tgt) + eps
+
+    dX = (X[1:, ...] - X[:-1, ...]) * w[:-1]/(w[:-1] + w[1:])
+
+    x_shape = list(X.shape)
+    tgt_shape = list(tgt.shape)
+    x_shape[0] = 2*x_shape[0] - 1
+    tgt_shape[0] = x_shape[0]
+
+    X_new = torch.zeros(*x_shape)
+    X_new[0::2, ...] = X
+    X_new[1::2, ...] = X[:-1, ...] + dX
+
+    tgt_new = torch.zeros(*tgt_shape)
+    tgt_new[0::2, ...] = tgt
+    tgt_new[1::2, ...] = fill(X, tgt)
+
+    mask = torch.zeros(tgt_shape[0], dtype=torch.bool)
+    mask[1::2] = True
+
+    return X_new, tgt_new, mask

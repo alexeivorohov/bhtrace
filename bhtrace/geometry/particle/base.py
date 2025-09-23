@@ -33,18 +33,21 @@ class Particle(ABC):
             raise ValueError("A valid Spacetime object must be provided.")
 
         self.spacetime = spacetime
+        '''Spacetime in which the particle exists'''
+
         self.__coords__ = spacetime.__coords__
-        self.mu = None  # Particle mass
+        '''Coordinates of the particle '''
+
+        self.mu = None
+        '''Particle mass'''
+
         self.r_max = torch.tensor([30.0])
-        self.gtol = torch.tensor([1e-6, 1e6])
-        self.color = None
+        '''Maximal distance from coordinate centrer, within particle exists'''
+
         self.g_ = None 
         self.ginv_ = None
         self.dgX_ = None
         self.__name__ = self.__class__.__name__
-
-    def __str__(self) -> str:
-        return f'Particle: {self.color if self.color else self.__name__}'
 
     def state(self) -> dict:
         """Returns a dictionary representing the state of the particle.

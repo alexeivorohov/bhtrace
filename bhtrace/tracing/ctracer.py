@@ -1,3 +1,7 @@
+'''
+Currently not supported
+'''
+
 import torch
 
 from bhtrace.geometry import Spacetime, Particle

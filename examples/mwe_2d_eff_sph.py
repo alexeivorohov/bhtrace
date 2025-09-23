@@ -10,7 +10,7 @@ from bhtrace.tracing import PTracer
 from bhtrace import Trajectory
 
 directory = os.path.dirname(os.path.abspath(__file__))
-pathname = '/data/mwe_2d_eff'
+pathname = '/data/mwe_2d_eff_sph'
 formats = ['.png']
 file_path = directory + pathname
 
@@ -21,18 +21,19 @@ def E(X):
 
 def B(X):
     B0 = 0.1
-    r2 = (X[..., 1]**2 + X[..., 2]**2 + X[..., 3]).unsqueeze(-1)
-    r = torch.pow(r2, 0.5)
-    e_r = X[..., 1:]/r
+    # r2 = (X[..., 1]**2 + X[..., 2]**2 + X[..., 3]).unsqueeze(-1)
+    r = X[..., 1]
+    r2 = torch.pow(r, 2)
 
-    sgn = torch.sign(X[..., 3]).unsqueeze(-1)
-    B_r = B0/r2*sgn*torch.pow(1+2/r, -0.5)
+    sgn = 1.0 #torch.sign(X[..., 3]).unsqueeze(-1)
+    f = torch.pow(1+2/r, -0.5)
+    
 
     outp = torch.zeros_like(X)
-    outp[..., 1:] = B_r*e_r
+    outp[..., 1] = B_r = B0/r2*sgn*f
     return outp
 
-background = KerrSchild(a=0.0)
+background = SphericallySymmetric()
 spacetime = EffGeom(ED, background, E, B)
 
 if not os.path.exists(file_path + '.traj'):
@@ -57,6 +58,7 @@ if not os.path.exists(file_path + '.traj'):
         print(P0)
 
     tracer = PTracer(ode_method='RK4')
+    tracer.__detg_tol_up__ = 1e6
     traj = tracer.forward(photon, X0, P0, T=30, nsteps=128, r_max=30, max_proper_t = 500, eps=1e-3)
     # traj.save(file_path + '.traj')
 else:

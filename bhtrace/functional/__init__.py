@@ -1,8 +1,9 @@
 '''
 Submodule for hanlding several routines:
-- Image plotting
+- Image plotting and graphical pre-sets
 - Differentiation
-- Integration
+- ODE Integration
+- Linear and tensor algebra
 - Rootfinfding
 - etc
 '''
@@ -14,12 +15,3 @@ from .diff import *
 from .linalg import *
 from .transform import *
 from .caching import *
-
-# TODO: 
-# [x] Routines
-# [x] Routines documentation
-# [ ] Routines unittests
-# [x] Odeint baseclass
-# [X] Ode schemes
-# [ ] Documentation
-# [ ] Unittests

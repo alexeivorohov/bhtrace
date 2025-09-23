@@ -15,6 +15,11 @@ class Tracer():
 
     __use_event_fn__ = True
     __g00_tol__ = -0.11
+    __gii_tol_1__ = 1e-3
+    __gii_tol_2__ = 1e5
+    __detg_tol_low__ = 1e-3
+    __detg_tol_up__ = 50
+    __const_dx__ = False
 
     def __init__(self, ode_method='Euler'):
         '''
@@ -135,12 +140,32 @@ class Tracer():
         '''
         X, P = Y
         
-        g_ = self.spc.g(X)
+        if hasattr(self.spc, 'g_'):
+            g_ = torch.linalg.det(self.spc.g_)
+        else:
+            g_ = torch.linalg.det(self.spc.g(X))
+        
+        # print(g_)
+        cr3 = torch.greater(abs(g_), self.__detg_tol_low__) & torch.less(abs(g_), self.__detg_tol_up__)
+        # cr1 = torch.less(g_[..., 0, 0], self.__g00_tol__)
+        # cr2 = torch.greater(g_[..., 0, 0], self.__gii_tol__)
+        # cr2 *= torch.greater(g_[..., 1, 1], self.__gii_tol__)
+        # cr2 *= torch.greater(g_[..., 2, 2], self.__gii_tol__)
+        # cr2 *= torch.greater(g_[..., 3, 3], self.__gii_tol__)
+        # if hasattr(self.spc, 'base'):
+        #     g_ = self.spc.base.g(X)
+        #     g_ = torch.linalg.det(g_)
+        #     print(g_)
+            
 
-        cr1 = torch.less(g_[..., 0, 0], self.__g00_tol__)
 
-        self.odeint.batch_mask.logical_and_(cr1)
+        self.odeint.batch_mask.logical_and_(cr3)
         # print(self.odeint.batch_mask)
+
+    def __transform__(self, X, P, dX, dP):
+        
+
+        return dX, dP
     
     def to(self, dev = None, dtype = None):
 
