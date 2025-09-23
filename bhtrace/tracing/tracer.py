@@ -35,7 +35,7 @@ class Tracer():
         else:
             raise NotImplementedError(f"ODE method '{ode_method}' not supported.")
 
-    def state(self):
+    def state(self) -> dict:
         return {
             'tracer': self.__class__.__name__,
             'tracer_param': None,
@@ -70,7 +70,8 @@ class Tracer():
                 r_max: float = 30.0,
                 max_proper_t: float = 500.0,
                 dev: str = 'cpu',
-                eps: float = 1e-3):
+                eps: float = 1e-3
+                ) -> Trajectory:
         '''
         Trace particle trajectories in parallel.
         Parameters:
@@ -156,15 +157,11 @@ class Tracer():
         #     g_ = self.spc.base.g(X)
         #     g_ = torch.linalg.det(g_)
         #     print(g_)
-            
-
-
         self.odeint.batch_mask.logical_and_(cr3)
         # print(self.odeint.batch_mask)
 
     def __transform__(self, X, P, dX, dP):
         
-
         return dX, dP
     
     def to(self, dev = None, dtype = None):
@@ -172,7 +169,7 @@ class Tracer():
         pass
 
 
-    def jit(self,):
+    def jit(self):
         '''
         Placeholder for jit compilation of tracer
         '''

@@ -59,7 +59,6 @@ class Particle(ABC):
         return {
             'name': self.__name__,
             'mu': self.mu,
-            'color': self.color,
             'spacetime': self.spacetime.state()
         }
 

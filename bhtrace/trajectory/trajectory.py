@@ -35,28 +35,38 @@ class Trajectory:
         - tracer: "Tracer" - The tracer that was used.
         """
 
-        self.particle = particle
+        self.particle: Particle = particle
+        '''Particle object for which trajectory was traced'''
         self.particle_state = self.particle.state()
 
         self.spacetime: Spacetime = particle.spacetime
+        '''Spacetime in which trajectory was traced'''
         self.spacetime_state = self.spacetime.state()
 
         if coordinates == None:
             coordinates = self.spacetime.__coords__
         
         self.__coords__ = coordinates
+        '''Coordinates used during tracing'''
 
-        self.tracer = tracer
+        self.tracer: Tracer = tracer
+        '''Used tracer object'''
         self.tracer_state = self.tracer.state()
 
         self.X = X.detach().cpu()
         self.P = P.detach().cpu()
-        self.R = None
         self.__XP_reprs__ = {}
+        '''Dict of Tuple[torch.Tensor, torch.Tensor], which stores\
+            different coordinate representations of X and P'''
 
         self.ntraj = X.shape[0]
+        '''Number of trajectories'''
+
         self.nsteps = X.shape[1]
+        '''Number of performed steps'''
+
         self.last_step = None
+        '''Last step, for which not all trajectories were stopped by event condition'''
 
     def __getitem__(self, key) -> Tuple[torch.Tensor, torch.Tensor]:
         if key == self.__coords__:
@@ -75,11 +85,72 @@ class Trajectory:
     def __repr__(self):
         return f"Trajectory with {self.ntraj} particles and {self.nsteps} time slices."
     
-    def append(self):
+    def join(self,
+             trajectories: List['Trajectory'],
+             fill_reprs: bool = True,
+             ) -> 'Trajectory':
         '''
-        Placeholder for trajectory joining method
+        Joins a list of trajectories to the current one.
+
+        All trajectories must have the same number of steps, same coordinate system,
+        and originate from the same particle and spacetime configuration.
+
+        Parameters:
+        - trajectories: List['Trajectory'] - A list of Trajectory objects to join.
+        - fill_reprs
+        
+        Returns:
+        - self: The modified Trajectory object with joined data.
         '''
-        return NotImplementedError
+        if not trajectories:
+            return self
+
+        # Compatibility checks
+        for t in trajectories:
+            if t.nsteps != self.nsteps:
+                raise ValueError("Cannot join trajectories with different number of steps.")
+            if t.__coords__ != self.__coords__:
+                raise ValueError("Cannot join trajectories with different coordinate systems.")
+            if t.particle_state != self.particle_state:
+                raise ValueError("Cannot join trajectories with different particle states.")
+            if t.spacetime_state != self.spacetime_state:
+                raise ValueError("Cannot join trajectories with different spacetime states.")
+
+        all_X = [self.X] + [t.X for t in trajectories]
+        all_P = [self.P] + [t.P for t in trajectories]
+
+        all_last_step = [t.last_step for t in trajectories if t.last_step is not None]
+        if self.last_step is not None:
+            all_last_step.append(self.last_step)
+        
+        if len(all_last_step) > 0:
+            self.last_step = max(all_last_step)
+
+        self.X = torch.cat(all_X, dim=0)
+        self.P = torch.cat(all_P, dim=0)
+
+        # Clear cached representations as they are now invalid.
+        all_keys = set(self.__XP_reprs__.keys())
+        for t in trajectories:
+            _keys_ = set(t.__XP_reprs__.keys())
+            if fill_reprs:
+               all_keys.update(_keys_)
+            else:
+               all_keys.intersection_update(_keys_)
+
+        for key in all_keys:
+            new_X, new_P = self.__getitem__(key)
+            reprs = [t.__getitem__(key) for t in trajectories]
+            X_ = [new_X] + [_r_[0] for _r_ in reprs]
+            P_ = [new_P] + [_r_[1] for _r_ in reprs]
+
+            new_X = torch.cat(X_)
+            new_P = torch.cat(P_)
+
+            self.__XP_reprs__[key] = new_X, new_P
+
+
+        return self
 
     def to(self, device):
         """

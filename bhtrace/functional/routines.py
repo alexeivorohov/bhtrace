@@ -1,10 +1,11 @@
 # This file contains some essential routines
 import sys
 import time
-import torch
-import numpy as np
+from typing import Tuple
 from itertools import permutations
 
+import torch
+import numpy as np
 
 def points_generate(ts, rs, ths, phs):
     '''
@@ -185,7 +186,7 @@ def last_non_nan(X):
 def weightened_upsample_1d(
         X: torch.Tensor,
         tgt: torch.Tensor,
-        func: callable = lambda x: abs(tgt),
+        func: callable = lambda tgt: abs(tgt),
         eps: float = 0.1,
         fill: callable = lambda x, tgt: torch.nan
         ) -> Tuple[torch.Tensor]:
@@ -199,7 +200,7 @@ def weightened_upsample_1d(
 
     Returns:
     '''
-    w = func(tgt) + eps
+    w = (func(tgt) + eps).view(-1, 1)
 
     dX = (X[1:, ...] - X[:-1, ...]) * w[:-1]/(w[:-1] + w[1:])
 

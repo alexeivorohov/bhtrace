@@ -1,7 +1,6 @@
 '''
-This file contains effective procdure for constucting high-resolution lensing curves - e.g. deflection angle vs imapct factor dependency
-
-
+This file contains effective procdure for constucting high-resolution lensing curves.\
+ - e.g. deflection angle vs imapct factor dependency
 '''
 from typing import Tuple
 import torch
@@ -32,7 +31,7 @@ class Lensing:
                 nsplits=5,
                 T=30,
                 nsteps=128,
-                ) -> Trajectory:
+                ) -> Tuple[torch.Tensor, torch.Tensor, Trajectory]:
 
         '''
         Args:
@@ -44,25 +43,31 @@ class Lensing:
                 Currently, only same velocity for all particles is supported, so it must be of shape [4]
 
         Returns:
+            x_new: 
             traj: Trajectory
         '''
         # Support for velocity upsampling
 
-        pos = x0.copy
+        pos = x0.clone()
+        x_new = x0.clone()
         vel = v0.repeat(x0.shape[0], 1)
 
         if particle.__coords__ != 'Cartesian':
             pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel, [True])
-        p0 = cls.particle.GetNullMomentum(pos, vel)
+        p0 = particle.GetNullMomentum(pos, vel)
 
-        traj_ = cls.tracer.forward(pos, p0, nsteps)
-        dphi_ = eval_lens(traj_)
-        traj = [traj_]
-        dphi = [dphi_]
+        traj = tracer.forward(particle=particle,
+                              X0=pos,
+                              P0=p0,
+                              T=T,
+                              nsteps=nsteps)
+        
+        dphi = eval_lens(traj)
+        trajs = []
 
         for i in range(nsplits):
 
-            x_new, _, new_mask = weightened_upsample_1d(x_new, dphi_, eps=0.5)
+            x_new, dphi, new_mask = weightened_upsample_1d(x_new, dphi, eps=0.5)
 
             pos = x_new[new_mask, ...]
             vel = v0.repeat(pos.shape[0], 1)
@@ -70,35 +75,13 @@ class Lensing:
             if particle.__coords__ != 'Cartesian':
                 pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel, [True])
             
-            p0 = cls.particle.GetNullMomentum(pos, vel)
+            p0 = particle.GetNullMomentum(pos, vel)
 
-            traj_ = cls.tracer.forward(pos, p0)
-            dphi_ = eval_lens(traj_)
+            traj_ = tracer.forward(particle=particle, X0=pos, P0=p0, T=T, nsteps=nsteps)
+            
+            dphi[new_mask] = eval_lens(traj_)
+            trajs.append(traj_)
 
-            traj.append[traj_]
-            dphi.append[dphi_]
-        
-        
-        return traj, dphi
-        
-if __name__=='__main__':
-    import uniplot as uplot
-    x0 = torch.linspace(0, 2*torch.pi, 11)
-    tgt = torch.sin(x0)
+        traj.join(trajs)
 
-    for i in range(3):
-        fill = lambda x, tgt: (tgt[:-1, ...] + tgt[1:,...])/2
-        x0, tgt, _ = weightened_upsample_1d(x0, tgt, eps=0.2, fill=fill)
-        print(x0)
-        print(tgt)
-        uplot.plot(tgt, x0)
-
-    # traj = Trajectory.load('examples/data/mwe_sph_2d.traj')
-    # dphi = eval_lens(traj)
-    # print(dphi.shape)
-    # print(dphi)s
-    
-    # uplot.plot(dphi, )
-
-
-
+        return x_new, dphi, traj

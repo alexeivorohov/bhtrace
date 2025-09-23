@@ -19,6 +19,6 @@ x0[..., 2] = torch.tensor([0., 16.])
 
 v0 = torch.Tensor([0., -1.0, 0., 0.])
 
-traj = Lensing.forward(particle, tracer, x0, v0, nsplits=5, T=30, nsteps=128)
+x, dphi, traj = Lensing.forward(particle, tracer, x0, v0, nsplits=3, T=30, nsteps=128)
 
 
