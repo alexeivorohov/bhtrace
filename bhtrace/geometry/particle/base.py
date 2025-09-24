@@ -4,10 +4,11 @@ This file describes an abstract class Particle, which holds routines
 '''
 
 from abc import ABC, abstractmethod
-from bhtrace.geometry.spacetime.base import Spacetime
 
 import torch
 
+from bhtrace.geometry.spacetime.base import Spacetime
+from bhtrace.functional import Cacher
 
 class Particle(ABC):
     """Abstract base class for all particle types.
@@ -15,6 +16,7 @@ class Particle(ABC):
     This class defines the interface for particles, including methods for
     calculating the Hamiltonian and its derivatives.
     """
+    cacher = Cacher()
 
     def __new__(cls, *args, **kwargs):
         if cls is Particle:
@@ -81,7 +83,7 @@ class Particle(ABC):
         name = state.pop('name')
         return create(name=name, spacetime=spacetime, **state)
 
-    @abstractmethod
+    @cacher.attach
     def Hmlt(self, X: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
         """Calculates the particle's Hamiltonian.
 
@@ -95,7 +97,7 @@ class Particle(ABC):
         Returns:
             torch.Tensor: The Hamiltonian value at each point, shape [...].
         """
-        return None
+        return NotImplementedError
 
     @abstractmethod
     def energy(self, X: torch.Tensor, P: torch.Tensor, u: torch.Tensor) -> torch.Tensor:
@@ -112,7 +114,7 @@ class Particle(ABC):
         """
         return None
 
-    @abstractmethod
+    @cacher.attach
     def dHmlt(self, X: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
         """Calculates the analytical partial derivatives of the Hamiltonian.
 
@@ -126,7 +128,7 @@ class Particle(ABC):
             torch.Tensor: The Hamiltonian derivatives `dH/dX^p` at each point,
                           shape [..., 4].
         """
-        return None
+        return NotImplementedError
 
     def dHmlt_(self, X: torch.Tensor, P: torch.Tensor, eps: float = 1e-3) -> torch.Tensor:
         """Numerically calculates the partial derivatives of the Hamiltonian.

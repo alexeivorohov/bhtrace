@@ -30,7 +30,7 @@ def B(X):
     
 
     outp = torch.zeros_like(X)
-    outp[..., 1] = B_r = B0/r2*sgn*f
+    outp[..., 1] = B0/r2*sgn*f
     return outp
 
 background = SphericallySymmetric()

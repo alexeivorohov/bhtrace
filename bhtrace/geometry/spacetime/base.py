@@ -53,6 +53,7 @@ class Spacetime(ABC):
     """
     __analytic_conn__ = False
     _g00_tol = -0.1
+    cacher = Cacher()
 
     def __new__(cls, *args, **kwargs):
         if cls is Spacetime:
@@ -112,7 +113,7 @@ class Spacetime(ABC):
         name = state.pop('name')
         return create(name, **state)
 
-    @Cacher.cache
+    @cacher.attach
     def g(self, X: torch.Tensor) -> torch.Tensor:
         """Calculates the metric tensor (covariant) at a given set of coordinates.
 
@@ -126,7 +127,7 @@ class Spacetime(ABC):
         """
         pass
 
-    @Cacher.cache
+    @cacher.attach
     def ginv(self, X: torch.Tensor) -> torch.Tensor:
         """Calculates the inverse metric tensor (contravariant) at a given set of coordinates.
 

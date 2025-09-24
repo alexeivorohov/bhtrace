@@ -201,8 +201,8 @@ def weightened_upsample_1d(
     Returns:
     '''
     w = (func(tgt) + eps).view(-1, 1)
-
-    dX = (X[1:, ...] - X[:-1, ...]) * w[:-1]/(w[:-1] + w[1:])
+    xi = (w[1:] - w[:-1])/(w[1:] + w[:-1])
+    dX = (X[1:, ...] - X[:-1, ...]) * torch.sigmoid(xi)
 
     x_shape = list(X.shape)
     tgt_shape = list(tgt.shape)

@@ -78,13 +78,31 @@ class Observer:
                 state[key] = torch.tensor(state[key])
                 
         return cls(spacetime=spacetime, **state)
+    
+    def generate_net(self,
+                     net_shape='square',
+                     net_rng=(16, 16),
+                     net_size=(10, 10),
+                     net_dist=0.0
+                     ) -> None:
+        # 1. Generate a canonical grid of points for the screen in the y-z plane.
+        local_x, local_y, local_z = net(shape=net_shape, rng=net_rng, YZ0=[0, 0], X0=0, YZsize=net_size)
+        local_screen_points = torch.stack([local_x, local_y, local_z], dim=-1)
+
+        # 2. Rotate the screen so its normal aligns with the camera's direction.
+        canonical_normal = torch.tensor([1., 0., 0.])
+        rotated_screen_points = rotate_points_cloud(local_screen_points, canonical_normal, self.camera_dir)
+
+        # 3. Translate the screen to the observer's position.
+        global_screen_points_spatial = rotated_screen_points + self.position[1:] + self.camera_dir * net_dist
+        
+        time_coord = torch.full((global_screen_points_spatial.shape[0], 1), self.position[0].item())
+        self.X_net = torch.cat([time_coord, global_screen_points_spatial], dim=-1)
 
     def setup_ic(self,
                  particle: Particle,
-                 net_shape='square',
-                 net_rng=(16, 16),
-                 net_size=(10, 10),
-                 net_dist=0.0):
+                 vel: torch.Tensor = None
+                ) -> None:
         """
         Sets up the initial conditions (positions and momenta) for a grid of particles
         on the observer's virtual screen.
@@ -100,26 +118,14 @@ class Observer:
             net_size: Size of the grid in the observer's local frame.
             net_dist: Distance of the screen from the observer's position.
         """
-        # 1. Generate a canonical grid of points for the screen in the y-z plane.
-        local_x, local_y, local_z = net(shape=net_shape, rng=net_rng, YZ0=[0, 0], X0=0, YZsize=net_size)
-        local_screen_points = torch.stack([local_x, local_y, local_z], dim=-1)
+        pos = self.X_net
 
-        # 2. Rotate the screen so its normal aligns with the camera's direction.
-        canonical_normal = torch.tensor([1., 0., 0.])
-        rotated_screen_points = rotate_points_cloud(local_screen_points, canonical_normal, self.camera_dir)
-
-        # 3. Translate the screen to the observer's position.
-        global_screen_points_spatial = rotated_screen_points + self.position[1:] + self.camera_dir * net_dist
+        if vel == None:
+            vel = torch.ones(pos.shape[0], 4)
+            vel[:, 1:] = self.camera_dir
+        elif vel.shape[0] == 1 & vel.shape[1] == 4:
+            vel = vel.repeat(pos.shape[0], 1)
         
-        time_coord = torch.full((global_screen_points_spatial.shape[0], 1), self.position[0].item())
-        pos = torch.cat([time_coord, global_screen_points_spatial], dim=-1)
-
-        # 4. Calculate sample 4-momenta for parallel rays:
-    
-        vel = torch.ones(pos.shape[0], 4)
-        vel[:, 1:] = self.camera_dir
-        
-        # 5. Translate to required CS:
         if particle.__coords__ != 'Cartesian':
             pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel, [True])
 

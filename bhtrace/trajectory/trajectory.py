@@ -149,7 +149,7 @@ class Trajectory:
 
             self.__XP_reprs__[key] = new_X, new_P
 
-
+        self.ntraj += sum([t.ntraj for t in trajectories])
         return self
 
     def to(self, device):

@@ -21,13 +21,12 @@ if not os.path.exists(file_path):
         camera_dir=torch.Tensor([-1, 0, 0]),
         u = torch.Tensor([1, 0, 0, 0])
         )
-
-    X0, P0 = obs.setup_ic(
-        photon,
+    obs.generate_net(
         net_shape='square',
         net_rng = (64,1),
         net_size = (64, 0)
         )
+    X0, P0 = obs.setup_ic(photon)
 
     tracer = PTracer(ode_method='RK4')
     # tracer.__const_dx__ = True

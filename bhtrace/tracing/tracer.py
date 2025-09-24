@@ -1,9 +1,12 @@
-import torch
-import time
 from abc import abstractmethod
+import time
+
+import torch
+
 from bhtrace.geometry import Spacetime, Particle
 from bhtrace.functional.odeint import ODEint, Euler, RK4
 from bhtrace.trajectory.trajectory import Trajectory
+from bhtrace.functional.debug import debug
 
 
 class Tracer():
@@ -14,14 +17,24 @@ class Tracer():
     '''
 
     __use_event_fn__ = True
-    __g00_tol__ = -0.11
-    __gii_tol_1__ = 1e-3
-    __gii_tol_2__ = 1e5
-    __detg_tol_low__ = 1e-3
-    __detg_tol_up__ = 50
+
+    __g00_tol__ = (-1e3, -1e-1)
+    '''Lower and upper bounds for g00'''
+    __detg_tol__ = (1e-3, 1e3)
+    '''Lower and upper bounds for det(g)'''
+
+    __hmlt_tol__ = 1e-2
+    '''Upper bound for hamlitonian violation'''
+
     __const_dx__ = False
 
-    def __init__(self, ode_method='Euler'):
+    __use_cached_for_conditions__ = True
+    '''If true, cached values will be used for evaluation of event conditions'''
+
+    def __init__(self,
+                 ode_method='Euler',
+                 eps: float = 1e-3
+                 ):
         '''
         Initialize the Tracer with a specified ODE integration method.
         Parameters:
@@ -34,6 +47,13 @@ class Tracer():
             self.ode_solver_class = RK4
         else:
             raise NotImplementedError(f"ODE method '{ode_method}' not supported.")
+        
+        self.default_eps = eps
+
+        self.conditions_XP = {
+            'g00': self.__g00_check__,
+            'nan': self.__nan_check__,
+        }
 
     def state(self) -> dict:
         return {
@@ -70,7 +90,7 @@ class Tracer():
                 r_max: float = 30.0,
                 max_proper_t: float = 500.0,
                 dev: str = 'cpu',
-                eps: float = 1e-3
+                eps: float = None
                 ) -> Trajectory:
         '''
         Trace particle trajectories in parallel.
@@ -83,14 +103,19 @@ class Tracer():
         - r_max: float - Distance from center to stop computation.
         - max_proper_t: float - Particle proper time to stop computation.
         - dev: str - Device to perform computation on.
-        - eps: float - Parameter for numerical differentiation.
+        - eps: float - Parameter for numerical differentiation. Default - None \
+        (uses self.default_eps value)
         Returns:
         - Trajectory: A Trajectory object containing the traced trajectories.
         '''
         self.particle = particle
         self.spc = particle.spacetime
         self.Ni = X0.shape[0]
-        self.eps = eps
+
+        if eps == None:
+            self.eps = self.default_eps
+        else:
+            self.eps = eps
 
         # Move initial conditions to the target device
         X0 = X0.to(dev)
@@ -137,29 +162,68 @@ class Tracer():
         - Y: tuple[torch.Tensor, torch.Tensor] - Current state (X, P).
         - dY: tuple[torch.Tensor, torch.Tensor] | None - Current derivatives (dX, dP).
         Returns:
-        - torch.Tensor [batch_size]: A boolean tensor, True where integration should stop.
+        - torch.Tensor [batch_size]: A boolean tensor, False where integration should stop.
         '''
-        X, P = Y
         
-        if hasattr(self.spc, 'g_'):
-            g_ = torch.linalg.det(self.spc.g_)
-        else:
-            g_ = torch.linalg.det(self.spc.g(X))
+        for cr in self.conditions_XP.values():
+            self.odeint.batch_mask.logical_and_(cr(t, *Y, *dY))
         
-        # print(g_)
-        cr3 = torch.greater(abs(g_), self.__detg_tol_low__) & torch.less(abs(g_), self.__detg_tol_up__)
-        # cr1 = torch.less(g_[..., 0, 0], self.__g00_tol__)
-        # cr2 = torch.greater(g_[..., 0, 0], self.__gii_tol__)
-        # cr2 *= torch.greater(g_[..., 1, 1], self.__gii_tol__)
-        # cr2 *= torch.greater(g_[..., 2, 2], self.__gii_tol__)
-        # cr2 *= torch.greater(g_[..., 3, 3], self.__gii_tol__)
-        # if hasattr(self.spc, 'base'):
-        #     g_ = self.spc.base.g(X)
-        #     g_ = torch.linalg.det(g_)
-        #     print(g_)
-        self.odeint.batch_mask.logical_and_(cr3)
-        # print(self.odeint.batch_mask)
+    
+    def __detg_condition__(self, t, X, P, dX, dP):
 
+        if self.__use_cached_for_conditions__:
+            with self.spc.cacher.cache():
+                g = self.spc.g(X)
+        else:
+            g = self.spc.g(X)
+        
+        detg = torch.linalg.det(g)
+
+        criterion = torch.greater(abs(detg), self.__detg_tol__[0])
+        criterion.logical_and_(torch.less(abs(detg), self.__detg_tol__[1]))
+
+        return criterion
+
+    def __hmlt_condition__(self, t, X, P, dX, dP):
+
+        if self.__use_cached_for_conditions__:
+            with self.particle.cacher.usecache():
+                H = self.particle.Hmlt(X, P)
+        else:
+            H = self.particle.Hmlt(X, P)
+
+        dH = H - self.particle.mu
+        criterion = torch.less(abs(dH), self.__hmlt_tol__)    
+        print(criterion)
+        return criterion
+    
+    def __nan_check__(self, t, X, Y, dX, dP):
+
+        criterion = ~torch.isnan(dX).all(dim=-1)
+        criterion.logical_and_(~torch.isnan(dP).all(dim=-1))
+      
+        return criterion
+    
+    def __g00_check__(self, t, X, P, dX, dP):
+
+        if self.__use_cached_for_conditions__:
+            with self.spc.cacher.cache():
+                g = self.spc.g(X)
+        else:
+            g = self.spc.g(X)
+        
+        criterion = torch.greater(g[..., 0, 0], self.__g00_tol__[0])
+        criterion.logical_and_(torch.less(g[..., 0, 0], self.__g00_tol__[1]))
+
+        return criterion
+    
+    def __jump_check__(self, t, X, P, dX, dP):
+
+        criterion = torch.less(abs(dP), self.__jump_tol__).all(dim=-1)
+        criterion.logical_and_(torch.less(abs(dX), self.__jump_tol__).all(dim=-1))
+
+        return criterion
+    
     def __transform__(self, X, P, dX, dP):
         
         return dX, dP
@@ -211,13 +275,12 @@ class MockTracer(Tracer):
 
         return (dX, dP)
 
-
     def evnt(
         self,
         t: float,
         Y: tuple[torch.Tensor, torch.Tensor],
         dY: tuple[torch.Tensor, torch.Tensor] | None = None,
-    ) -> torch.Tensor:
+        ) -> torch.Tensor:
         '''
         Event function for ODE integration.
 
@@ -230,7 +293,7 @@ class MockTracer(Tracer):
         - bool: Whether the event condition is met.
         '''
         X, P = Y
-        return torch.zeros(X.shape[:-1], dtype=torch.bool)
+        return torch.ones(X.shape[:-1], dtype=torch.bool)
 
 
 
