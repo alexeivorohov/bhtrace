@@ -141,6 +141,17 @@ class Spacetime(ABC):
         """
         pass
 
+    def detg(self, X):
+        '''Determinant of the metric
+        
+        By default, torch linalg is used for evaluation of determinant.
+
+        But for most metrics more optimal analytical expression is present and implemented.
+        '''
+        g = self.g(X)
+
+        return torch.linalg.det(g)
+
     def dg(self, X: torch.Tensor, eps: float = 2e-5) -> torch.Tensor:
         """Numerically calculates the partial derivatives of the metric tensor.
 

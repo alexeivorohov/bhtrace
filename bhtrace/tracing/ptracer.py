@@ -12,7 +12,6 @@ import os
 import pickle
 
 from bhtrace.geometry import Spacetime, Particle
-from bhtrace.functional import ODE
 from .tracer import Tracer
 
 
@@ -34,6 +33,7 @@ class PTracer(Tracer):
         self.m_param = None
         self.eps = eps
         self.name = 'PTracer'
+        
         pass
 
     def __term__(self,
@@ -56,4 +56,3 @@ class PTracer(Tracer):
             dP *= s
 
         return dX, dP
-

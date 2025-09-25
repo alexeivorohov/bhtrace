@@ -4,7 +4,7 @@ import time
 import torch
 
 from bhtrace.geometry import Spacetime, Particle
-from bhtrace.functional.odeint import ODEint, Euler, RK4
+from bhtrace.functional.odeint import ODEint, ODE
 from bhtrace.trajectory.trajectory import Trajectory
 from bhtrace.functional.debug import debug
 
@@ -32,22 +32,16 @@ class Tracer():
     '''If true, cached values will be used for evaluation of event conditions'''
 
     def __init__(self,
-                 ode_method='Euler',
+                 ode_method: str | ODEint = 'Euler',
                  eps: float = 1e-3
                  ):
         '''
         Initialize the Tracer with a specified ODE integration method.
         Parameters:
-        - ode_method: str - The ODE integration method to use ('Euler', 'RK4').
+        - ode_method: str - The ODE integration method to use.
         '''
         self.ode_method = ode_method
-        if ode_method == 'Euler':
-            self.ode_solver_class = Euler
-        elif ode_method == 'RK4':
-            self.ode_solver_class = RK4
-        else:
-            raise NotImplementedError(f"ODE method '{ode_method}' not supported.")
-        
+
         self.default_eps = eps
 
         self.conditions_XP = {
@@ -127,9 +121,9 @@ class Tracer():
 
         # --- Vectorized Integration ---
         dt = T / nsteps
-        self.odeint = self.ode_solver_class(dt=dt, event_fn=self.evnt)
+        self.odeint = ODE(name=self.ode_method, dt=dt, event_fn=self.evnt)
         
-        print(f"Starting vectorized integration of {self.Ni} particles with {self.ode_solver_class.__name__}...")
+        print(f"Starting vectorized integration of {self.Ni} particles with {self.odeint.__class__.__name__}...")
         start_time = time.time()
 
         solution = self.odeint.forward(
@@ -231,7 +225,6 @@ class Tracer():
     def to(self, dev = None, dtype = None):
 
         pass
-
 
     def jit(self):
         '''

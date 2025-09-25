@@ -369,6 +369,13 @@ class ODEint(ABC):
         
         pass
 
+    def jit(self):
+        '''
+        Placeholder for jit-compilation of solver
+        '''
+        return NotImplementedError
+
+
 class Euler(ODEint):
     __supports_event_tracking__ = True
 
@@ -398,6 +405,142 @@ class RK4(ODEint):
     def __LTE__(self, t: float, Y: torch.Tensor) -> torch.Tensor:
         return NotImplementedError
     
+class VCAB4(ODEint):
+    '''
+    The 4rd order Adams method.
+    This implementation uses a fixed step size and RK4 for bootstrapping.
+    '''
+    __supports_variable_step__ = False
+    __supports_event_tracking__ = True
+
+    def __init__(self, dt=0.001, step_fn=None, event_fn=None, eps=0.001):
+        super().__init__(dt, step_fn, event_fn, eps)
+        self.dY_history = []
+        # Use RK4 for bootstrapping
+        self.bootstrap_solver = RK4(dt=self.dt)
+        # Pass event_fn to bootstrap solver if any
+        self.bootstrap_solver.set_event(event_fn)
+
+    def attach_task(self, term: callable, Y0: Tuple[torch.Tensor, ...], t0: float):
+        super().attach_task(term, Y0, t0)
+        self.bootstrap_solver.attach_task(term, Y0, t0)
+        self.dY_history = []
+
+    def __step__(self, t: float, Y: Tuple[torch.Tensor, ...]) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        if len(self.dY_history) < 2:
+            # Bootstrap with RK4 for the first two steps
+            self.bootstrap_solver.dt = self.dt  # ensure bootstrap solver has current dt
+            Y_new, dY = self.bootstrap_solver.__step__(t, Y)
+            return Y_new, dY
+        else:
+            # Adams-Bashforth 3rd order
+            # y_{n+1} = y_n + dt/12 * (23*f_n - 16*f_{n-1} + 5*f_{n-2})
+            dY = self.term(t, *Y)  # f_n
+
+            f_nm1 = self.dY_history[-1]
+            f_nm2 = self.dY_history[-2]
+
+            Y_new = []
+            for i in range(self.n_vars):
+                y_new_i = Y[i] + self.dt / 12.0 * (23 * dY[i] - 16 * f_nm1[i] + 5 * f_nm2[i])
+                Y_new.append(y_new_i)
+
+            return tuple(Y_new), dY
+
+    def __post_step__(self, step_n: int, t: float, Y: Tuple[torch.Tensor, ...], dY: Tuple[torch.Tensor, ...]):
+        self.dY_history.append(dY)
+        if len(self.dY_history) > 2:
+            self.dY_history.pop(0)
+
+        super().__post_step__(step_n, t, Y, dY)
+
+    def __LTE__(self, t: float, Y: torch.Tensor) -> torch.Tensor:
+        return NotImplementedError
+
+    def to(self, dev=None, dtype=None):
+        super().to(dev, dtype)
+        if hasattr(self, 'bootstrap_solver'):
+            self.bootstrap_solver.to(dev, dtype)
+        # dY_history are tensors, move them too
+        if self.dY_history:
+            self.dY_history = [tuple(item.to(device=dev, dtype=dtype) for item in dY_tuple) for dY_tuple in self.dY_history]
+        return self
+
+
+class VCABM4(ODEint):
+    '''
+    The 4th order Adams-Moulton method (predictor-corrector).
+    This implementation uses a fixed step size and RK4 for bootstrapping.
+    '''
+    __supports_variable_step__ = False
+    __supports_event_tracking__ = True
+
+    def __init__(self, dt=0.001, step_fn=None, event_fn=None, eps=0.001):
+        super().__init__(dt, step_fn, event_fn, eps)
+        self.dY_history = []
+        # Use RK4 for bootstrapping
+        self.bootstrap_solver = RK4(dt=self.dt)
+        # Pass event_fn to bootstrap solver if any
+        self.bootstrap_solver.set_event(event_fn)
+
+    def attach_task(self, term: callable, Y0: Tuple[torch.Tensor, ...], t0: float):
+        super().attach_task(term, Y0, t0)
+        self.bootstrap_solver.attach_task(term, Y0, t0)
+        self.dY_history = []
+
+    def __step__(self, t: float, Y: Tuple[torch.Tensor, ...]) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        if len(self.dY_history) < 3:
+            # Bootstrap with RK4 for the first three steps
+            self.bootstrap_solver.dt = self.dt  # ensure bootstrap solver has current dt
+            Y_new, dY = self.bootstrap_solver.__step__(t, Y)
+            return Y_new, dY
+        else:
+            # Predictor (Adams-Bashforth 4th order)
+            # y_{n+1}^* = y_n + dt/24 * (55*f_n - 59*f_{n-1} + 37*f_{n-2} - 9*f_{n-3})
+            dY = self.term(t, *Y)  # f_n
+
+            f_n = dY
+            f_nm1 = self.dY_history[-1]
+            f_nm2 = self.dY_history[-2]
+            f_nm3 = self.dY_history[-3]
+
+            Y_pred = []
+            for i in range(self.n_vars):
+                y_pred_i = Y[i] + self.dt / 24.0 * (55 * f_n[i] - 59 * f_nm1[i] + 37 * f_nm2[i] - 9 * f_nm3[i])
+                Y_pred.append(y_pred_i)
+            Y_pred = tuple(Y_pred)
+
+            # Corrector (Adams-Moulton 4th order)
+            # y_{n+1} = y_n + dt/24 * (9*f_{n+1} + 19*f_n - 5*f_{n-1} + f_{n-2})
+            # where f_{n+1} is f(t_{n+1}, y_{n+1}^*)
+            dY_pred = self.term(t + self.dt, *Y_pred) # f_{n+1}
+
+            Y_new = []
+            for i in range(self.n_vars):
+                y_new_i = Y[i] + self.dt / 24.0 * (9 * dY_pred[i] + 19 * f_n[i] - 5 * f_nm1[i] + f_nm2[i])
+                Y_new.append(y_new_i)
+
+            return tuple(Y_new), dY
+
+    def __post_step__(self, step_n: int, t: float, Y: Tuple[torch.Tensor, ...], dY: Tuple[torch.Tensor, ...]):
+        self.dY_history.append(dY)
+        if len(self.dY_history) > 3:
+            self.dY_history.pop(0)
+
+        super().__post_step__(step_n, t, Y, dY)
+
+    def __LTE__(self, t: float, Y: torch.Tensor) -> torch.Tensor:
+        return NotImplementedError
+
+    def to(self, dev=None, dtype=None):
+        super().to(dev, dtype)
+        if hasattr(self, 'bootstrap_solver'):
+            self.bootstrap_solver.to(dev, dtype)
+        # dY_history are tensors, move them too
+        if self.dY_history:
+            self.dY_history = [tuple(item.to(device=dev, dtype=dtype) for item in dY_tuple) for dY_tuple in self.dY_history]
+        return self
+
 
 class SHI(ODEint):
     '''
@@ -406,14 +549,20 @@ class SHI(ODEint):
     def __init__(self,):
         pass
 
+ODE_REGISTRY = {
+    'Euler': Euler,
+    'RK4': RK4,
+    'VCAB4': VCAB4,
+    'VCABM4': VCABM4
+}
     
-def ODE(method: str, *args, **kwargs) -> 'ODEint':
+def ODE(name: str, *args, **kwargs) -> 'ODEint':
         """
         Factory method to create an ODE solver instance by name.
         """
-        if method == 'Euler':
-            return Euler(*args, **kwargs)
-        elif method == 'RK4':
-            return RK4(*args, **kwargs)
-        else:
-            raise NotImplementedError(f"Solver '{method}' is not implemented.")
+        if name not in ODE_REGISTRY:
+            raise ValueError(f"ODE scheme '{name}' is not recognized.\
+                             Available schemes are: {list(ODE_REGISTRY.keys())}")
+
+        ode_class = ODE_REGISTRY[name]
+        return ode_class(*args, **kwargs)

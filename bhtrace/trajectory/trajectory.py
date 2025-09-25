@@ -7,14 +7,11 @@ if TYPE_CHECKING:
 
 import torch
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
 from bhtrace.geometry.spacetime.base import Spacetime
 from bhtrace.geometry.particle import Particle
-from bhtrace.functional import opt_mosaic
 from bhtrace.geometry.transformation import relation_dict
 
+from bhtrace.graphics import Plot2D, PlotValue
 
 class Trajectory:
 
@@ -206,216 +203,25 @@ class Trajectory:
         Plots 2d trajectories on a given matplotlib axis.
         If no axis is provided, a new figure and axis are created.
         '''
-        if ax is None:
-            fig, ax = plt.subplots(figsize=figsize)
-
-        X, P = self['Cartesian']
-
-        circle = patches.Circle((0, 0),  # Center coordinates
-                                2.0,  # Radius
-                                edgecolor='black',  # Edge color
-                                facecolor='black',  # Face color (none for a hollow circle)
-                                lw=2)
-
-        ax.plot(X[..., 1].numpy().T, X[..., 2].numpy().T)
-        ax.add_patch(circle)
-
-        ax.set_aspect('equal', adjustable='box')
-        ax.set_xlim([-10, 20])
-        ax.set_ylim([-15, 15])
-
-        ax.grid('on')
-        ax.set_xlabel('$Y/M$')
-        ax.set_ylabel('$Z/M$')
-
-        if ax is not None:
-            return fig
+        return Plot2D.plot_2d(self, ax=ax, figsize=figsize, **kwargs)
 
     @classmethod
     def plot2d_(cls, trajectories: List[Trajectory], figsize=(10, 10), **kwargs):
         '''
         Plots multiple trajectories on a mosaic of subplots.
         '''
-        shape, mosaic = opt_mosaic(trajectories)
-        figsize_ = (shape[0] * figsize[0], shape[1] * figsize[1])
-
-        fig, axs = plt.subplot_mosaic(mosaic,
-                                      figsize=figsize_)
-
-        for k, traj in enumerate(trajectories):
-            ax = axs[k]
-            traj.plot2d(ax=ax, **kwargs)
-            ax.set_title(k)
-
-        return fig
+        return Plot2D.plot_2d_mosaic(trajectories, figsize=figsize, **kwargs)
     
 
     def plot_conservation(self):
         '''
         
         '''
-        vH = torch.log10(torch.abs(self.particle.Hmlt(self.X, self.P) - self.particle.mu)+1e-7)
-        fig = plt.figure(figsize=(10, 5))
-        ax = fig.add_subplot(111)
-
-        ax.plot(vH.detach().cpu().numpy().T)
-        ax.set_title('Hamiltonian conservation along trajectory')
-        ax.set_xlabel('time step')
-        ax.set_ylabel('$\\log_{10} |H - \\mu|$')
-        ax.grid(True)
-
-        return fig
+        return PlotValue.plot_conservation(self)
    
-    def plot_impulses(self, mask=None):
-        '''
-        
-        '''
 
-        labels = ['p0', 'p1', 'p2', 'p3']
-        if mask == None:
-            mask = torch.ones(self.ntraj, dtype=torch.bool)
 
-        fig, axs = plt.subplots(4, 1, figsize = (15, 20))
 
-        for i, label in enumerate(labels):
 
-            axs[i].plot(self.P[mask, :, i].detach().cpu().T)
-            axs[i].set_title(f'{label} along trajectory')
-            axs[i].set_ylabel(f'{label}')
-            axs[i].set_xlabel('time step')
-            axs[i].grid(True)
 
-        return fig
-    
-    def plot_coords(self, mask=None):
 
-        labels = ['x0', 'x1', 'x2', 'x3']
-        if mask == None:
-            mask = torch.ones(self.ntraj, dtype=torch.bool)
-
-        fig, axs = plt.subplots(4, 1, figsize = (15, 20))
-
-        for i, label in enumerate(labels):
-            
-            axs[i].plot(self.X[mask, :, i].detach().cpu().T)
-            axs[i].set_title(f'{label} along trajectory')
-            axs[i].set_ylabel(f'{label}')
-            axs[i].set_xlabel('time step')
-            axs[i].grid(True)
-
-        return fig
-
-    def plot_metrics(self, mask=None):
-        '''
-        Plots 10 independent metric components along the trajectory.
-        '''
-        if mask is None:
-            mask = torch.ones(self.ntraj, dtype=torch.bool)
-
-        g = self.spacetime.g(self.X)
-        g = g[mask, :, :, :].detach().cpu()
-
-        labels = []
-        components = []
-        for i in range(4):
-            for j in range(i, 4):
-                labels.append(f'g_{i}{j}')
-                components.append(g[:, :, i, j])
-
-        fig, axs = plt.subplots(5, 2, figsize=(15, 25))
-        axs = axs.flatten()
-
-        for i, label in enumerate(labels):
-            ax = axs[i]
-            ax.plot(components[i].numpy().T)
-            ax.set_title(f'{label} along trajectory')
-            ax.set_ylabel(f'{label}')
-            ax.set_xlabel('time step')
-            ax.grid(True)
-        
-        fig.tight_layout()
-        return fig
-
-    def plot_quantity(self, func, mask=None, name='Q'):
-        '''
-        Plots values of a given func(X) over the trajectory.
-        func(X) can produce scalar or tensor output.
-        '''
-        import math
-
-        if mask is None:
-            mask = torch.ones(self.ntraj, dtype=torch.bool)
-
-        quantity = func(self.X)
-        quantity = quantity[mask, ...].detach().cpu()
-
-        # Flatten tensor components
-        if quantity.ndim > 2:
-            flat_quantity = quantity.view(*quantity.shape[:2], -1)
-        else:
-            flat_quantity = quantity.unsqueeze(-1)
-
-        n_components = flat_quantity.shape[2]
-
-        labels = []
-        if n_components == 1 and quantity.ndim == 2:
-            labels.append(f'{name}')
-        else:
-            for i in range(n_components):
-                labels.append(f'{name}_{i}')
-        
-        components = [flat_quantity[:, :, i] for i in range(n_components)]
-
-        if n_components == 1:
-            nrows, ncols = 1, 1
-            figsize = (10, 5)
-        else:
-            ncols = 2
-            nrows = math.ceil(n_components / ncols)
-            figsize = (15, 5 * nrows)
-
-        fig, axs = plt.subplots(nrows, ncols, figsize=figsize, squeeze=False)
-        axs = axs.flatten()
-
-        for i, label in enumerate(labels):
-            ax = axs[i]
-            ax.plot(components[i].numpy().T)
-            ax.set_title(f'{label} along trajectory')
-            ax.set_ylabel(f'{label}')
-            ax.set_xlabel('time step')
-            ax.grid(True)
-        
-        # Hide unused subplots
-        for i in range(n_components, len(axs)):
-            axs[i].set_visible(False)
-
-        fig.tight_layout()
-        return fig
-
-    def plot3d(self, **kwargs):
-        """
-        Placeholder for plotting the trajectory.
-        """
-        raise NotImplementedError("Plotting is not yet implemented.") 
-    
-    def plot_metric(self, mask=None):
-
-        pass
-
-    def plot3d(self, **kwargs):
-        """
-        Placeholder for plotting the trajectory.
-        """
-        raise NotImplementedError("Plotting is not yet implemented.")
-
-    def plot_lensing(self, **kwargs):
-        """
-        Placeholder for plotting the trajectory.
-        """
-        raise NotImplementedError("Plotting is not yet implemented.")
-    
-    def plot_image(self, **kwargs):
-        """
-        Placeholder for plotting the trajectory.
-        """
-        raise NotImplementedError("Plotting is not yet implemented.")

@@ -14,7 +14,6 @@ class MinkowskiSph(Spacetime):
     
         pass
 
-
     def g(self, X):
         
         outp = torch.zeros(*X.shape, 4)
@@ -26,7 +25,6 @@ class MinkowskiSph(Spacetime):
 
         return outp
 
-
     def ginv(self, X):
 
         outp = torch.zeros(*X.shape, 4)
@@ -37,7 +35,6 @@ class MinkowskiSph(Spacetime):
         outp[..., 3, 3] = torch.pow(X[...,1]*torch.sin(X[...,2]), -2)
 
         return outp
-
 
     def conn(self, X):
 
@@ -191,11 +188,83 @@ class SphericallySymmetric(Spacetime):
 
         return abs(self.A(X[..., 1]))
 
-class KerrSchildSph(Spacetime):
+class KerrBL(Spacetime):
 
     __coords__ = 'Spherical'
+    # Coords = "BoyerLindquist"
 
-    def __init__(self):
-        pass
+    def __init__(self, a=0.6):
+
+        self.a = a
+        '''Dimensionless spin parameter'''
+
+        self.a2 = a**2
+        self.__labels__ = ['t', 'r', '\\theta', '\\phi']
+        super().__init__()
+
+    def g(self, X):
+
+        g = torch.zeros(*X.shape, 4)
+
+        r = X[..., 1]
+        r2 = torch.pow(r, 2)
+        
+        costh = torch.cos(X[..., 2])
+        sinth = torch.sin(X[..., 2])
+
+        costh2 = torch.pow(costh, 2)
+        sinth2 = torch.pow(sinth, 2)
+
+        rho2 = r2 + self.a2*costh2
+        z = 2*r/rho2
+        dlta = r2 + self.a2 - 2*r
+        sgma = (r2 + self.a2)**2 - self.a2*dlta*sinth2
+
+        g[..., 0, 0] = z - 1
+        g[..., 0, 3] = -z*self.a*sinth2
+        g[..., 3, 0] = g[..., 0, 3]
+
+        g[..., 1, 1] = rho2/dlta
+        g[..., 2, 2] = rho2
+        g[..., 3, 3] = sgma*sinth2/rho2
+
+        return g
+    
+    def ginv(self, X):
+
+        ginv = torch.zeros(*X.shape, 4)
+
+        r = X[..., 1]
+        r2 = torch.pow(r, 2)
+        
+        costh = torch.cos(X[..., 2])
+        sinth = torch.sin(X[..., 2])
+
+        costh2 = torch.pow(costh, 2)
+        sinth2 = torch.pow(sinth, 2)
+
+        rho2 = r2 + self.a2*costh2
+        z = 2*r/rho2
+        dlta = r2 + self.a2 - 2*r
+        sgma = (r2 + self.a2)**2 - self.a2*dlta*sinth2
+
+        xi = sgma*(1-z)+rho2*self.a2*z**2*sinth2
+
+        ginv[..., 0, 0] = - sgma/xi
+        ginv[..., 0, 3] = - rho2*self.a*z/xi
+
+        ginv[..., 1, 1] = dlta/rho2
+        ginv[..., 2, 2] = 1/rho2
+        ginv[..., 3, 3] = rho2*(1-z)/xi/sinth2
+
+        return ginv
+
+    def horizon(self, X):
+        
+        r = X[..., 1]
+        r2 = torch.pow(r, 2)
+        dlta = r2 + self.a2 - 2*r
+
+        return dlta
 
 
