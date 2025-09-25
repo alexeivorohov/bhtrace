@@ -9,7 +9,7 @@ from bhtrace.trajectory import Trajectory
 from bhtrace.tracing import Tracer
 from bhtrace.geometry import Particle, Observer
 from bhtrace.geometry.transformation import relation_dict
-from bhtrace.functional import weightened_upsample_1d
+from bhtrace.utils import weightened_upsample_1d
 
 def eval_lens(traj: Trajectory, verbose=False):
 

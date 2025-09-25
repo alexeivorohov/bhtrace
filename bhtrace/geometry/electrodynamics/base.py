@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import inspect
 from bhtrace.geometry.spacetime.base import Spacetime
-from bhtrace.functional import levi_civita_tensor
+from bhtrace.utils import levi_civita_tensor
 
 import torch
 

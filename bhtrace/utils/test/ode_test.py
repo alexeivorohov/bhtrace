@@ -7,7 +7,7 @@ root_path = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
-from bhtrace.functional import RKF23b, Euler
+from bhtrace.utils import RKF23b, Euler
 import uniplot as uplot
 
 

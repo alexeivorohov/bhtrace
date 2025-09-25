@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from bhtrace.tracing.ptracer import PTracer
 from bhtrace.geometry import Photon, MinkowskiCart, SphericallySymmetric
-from bhtrace.functional.transform import sph2cart
+from bhtrace.utils.transform import sph2cart
 
 def mpl_plot_schwarzschild(X, P, save_path=None):
     '''

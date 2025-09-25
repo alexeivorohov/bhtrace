@@ -1,7 +1,7 @@
 import torch
 from .base import Particle
 from ..spacetime.base import Spacetime
-from bhtrace.functional.diff import Grad
+from bhtrace.utils.diff import Grad
 
 
 class Photon(Particle):

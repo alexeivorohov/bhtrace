@@ -1,23 +1,29 @@
-# This file contains some essential routines
-import sys
-import time
+'''
+This module contains common methods for operating with arrays and functions
+
+
+'''
+
 from typing import Tuple
 from itertools import permutations
 
 import torch
 import numpy as np
 
-def points_generate(ts, rs, ths, phs):
-    '''
-    Make all permutations for 4 coordinates lists.
 
-    ### Inputs:
+### Array utilities
+
+def meshgrid4d(ts, rs, ths, phs):
+    '''
+    Constructs 4d meshgrid from given arrays
+
+    Args:
     - ts: list of float - time coordinates
     - rs: list of float - radial coordinates
     - ths: list of float - theta coordinates
     - phs: list of float - phi coordinates
 
-    ### Outputs:
+    Returns:
     - X: torch.Tensor - tensor of shape (len(ts)*len(rs)*len(ths)*len(phs), 4) containing all permutations
     '''
     N_test_p = len(ts)*len(rs)*len(ths)*len(phs)
@@ -33,19 +39,18 @@ def points_generate(ts, rs, ths, phs):
 
     return X
 
-
 def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
     '''
     Routine for generating coordinate grid on observer's sky
 
-    ### Inputs:
+    Args:
     - shape: str - type of net to be generated [line, square, circle, hex]
     - rng: tuple - rank of a net
     - YZ0: list - initial YZ coordinates
     - X0: float - initial X coordinate
     - YZsize: list - size of the grid in Y and Z directions
 
-    ### Outputs:
+    Returns:
     - tuple(xx, yy, zz): torch.Tensor - coordinates of the grid
     '''
     
@@ -75,12 +80,11 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
 
     return xx.flatten(), yy.flatten(), zz.flatten()
 
-
 def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: torch.Tensor, tol=1e-4, maxiter=100):
     '''
     Find function zeros by recursive bisection method.
 
-    ### Inputs:
+    Args:
     - func: callable - function to find zeros
     - x_min: torch.Tensor - lower boundary
     - x_max: torch.Tensor - upper boundary
@@ -88,7 +92,7 @@ def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: tor
     - tol: float - tolerance for zero finding
     - maxiter: int - maximum number of iterations
 
-    ### Outputs:
+    Returns:
     - outp: torch.Tensor - zeros found on the given interval
     '''
     mid = (x_min + x_max) / 2
@@ -114,12 +118,11 @@ def bisection(func: callable, x_min: torch.Tensor, x_max: torch.Tensor, par: tor
         outp[mask0] = res
         return outp
 
-
-def def_fspace(func, x_min, x_max, par, alpha=1.0, maxiter=10):
+def find_domain(func, x_min, x_max, par, alpha=1.0, maxiter=10):
     '''
-    Function to define the function space for a given function `func`.
+    Function to determine the function domain for a given function `func`.
     
-    ## Inputs:
+    Args:
     - func: function to evaluate
     - x_min: torch.Tensor - minimum x values
     - x_max: torch.Tensor - maximum x values
@@ -127,7 +130,7 @@ def def_fspace(func, x_min, x_max, par, alpha=1.0, maxiter=10):
     - alpha: float - scaling factor
     - maxiter: int - maximum number of iterations
     
-    ## Outputs:
+    Returns:
     - x_min: torch.Tensor - updated minimum x values
     - x_max: torch.Tensor - updated maximum x values
     '''
@@ -141,37 +144,13 @@ def def_fspace(func, x_min, x_max, par, alpha=1.0, maxiter=10):
     return x_min, x_max
 
 
-def print_status_bar(progress, total, elapsed_time):
-    '''
-    This function displays and updates status bar.
 
-    ### Inputs:
-    - progress: int - current progress
-    - total: int - total steps
-    - elapsed_time: float - elapsed time in seconds
-    '''
-    bar_length = 20  # Length of the status bar
-    filled_length = int(bar_length * progress // total)  # Calculate filled length
-    bar = '=' * filled_length + ' ' * (bar_length - filled_length)  # Create the bar
-    percentage = (progress / total) * 100  # Calculate percentage
-    status = f'\r {percentage:.2f}% [{bar}] | '
-
-    # Estimate remaining time
-    if progress == 0:
-        info = "N/A tr/s | T: N/A s | ETA N/A s"
-    elif progress == total:  
-        trs = progress / elapsed_time
-        info = f'{trs:.2f} tr/s | T: {elapsed_time:.2f} s | Done !' 
-    else:
-        trs = progress / elapsed_time
-        ETA_t = (total - progress) / trs
-        info = f'{trs:.2f} tr/s | T: {elapsed_time:.2f} s | ETA {ETA_t:.2f} s' 
-
-    sys.stdout.write(status + info)
-    sys.stdout.flush()
-
+### Function utilities
 
 def last_non_nan(X):
+    '''
+    For given array, 
+    '''
     
     n = X.shape[0] - 1
     mask = torch.isnan(X)
@@ -181,7 +160,6 @@ def last_non_nan(X):
             nonnan = X[n-k]
             break
     return nonnan
-
 
 def weightened_upsample_1d(
         X: torch.Tensor,
@@ -221,3 +199,4 @@ def weightened_upsample_1d(
     mask[1::2] = True
 
     return X_new, tgt_new, mask
+

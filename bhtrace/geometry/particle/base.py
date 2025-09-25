@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import torch
 
 from bhtrace.geometry.spacetime.base import Spacetime
-from bhtrace.functional import Cacher
+from bhtrace.utils import Cacher
 
 class Particle(ABC):
     """Abstract base class for all particle types.

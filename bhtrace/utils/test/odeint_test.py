@@ -5,7 +5,7 @@ from abc import abstractmethod
 from typing import Tuple, Dict
 import uniplot as uplt
 
-from bhtrace.functional.odeint import Euler, RK4, ODEint
+from bhtrace.utils.odeint import Euler, RK4, ODEint
 
 _SOLVERS_ = {
     'Euler': Euler,

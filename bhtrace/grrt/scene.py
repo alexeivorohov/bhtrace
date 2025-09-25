@@ -1,7 +1,7 @@
 
 from bhtrace.geometry import Spacetime, Photon
 from bhtrace.tracing import Tracer
-from bhtrace.functional import print_status_bar
+from bhtrace.utils import print_status_bar
 from bhtrace.geometry.observer import Observer
 
 from .medium import Medium

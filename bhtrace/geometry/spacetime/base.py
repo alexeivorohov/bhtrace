@@ -39,8 +39,8 @@ import inspect
 
 import torch
 
-from bhtrace.functional.linalg import tetrad_gd, tetrad_linalg
-from bhtrace.functional import Cacher
+from bhtrace.utils.linalg import tetrad_gd, tetrad_linalg
+from bhtrace.utils import Cacher
 
 # May be derivatives and connections should be moved to another class?
 # In this case, dealing with different coordinate systems may be simpler (?)

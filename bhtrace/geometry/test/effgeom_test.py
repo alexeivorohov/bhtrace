@@ -9,7 +9,7 @@ from bhtrace.geometry.spacetime import EffGeom, MinkowskiSph
 from bhtrace.geometry.particle import Photon
 from bhtrace.geometry.electrodynamics import Maxwell, EulerHeisenberg
 from bhtrace.tracing import PTracer
-from bhtrace.functional.transform import cart2sph, sph2cart
+from bhtrace.utils.transform import cart2sph, sph2cart
 
 
 

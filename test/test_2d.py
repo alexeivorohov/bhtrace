@@ -9,7 +9,7 @@ import uniplot as uplt
 
 from bhtrace.tracing import PTracer
 from bhtrace.geometry import Photon, SphericallySymmetric, KerrSchild, Observer
-from bhtrace.functional.transform import sph2cart
+from bhtrace.utils.transform import sph2cart
 
 def console_plot(
         case,

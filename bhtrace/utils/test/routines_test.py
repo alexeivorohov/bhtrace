@@ -8,7 +8,7 @@ root_path = os.path.dirname(os.path.dirname(os.getcwd()))
 sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
-from bhtrace.functional.routines import EulerRotation, points_generate, net, bisection, def_fspace, levi_civita_tensor, print_status_bar, rotate_points_cloud
+from bhtrace.utils.routines import EulerRotation, points_generate, net, bisection, def_fspace, levi_civita_tensor, print_status_bar, rotate_points_cloud
 
 class TestRoutines(unittest.TestCase):
 

@@ -2,7 +2,7 @@ import torch
 
 from .spacetime.base import Spacetime
 from .particle import Particle
-from bhtrace.functional import net, rotate_points_cloud
+from bhtrace.utils import net, rotate_points_cloud
 from .transformation import relation_dict
 
 class Observer:

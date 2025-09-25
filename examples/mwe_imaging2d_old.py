@@ -7,7 +7,7 @@ import sys
 
 sys.path.append('/home/alexey/Work/bhtrace-dev/')
 # from bhtrace.geometry import EffGeomSPH, Photon
-from bhtrace.functional import opt_mosaic, last_non_nan
+from bhtrace.utils import opt_mosaic, last_non_nan
 
 from mwe_setup import *
 

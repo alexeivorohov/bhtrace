@@ -9,7 +9,7 @@ sys.path.append(root_path)
 sys.path.append(os.getcwd())
 
 
-from bhtrace.functional.diff import Grad, D
+from bhtrace.utils.diff import Grad, D
 
 class TestDiff(unittest.TestCase):
 
