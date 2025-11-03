@@ -1,3 +1,43 @@
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["bhtrace"]
+
+[project]
+name = "bhtrace"
+version = "0.1.0"
+dependencies = [
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "uniplot",
+    "jupyter",
+    "torch",
+    "tqdm",
+    "scipy",
+    "sympy",
+    "httpx"
+]
+requires-python = ">=3.12"
+authors = [
+  {name = "Alexei Vorokhov", email = "alexei.vorohov@yandex.ru"},
+]
+maintainers = [
+  {name = "Alexei Vorokhov", email = "alexei.vorohov@yandex.ru"},
+]
+description = "Package for performing GRRT simulations of exotic compact objects in arbitrary spacetimes. Powered by PyTorch"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE.*"]
+keywords = ["black holes", "relativity", "ray-tracing", "gravitaiton", "compact objects", "GRRT"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python"
+]
+
+[project.urls]
+Repository = "https://github.com/alexeivorohov/bhtrace.git"
+"Bug Tracker" = "https://github.com/alexeivorohov/bhtrace/issues"
+Changelog = "https://github.com/alexeivorohov/bhtrace/blob/master/CHANGELOG.md"

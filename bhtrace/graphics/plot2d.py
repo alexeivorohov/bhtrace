@@ -21,7 +21,7 @@ class Plot2D:
         Plots one or more trajectories in a 2D plane.
         By default, it plots the coordinates at index 1 and 2 of the trajectory data.
 
-        Args:
+        Args:3
             trajs (Iterable[Trajectory]): A single Trajectory object or an iterable of them.
             ax (plt.Axes, optional): A matplotlib axes object to plot on. If None, creates a new one.
             colors (list, optional): A list of colors to use for the trajectories.
@@ -52,7 +52,6 @@ class Plot2D:
         if labels:
             ax.legend()
         return fig, ax
-    
 
     @classmethod
     def plot_2d(cls, traj: 'Trajectory', ax: plt.Axes = None, figsize=(10, 10), **kwargs):
@@ -81,7 +80,6 @@ class Plot2D:
         ax.set_ylabel('$Z/M$')
         return fig, ax
     
-
     @classmethod
     def plot_2d_mosaic(cls, trajectories: Iterable['Trajectory'], figsize=(10, 10), **kwargs):
         """

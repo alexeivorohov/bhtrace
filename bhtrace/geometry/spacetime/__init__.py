@@ -5,7 +5,7 @@ exposes the concrete spacetime classes.
 
 from .base import Spacetime, MockSpacetime
 from .cartesian import MinkowskiCart, KerrSchild, SchwSchild
-from .spherical import MinkowskiSph, SphericallySymmetric, KerrBL
+from .spherical import MinkowskiSph, SphericallySymmetric, KerrBL, KerrNewmanBL
 from .axial import KerrAx
 from .effective import EffGeom, EffgeomSimple
 
@@ -17,6 +17,7 @@ SPACETIME_REGISTRY = {
     'MinkowskiSph': MinkowskiSph,
     'SphericallySymmetric': SphericallySymmetric,
     'KerrBL': KerrBL,
+    'KerrNewmanBL' : KerrNewmanBL,
     # 'KerrAx': KerrAx,
     'EffGeom': EffGeom,
     'EffgeomSimple': EffgeomSimple,

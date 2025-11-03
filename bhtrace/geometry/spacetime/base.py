@@ -51,9 +51,15 @@ class Spacetime(ABC):
     This class defines the interface for spacetime metrics, including methods
     for calculating the metric tensor, its inverse, and connection coefficients.
     """
+
     __analytic_conn__ = False
-    _g00_tol = -0.1
+    '''True if analytic connections are provided'''
+   
     cacher = Cacher()
+    '''Cache controller'''
+
+    r_h = 2.0
+    '''Apparent horizon radius'''
 
     def __new__(cls, *args, **kwargs):
         if cls is Spacetime:

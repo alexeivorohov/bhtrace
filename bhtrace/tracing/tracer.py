@@ -31,6 +31,9 @@ class Tracer():
     __use_cached_for_conditions__ = True
     '''If true, cached values will be used for evaluation of event conditions'''
 
+    __tqdm_bar__ = True
+    '''If true, tqdm will show up progress bar'''
+
     def __init__(self,
                  ode_method: str | ODEint = 'Euler',
                  eps: float = 1e-3
@@ -130,7 +133,8 @@ class Tracer():
             term=self.__term__,
             Y0=(X0, P0),
             t0=0.0,
-            n_steps=nsteps
+            n_steps=nsteps,
+            tqdm_bar=self.__tqdm_bar__
         )
 
         elapsed_time = time.time() - start_time
@@ -188,7 +192,6 @@ class Tracer():
 
         dH = H - self.particle.mu
         criterion = torch.less(abs(dH), self.__hmlt_tol__)    
-        print(criterion)
         return criterion
     
     def __nan_check__(self, t, X, Y, dX, dP):

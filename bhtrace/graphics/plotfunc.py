@@ -1,9 +1,14 @@
+"""
+
+
+"""
+
 from typing import Dict, Tuple, Iterable, TYPE_CHECKING
 
 import torch
 import matplotlib.pyplot as plt
 import math
-
+import numpy as np
 
 if TYPE_CHECKING:
     from bhtrace.trajectory.trajectory import Trajectory
@@ -14,7 +19,15 @@ class PlotValue:
     """
 
     @classmethod
-    def plot(cls, traj: 'Trajectory', value_func, name='Q', labels=None, mask=None, fig: plt.Figure = None, ax: plt.Axes = None):
+    def plot(cls,
+             traj: 'Trajectory',
+             value_func, 
+             name='Q', 
+             labels=None, 
+             mask=None, 
+             fig: plt.Figure = None, 
+             ax: plt.Axes = None
+             ):
         """
         Plots a custom quantity derived from the trajectory.
         The function `value_func` should take the trajectory object and return a tensor of shape (ntraj, nsteps, ...).
@@ -23,10 +36,11 @@ class PlotValue:
             mask = torch.ones(traj.ntraj, dtype=torch.bool)
 
         quantity = value_func(traj)
+        print(f'Shape: {quantity.shape}')
         quantity = quantity[mask, ...].detach().cpu()
 
         if quantity.ndim > 2:
-            flat_quantity = quantity.view(*quantity.shape[:2], -1)
+            flat_quantity = quantity.reshape(*quantity.shape[:2], -1)
         else:
             flat_quantity = quantity.unsqueeze(-1)
 
@@ -91,8 +105,38 @@ class PlotValue:
         """
         Plots the conservation of the Hamiltonian along the trajectory.
         """
-        def value_func(t):
+        def value_func(t: 'Trajectory'):
             return torch.log10(torch.abs(t.particle.Hmlt(t.X, t.P) - t.particle.mu) + 1e-7)
 
-        return cls.plot(traj, value_func, name='$\log_{10} |H - \\mu|$', ax=ax)
+        return cls.plot(traj, value_func, name='$\\log_{10} |H - \\mu|$', ax=ax)
+    
+    @classmethod
+    def plot_metrics(cls, traj: 'Trajectory', ax: plt.Axes = None):
+
+        def value_func(t: 'Trajectory'):
+            return t.spacetime.g(t.X)
+        
+        return cls.plot(traj, value_func, ax=ax)
+    
+    @classmethod
+    def plot_hmlt_stat(cls, traj: 'Trajectory', ax: plt.Axes = None):
+
+        if ax is None:
+            fig, ax = plt.subplots(1,1,figsize=(8,8))
+        else:
+            fig = ax.get_figure()
+
+        dH = torch.log10(torch.abs(traj.particle.Hmlt(traj.X, traj.P) - traj.particle.mu) + 1e-7)
+
+        bins = np.arange(-8, 2, 1)
+        ax.hist(x=dH.flatten(), bins=bins, density=True)
+        ax.grid(True)
+        ax.set_title('$\\log_{10} |H - \\mu|$')
+
+        return fig, ax
+
+
+    
+
+            
  

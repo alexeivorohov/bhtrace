@@ -1,11 +1,6 @@
 import torch
 import unittest
 
-import sys
-import os
-root_path = os.path.dirname(os.path.dirname(os.getcwd()))
-sys.path.append(root_path)
-sys.path.append(os.getcwd())
 
 from bhtrace.utils import RKF23b, Euler
 import uniplot as uplot
@@ -29,7 +24,6 @@ class TestODE(unittest.TestCase):
         Test on simplest equation
 
         '''
-
         # parameters
         dim = 5
         nsteps = 128

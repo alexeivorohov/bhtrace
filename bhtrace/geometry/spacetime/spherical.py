@@ -1,5 +1,8 @@
 import torch
+import math
+
 from .base import Spacetime
+from bhtrace.utils import bisection
 
 class MinkowskiSph(Spacetime):
 
@@ -40,7 +43,6 @@ class MinkowskiSph(Spacetime):
 
         r = X[...,1]
         th = X[...,2]
-        phi = X[...,3]
 
         outp = torch.zeros(*X.shape, 4, 4)
 
@@ -79,7 +81,7 @@ class SphericallySymmetric(Spacetime):
     __analytic_conn__ = True
     __coords__ = 'Spherical'
 
-    def __init__(self, A=None, A_r=None, B=None, B_r=None, r_s=2.0):
+    def __init__(self, A=None, A_r=None, B=None, B_r=None):
         '''
         Class for handling spherically-symmetric spacetimes of type
 
@@ -95,11 +97,11 @@ class SphericallySymmetric(Spacetime):
         '''
 
         if A == None:
-            self.A = lambda r: - (1.0 - r_s/r)
-            self.A_r = lambda r: - r_s*torch.pow(r, -2)
-            self.B = lambda r: 1.0/(1.0 - r_s/r)
-            self.B_r = lambda r: r_s*torch.pow(r, -2)*torch.pow(1.0 - r_s/r, -2)
-            self.cr_r = r_s
+            self.A = lambda r: - (1.0 - 2.0/r)
+            self.A_r = lambda r: - 2.0*torch.pow(r, -2)
+            self.B = lambda r: 1.0/(1.0 - 2.0/r)
+            self.B_r = lambda r: 2.0*torch.pow(r, -2)*torch.pow(1.0 - 2.0/r, -2)
+            self.r_h = 2.0
         elif B == None:
             self.A = lambda r: - A(r)
             self.A_r = lambda r: -A_r(r)
@@ -111,7 +113,9 @@ class SphericallySymmetric(Spacetime):
             self.B = B
             self.B_r = B_r
 
-        
+        if A is not None:
+            self.r_h = float(bisection(A, 0.0, 4.0))
+
         super().__init__()
 
         pass
@@ -151,7 +155,6 @@ class SphericallySymmetric(Spacetime):
         # X: [t, r, th, phi]
         r = X[..., 1]
         th = X[..., 2]
-        phi = X[..., 3]
 
         outp = torch.zeros(*X.shape, 4, 4)
 
@@ -199,6 +202,7 @@ class KerrBL(Spacetime):
         '''Dimensionless spin parameter'''
 
         self.a2 = a**2
+        self.r_h = 1 + math.sqrt(1 - self.a2)
         self.__labels__ = ['t', 'r', '\\theta', '\\phi']
         super().__init__()
 
@@ -267,4 +271,93 @@ class KerrBL(Spacetime):
 
         return dlta
 
+class KerrNewmanBL(Spacetime):
 
+    __coords__ = 'Spherical'
+    # Coords = "BoyerLindquist"
+
+    def __init__(self, a=0.6, q=0.4):
+
+        self.a = a
+        '''Dimensionless spin parameter'''
+        self.q = q
+        '''Dimensionless charge'''
+
+        self.a2 = a**2
+        self.q2 = q**2
+
+        self.r_h = 1 + math.sqrt(1 - self.a2 - self.q2)
+        self.__labels__ = ['t', 'r', '\\theta', '\\phi']
+        super().__init__()
+
+    def g(self, X):
+
+        g = torch.zeros(*X.shape, 4)
+
+        r = X[..., 1]
+        r2 = torch.pow(r, 2)
+    
+        costh = torch.cos(X[..., 2])
+        sinth = torch.sin(X[..., 2])
+
+        costh2 = torch.pow(costh, 2)
+        sinth2 = torch.pow(sinth, 2)
+
+        l2 = r2 + self.a2
+        rho2 = r2 + self.a2*costh2
+        dlta = 1 - 2*r/l2 + self.q2/r2
+        f = l2*dlta/rho2
+        xi2 = l2**2*sinth2/rho2
+        
+        g[..., 0, 0] = - f + self.a2*sinth2/rho2
+        g[..., 0, 3] = self.a*sinth2*(f - l2/rho2)
+        g[..., 3, 0] = g[..., 0, 3]
+
+        g[..., 1, 1] = 1/f
+        g[..., 2, 2] = rho2
+        g[..., 3, 3] = xi2 - self.a2*sinth2**2
+
+        return g
+    
+    def ginv(self, X):
+
+        g = torch.zeros(*X.shape, 4)
+
+        r = X[..., 1]
+        r2 = torch.pow(r, 2)
+    
+        costh = torch.cos(X[..., 2])
+        sinth = torch.sin(X[..., 2])
+
+        costh2 = torch.pow(costh, 2)
+        sinth2 = torch.pow(sinth, 2)
+
+        l2 = r2 + self.a2
+        rho2 = r2 + self.a2*costh2
+        dlta = 1 - 2*r/l2 + self.q2/r2
+        f = l2*dlta/rho2
+        xi2 = l2**2*sinth2/rho2
+
+        g[..., 0, 0] = - f + self.a2*sinth2/rho2
+        g[..., 0, 3] = self.a*sinth2*(f - l2/rho2)
+
+        g[..., 1, 1] = f
+        g[..., 2, 2] = 1/rho2
+        g[..., 3, 3] = xi2 - self.a2*sinth2**2
+
+        subdet = g[..., 0, 0]*g[..., 3, 3] - g[..., 0, 3]**2
+
+        g[..., 0, 0] = g[..., 0, 0]/subdet
+        g[..., 3, 3] = g[..., 3, 3]/subdet
+        g[..., 0, 3] = g[..., 0, 3]/subdet
+        g[..., 3, 0] = g[..., 0, 3]
+
+        return g
+
+    def horizon(self, X):
+        
+        r = X[..., 1]
+        r2 = torch.pow(r, 2)
+        dlta = r2 - 2*r + self.a2 + self.q2
+
+        return dlta

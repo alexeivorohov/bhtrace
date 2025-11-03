@@ -212,7 +212,7 @@ class ODEint(ABC):
             self.step_fn(**step_args)
 
 
-    def solve(self, nsteps: int, track_LTE: bool = False) -> Dict[str, torch.Tensor | Tuple[torch.Tensor]]:
+    def solve(self, nsteps: int, track_LTE: bool = False, tqdm_bar=True) -> Dict[str, torch.Tensor | Tuple[torch.Tensor]]:
         '''
         Starts the solving loop for the attached task.
         '''
@@ -237,7 +237,7 @@ class ODEint(ABC):
 
         msg = '\nFinished: Reached maximum number of steps.\n'
 
-        for i in trange(nsteps):
+        for i in trange(nsteps, disable=tqdm_bar):
             if not torch.any(self.batch_mask):
                 # All trajectories stopped, fill rest of solution and break
                 last_t = self.solution['t'][i]
@@ -270,14 +270,16 @@ class ODEint(ABC):
             # Post-step for new state
             self.__post_step__(step_n=i, t=t, Y=tuple(s[:, i+1] for s in self.solution['Y']), dY=dy)
 
-        print(msg)
+        if tqdm_bar: print(msg)
+        
         return self.solution
     
 
     def forward(self, 
                 term: callable,
                 Y0: Tuple[torch.Tensor, ...],
-                t0: float, n_steps: int
+                t0: float, n_steps: int,
+                tqdm_bar = True,
                 ) -> Dict[str, Tuple[torch.Tensor] | torch.Tensor]:
         '''
         Attach the task and solve it in one call.
@@ -293,7 +295,7 @@ class ODEint(ABC):
         solution['LTE'] - local truncation error at each time step (if tracked)
         '''
         self.attach_task(term, Y0, t0)
-        return self.solve(n_steps)
+        return self.solve(n_steps, tqdm_bar=True)
 
 
     @abstractmethod

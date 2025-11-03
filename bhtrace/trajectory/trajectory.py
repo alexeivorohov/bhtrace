@@ -167,11 +167,16 @@ class Trajectory:
 
         particle = Particle.from_dict(data['particle_state'])
         spacetime = particle.spacetime
+        # TODO: Save tracer state
         tracer = MockTracer(particle, spacetime)
         
         traj = cls(data['X'], data['P'], particle, tracer, data['coord_original'])
         if '__XP_reprs__' in data:
             traj.__XP_reprs__ = data['__XP_reprs__']
+        
+        if 'lens' in data:
+            traj.lens = data['lens']
+
         return traj
     
     def save(self, filename, save_reprs=True):
@@ -187,8 +192,11 @@ class Trajectory:
         }
         if save_reprs:
             data['__XP_reprs__'] = self.__XP_reprs__
+        if hasattr(self, 'lens'):
+            data['lens'] = self.lens
 
         torch.save(data, filename)
+        print(f'File saved at {filename}')
     
     @staticmethod
     def load(filename):
@@ -213,15 +221,23 @@ class Trajectory:
         return Plot2D.plot_2d_mosaic(trajectories, figsize=figsize, **kwargs)
     
 
+    def plot_metrics(self):
+        return PlotValue.plot_metrics(self)
+
     def plot_conservation(self):
         '''
         
         '''
         return PlotValue.plot_conservation(self)
    
+    def report(self):
 
+        figs = {}
+        figs['2d'] = self.plot2d()
+        figs['conservation'] = self.plot_conservation()
+        figs['metrics'] = self.plot_metrics()
 
-
+        return figs
 
 
 

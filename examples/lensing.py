@@ -11,24 +11,23 @@ from bhtrace.scenarios import Lensing
 
 from bhtrace.graphics import LensingPlot, Plot2D, PlotValue
 
-# st = spacetime.KerrSchild(a=0.1)
+# st = spacetime.KerrNewmanBL(a=0.5, q=0.5)
 st = spacetime.KerrBL(a=0.1)
 particle = Photon(st)
 tracer = PTracer(eps=1e-5, ode_method='VCAB4')
 tracer.to(dtype=torch.float64)
 tracer.__const_dx__ = True
 
-x0 = torch.zeros(3, 4)
-x0[..., 1] = 20
-x0[..., 2] = torch.tensor([-16., 0., 16.])
-
-v0 = torch.Tensor([0., -1.0, 0., 0.])
+x0, v0, e_b = Lensing.prepare_ic()
 
 Lensing._eps_ = 0.5
-x, dphi, traj = Lensing.forward(particle, tracer, x0, v0, nsplits=10, T=60, nsteps=128)
+x, dphi, traj = Lensing.forward(particle, tracer, x0, v0, nsplits=5, T=60, nsteps=128)
 
-PlotValue.plot_conservation(traj)
-LensingPlot.plot(dphi, x[..., 2])
+fig = LensingPlot.plot(dphi, x[..., 2])
+# figs = traj.report()
+fig, _ = PlotValue.plot_hmlt_stat(traj=traj)
+
+plt.show()
 
 
 

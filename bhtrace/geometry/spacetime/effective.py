@@ -3,11 +3,17 @@ from .spherical import SphericallySymmetric
 from ..electrodynamics import Electrodynamics
 
 import torch
+import inspect
 
 
 class EffGeom(Spacetime):
 
-    def __init__(self, ED: Electrodynamics, base: Spacetime, E: callable, B: callable):
+    def __init__(self,
+                 ED: Electrodynamics = None,
+                 base: Spacetime = SphericallySymmetric(),
+                 E: callable = None,
+                 B: callable = None
+                 ):
         '''
         Spherically-symmetric effective geometry for the case of the ED Electrodynamics
 
@@ -21,8 +27,11 @@ class EffGeom(Spacetime):
         self.base = base
         self.__coords__ = base.__coords__
         self.ED = ED
-        self.ED.set_regime()
-        self.ED.attach_fields(E, B)
+        self.E = E
+        self.B = B
+        if ED is not None:
+            self.ED.set_regime()
+            self.ED.attach_fields(E, B)
         self.U = torch.tensor([1., 0., 0., 0.])
 
         pass
