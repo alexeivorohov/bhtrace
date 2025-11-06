@@ -15,36 +15,6 @@ import torch
 from bhtrace.graphics import Plot3D
 from bhtrace.utils.debug import debug
 
-# TODO: own upsampling method for each call
-# TODO: isolate upsampling strategy weightening
-
-# class Node
-
-class NetEdge:
-
-    def __init__(self, node1, node2):
-        
-        pass
-        
-    def split_request():
-
-        pass
-
-class NetNode:
-
-    def __init__(self, edges: List[NetEdge]):
-
-        self.active = True
-        self.nodes = nodes
-        pairs = [[nodes[i]] ]
-        self.edges = [NetEdge(pair) for pair in pairs]
-        pass
-
-    def split(self, values, stategy='mean'):
-        
-        self.active = False
-        for 
-        pass
 
 class Mesh(ABC):
     """Abstract base class for all coordinate mesh implementations.
@@ -65,16 +35,41 @@ class Mesh(ABC):
     """
 
     pos3d: torch.Tensor = None
-    cells: List[List[int]] = None
     gen: int = 0
+    '''Number of refinement steps done'''
+
+    '''Weights of each vertex, must sum up to 1'''
     uniform: bool = True
 
-    def __init__(self, N: int, anchor: torch.Tensor, weights: Optional[torch.Tensor] = None, traced: Optional[torch.Tensor] = None, generation: Optional[List[int]] = None):
-        self.N: int = N
+    cells: List[List[int]] = None
+    active_cells: list[int]
+    traced: list[int]
+
+    def __init__(
+            self,
+            size: torch.Tensor = torch.Tensor([20, 20]),
+            discretization:  Tuple[int, int] = (16, 16),
+            anchor: torch.Tensor = torch.zeros(3), 
+            vertxs: torch.Tensor = None,
+            cells : torch.Tensor = None,
+            weights: Optional[torch.Tensor] = None, 
+            traced: Optional[torch.Tensor] = None, 
+            generation: Optional[List[int]] = None,
+        ):
+        self.size = size
+        self.D = discretization
+        self.N = self.D[0]*self.D[1]
         self.anchor: torch.Tensor = anchor
+        self.pos3d = vertxs
+        self.cells = cells
         self.weights: torch.Tensor = weights if weights is not None else torch.ones(self.N)
         self.traced: torch.Tensor = traced if traced is not None else torch.zeros(self.N, dtype=torch.bool)
         self.generation: List[int] = generation if generation is not None else [0] * self.N
+
+    @classmethod
+    def generate_initial(self, ):
+
+        return NotImplementedError
 
     @abstractmethod
     def info(self):
@@ -118,44 +113,130 @@ class Mesh(ABC):
         Returns:
             A tuple containing the figure and axes.
         """
+        # Integrate to point cloud or implement new plot?
+        # x, y = self.vertices[:, 0].numpy(), self.vertices[:, 1].numpy()
+        # triangles = self.faces.numpy()
+        
+        # ax.set_aspect('equal')
+        # ax.set_title(title)
+        # ax.set_xlabel("X")
+        # ax.set_ylabel("Y")
+
+        # if show_values:
+        #     avg_face_values = self.vertex_values[self.faces].mean(dim=1).numpy()
+        #     tripcolor = ax.tripcolor(x, y, triangles, facecolors=avg_face_values, cmap='viridis')
+        #     fig.colorbar(tripcolor, ax=ax, label='Vertex Value')
+        
+        # ax.triplot(x, y, triangles, 'k-', lw=0.5)
         return Plot3D.point_cloud(self.pos3d, self.generation, fig=fig, ax=ax)
 
-    def upsample(
+    def refine(
         self,
         values: Optional[torch.Tensor] = None,
         criterion: Optional[Callable[[torch.Tensor, torch.Tensor], bool]] = None,
         weightening: Optional[Callable] = None,
-        nsteps: int = 1
-    ):
-        """Creates a new, adaptively refined `Nonuniform` net from the current net.
+        nsteps: int = 1,
+        interpolation: Optional[Callable] = None
+        ):
+        """Creates a new, adaptively refined mesh from the current mesh.
 
         Args:
-            values (torch.Tensor, optional): A tensor of values at each node, used by the criterion to decide where to refine.
-            criterion (callable, optional): A function that takes the mean and std of values in a cell and returns True to refine.
-            weightening (callable, optional): A function to determine the weights of new nodes (Not yet implemented).
-            nsteps (int): The number of refinement steps to perform.
+            values (torch.Tensor, optional): A tensor of values at each vertex, used by the criterion to decide where to refine. \
+            If not provided, mesh will be refined uniformly;
+            criterion (callable, optional): A function that takes the mean and std of values in a cell and returns True to refine. \
+            If not provided, condition std > eps will be used to determine which cells to refine;
+            weightening (callable, optional): A function to determine the weights of new nodes. \
+            Mean by default;
+            nsteps (int): The number of refinement steps to perform;
+            interpolation: function to interpolate values of new vertices in case of multistep interpolation.
 
         Returns:
-            Nonuniform: The new, refined net.
+            The new, refined net.
         """
-        net = Nonuniform(self, values, criterion, weightening)
-        for _ in range(nsteps - 1):
-            net = Nonuniform(net)
 
-        return net
+        active_ids = torch.where(self.active_cells)[0]
+        if len(active_ids) == 0:
+            print("No active triangles to refine.")
+            return None
 
-class Linear(Net):
+        triangles_to_refine_indices = []
+        for tri_idx in active_ids:
+            face_vertex_indices = self.faces[tri_idx]
+            face_values = self.vertex_values[face_vertex_indices]
+            
+            if torch.std(face_values) > eps:
+                triangles_to_refine_indices.append(tri_idx)
+            else:
+                self.face_active_status[tri_idx] = False
+
+        if not triangles_to_refine_indices:
+            print("No triangles met the refinement condition.")
+            return
+
+        new_vertices = []
+        new_vertex_weights = []
+        new_faces_list = self.faces.tolist()
+        new_face_active_status_list = self.face_active_status.tolist()
+
+        edge_to_new_vertex_map = {}
+        faces_to_remove_indices = set()
+
+        for tri_index in triangles_to_refine_indices:
+            faces_to_remove_indices.add(tri_index.item())
+            face = self.faces[tri_idx]
+            v_indices = face
+            v_coords = self.vertices[v_indices]
+
+            edge_lengths_sq = [torch.sum((v_coords[1] - v_coords[0])**2), torch.sum((v_coords[2] - v_coords[1])**2), torch.sum((v_coords[0] - v_coords[2])**2)]
+            longest_edge_local_idx = edge_lengths_sq.index(max(edge_lengths_sq))
+            
+            v_idx1 = v_indices[longest_edge_local_idx]
+            v_idx2 = v_indices[(longest_edge_local_idx + 1) % 3]
+            edge = tuple(sorted((v_idx1.item(), v_idx2.item())))
+
+            if edge in edge_to_new_vertex_map:
+                new_vertex_global_idx = edge_to_new_vertex_map[edge]
+            else:
+                new_coord = (self.vertices[v_idx1] + self.vertices[v_idx2]) / 2.0
+                new_weight = (self.vertex_weights[v_idx1] + self.vertex_weights[v_idx2]) / 2.0
+                
+                new_vertices.append(new_coord)
+                new_vertex_weights.append(new_weight)
+                
+                new_vertex_global_idx = len(self.vertices) + len(new_vertices) - 1
+                edge_to_new_vertex_map[edge] = new_vertex_global_idx
+
+            v_idx3 = v_indices[(longest_edge_local_idx + 2) % 3]
+            
+            new_faces_list.append([v_idx1.item(), new_vertex_global_idx, v_idx3.item()])
+            new_faces_list.append([v_idx2.item(), new_vertex_global_idx, v_idx3.item()])
+            new_face_active_status_list.extend([True, True])
+
+        if new_vertices:
+            self.vertices = torch.cat([self.vertices, torch.stack(new_vertices)], dim=0)
+            # Recalculate all vertex values from the function
+            self.vertex_values = calculate_vertex_values(self.vertices)
+            self.vertex_weights = torch.cat([self.vertex_weights, torch.tensor(new_vertex_weights)], dim=0)
+
+        final_faces = [face for i, face in enumerate(new_faces_list) if i not in faces_to_remove_indices]
+        final_active_status = [status for i, status in enumerate(new_face_active_status_list) if i not in faces_to_remove_indices]
+        
+        self.faces = torch.tensor(final_faces, dtype=torch.long)
+        self.face_active_status = torch.tensor(final_active_status, dtype=torch.bool)
+
+
+class Linear(Mesh):
     """A 1D, linear arrangement of nodes.
 
     Creates a straight line of `npoints` nodes centered at `X0` and oriented along the `size` vector.
     """
 
     def __init__(
-            self,
-            size: torch.Tensor,
-            npoints: int, 
-            X0: torch.Tensor = torch.zeros(3),
-            anchor: torch.Tensor = torch.zeros(3),
+        self,
+        size: torch.Tensor,
+        npoints: int, 
+        X0: torch.Tensor = torch.zeros(3),
+        anchor: torch.Tensor = torch.zeros(3),
         ):
         super().__init__(npoints, anchor)
         self.shape = (npoints,)
@@ -170,7 +251,7 @@ class Linear(Net):
         """Prints information about the Linear net."""
         print(f"Linear net, shape: {self.shape}, X0: {self.X0}")
 
-class Rectangle(Net):
+class Rectangle(Mesh):
     """A 2D, rectangular grid of nodes.
 
     Args:
@@ -209,7 +290,7 @@ class Rectangle(Net):
 
 import math
 
-class Hex(Net):
+class Hex(Mesh):
     """A 2D, hexagonal grid of nodes.
 
     This implementation uses axial coordinates to generate a "pointy-top" hexagonal
@@ -277,7 +358,7 @@ class Hex(Net):
         """Prints information about the Hex net."""
         print(f"Hex net, shape: {self.shape}, X0: {self.X0}")
     
-class Circle(Net):
+class Circle(Mesh):
     """A 2D, polar grid of nodes.
 
     The grid is composed of a central point, surrounded by concentric rings.
@@ -353,7 +434,7 @@ class Circle(Net):
         """Prints information about the Circle net."""
         print(f"Circle net, shape: {self.shape}, X0: {self.X0}, radius: {self.size[0]/2.0}")
 
-class Nonuniform(Net):
+class Nonuniform(Mesh):
     """A net created by adaptively refining a parent net.
 
     This class refines a given `parent` net by adding new nodes inside cells

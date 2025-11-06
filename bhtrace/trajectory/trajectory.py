@@ -11,7 +11,7 @@ from bhtrace.geometry.spacetime.base import Spacetime
 from bhtrace.geometry.particle import Particle
 from bhtrace.geometry.transformation import relation_dict
 
-from bhtrace.graphics import Plot2D, PlotValue
+from bhtrace.graphics import Plot2D, PlotValue, Plot3D
 
 class Trajectory:
 
@@ -220,7 +220,6 @@ class Trajectory:
         '''
         return Plot2D.plot_2d_mosaic(trajectories, figsize=figsize, **kwargs)
     
-
     def plot_metrics(self):
         return PlotValue.plot_metrics(self)
 
@@ -229,6 +228,15 @@ class Trajectory:
         
         '''
         return PlotValue.plot_conservation(self)
+    
+    def plot3d(self, fig=None, ax=None):
+        
+        return Plot3D.lines(
+            points = self['Cartesian'][0][..., 1:],
+            fig = fig,
+            ax = ax,
+            )
+        
    
     def report(self):
 

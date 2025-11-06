@@ -117,6 +117,10 @@ class Observer:
             net_rng: Number of points for the grid, e.g., (width, height).
             net_size: Size of the grid in the observer's local frame.
             net_dist: Distance of the screen from the observer's position.
+
+        Returns:
+            x0
+            p0
         """
         pos = self.X_net
 
@@ -126,6 +130,7 @@ class Observer:
         elif vel.shape[0] == 1 & vel.shape[1] == 4:
             vel = vel.repeat(pos.shape[0], 1)
         
+        # Translate to particle coordinates
         if particle.__coords__ != 'Cartesian':
             pos, vel = relation_dict['Cartesian'][particle.__coords__]().tensor(pos, vel, [True])
 
