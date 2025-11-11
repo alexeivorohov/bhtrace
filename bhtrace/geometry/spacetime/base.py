@@ -52,13 +52,15 @@ class Spacetime(ABC):
     for calculating the metric tensor, its inverse, and connection coefficients.
     """
 
-    __analytic_conn__ = False
+    __analytic_conn__: str = False
     '''True if analytic connections are provided'''
+    __coords__: str = None
+    '''Coordinate system of the spacetime'''
    
-    cacher = Cacher()
-    '''Cache controller'''
+    cacher: Cacher = Cacher()
+    '''Cache controller, see bhtrace.utils.cacher'''
 
-    r_h = 2.0
+    r_h: float = 2.0
     '''Apparent horizon radius'''
 
     def __new__(cls, *args, **kwargs):
@@ -104,7 +106,6 @@ class Spacetime(ABC):
         '''
         return NotImplementedError                
 
-
     @classmethod
     def from_dict(cls, state: dict):
         """Creates a Spacetime object from a state dictionary.
@@ -147,7 +148,7 @@ class Spacetime(ABC):
         """
         pass
 
-    def detg(self, X):
+    def detg(self, X: torch.Tensor):
         '''Determinant of the metric
         
         By default, torch linalg is used for evaluation of determinant.

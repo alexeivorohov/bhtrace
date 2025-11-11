@@ -1,7 +1,7 @@
 import torch
 import unittest
 
-from bhtrace.utils.net import Linear, Rectangle, Circle, Hex
+from bhtrace.utils.mesh import Linear, Rectangle, Circle, Hex, Nonuniform
 
 class TestNetConstruction(unittest.TestCase):
 
@@ -52,13 +52,13 @@ class TestNetOperations(unittest.TestCase):
         self.assertGreater(n_initial, 0)
         
         # Upsample once
-        net2 = self.net.upsample()
+        net2 = Nonuniform(self.net)
         self.assertGreater(net2.N, n_initial)
         self.assertFalse(net2.uniform)
         self.assertEqual(net2.gen, 1)
 
         # Upsample again
-        net3 = net2.upsample()
+        net3 = Nonuniform(net2)
         self.assertGreater(net3.N, net2.N)
         self.assertEqual(net3.gen, 2)
 

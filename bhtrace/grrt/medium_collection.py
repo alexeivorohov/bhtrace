@@ -30,7 +30,7 @@ class ThinKeplerianDisk(Medium):
 
         super().__init__(
             spacetime=spacetime,
-            position=position,
+            anchor=position,
             direction=direction,
             # coordinates=Axial()
             )

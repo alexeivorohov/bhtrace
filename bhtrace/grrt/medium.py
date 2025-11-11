@@ -6,30 +6,30 @@ from bhtrace.geometry import Spacetime, Particle
 from .utils import i2_r
 
 # TODO:
+
+# [ ] Implement factory method
+
+# Future:
 # [ ] Implement composite medium class
 # [ ] How to treat intersections and opacity for composite mediums?
-# [ ] Implement factory method
 
 class Medium(ABC):
 
-    # def __new__(cls, *args, **kwargs)
-
+    __coords__: str = None
+    '''Coordinates of the medium'''
 
     def __init__(self, 
                  spacetime: Spacetime,
-                 position: torch.Tensor, 
+                 anchor: torch.Tensor, 
                  direction: torch.Tensor,
-                #  coordinates: Coordinates
                  ):
 
         self.spacetime = spacetime
-        # self.coordinates = coordinates
-        self.position = position
+        self.st_coords = spacetime.__coords__
+        self.position = anchor
         
-        pass
-    
 
-    def density(self, X):
+    def density(self, X: torch.Tensor):
         '''
         Inputs:
         - X: torch.Tensor of shape[..., 4] - position in spacetime
@@ -85,19 +85,18 @@ class Medium(ABC):
         '''
         pass
 
-
+#WIP
 class Composite(Medium):
 
-    # def __new__(cls, *args, **kwargs)
+    def __init__(
+            self,
+            spacetime: Spacetime, 
+            mediums: Tuple[Medium]
+            ):
 
-    def __init__(self,
-                 spacetime: Spacetime, 
-                 mediums: Tuple[Medium]
-                 ):
-
-        super().__init__(spacetime=spacetime)
-
-        self.mediums = mediums
+        raise NotImplementedError
+        # super().__init__(spacetime=spacetime)
+        # self.mediums = mediums
 
     
     def hit(self, X):
