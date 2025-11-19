@@ -40,7 +40,7 @@ import inspect
 import torch
 
 from bhtrace.utils.linalg import tetrad_gd, tetrad_linalg
-from bhtrace.utils import Cacher
+from bhtrace.utils import Cacher, Logger, LOG
 
 # May be derivatives and connections should be moved to another class?
 # In this case, dealing with different coordinate systems may be simpler (?)

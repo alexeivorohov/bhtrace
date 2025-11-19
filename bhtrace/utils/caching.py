@@ -8,13 +8,30 @@ class Cacher:
     The decorator will wrap the results of method calls. The wrap
     itself is stored in a dictionary attached to each instance of the
     decorated class.
+
     Usage:
+
+    1. Create cacher instance and attach function:
+
         cacher = Cacher()
-        class MyClass:
-            @cacher.attach
-            def my_method(self):
-                # expensive computation
-                return 42
+        @cacher.attach
+        def my_method():
+            # expensive computation
+            return 42
+
+    2. Use context managers to control attached function behaviour:
+
+        # This will not save values to cache and not retrieve them
+        with cacher.nocache():
+            my_method()
+
+        # This will save values to cache but not retrieve them
+        with cacher.cache():
+            my_method()
+
+        # This will try to retrieve values from cache on every function call
+        with cacher.usecache():
+            my_method()
     """
 
     def __init__(self, should_cache=True, should_use_cache=False):
@@ -111,4 +128,7 @@ class Cacher:
             return result
         return wrapper
 
-cacher = Cacher()
+CACHE = Cacher()
+'''
+Global cacher, for usage details, see Cacher()
+'''

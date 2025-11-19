@@ -16,3 +16,4 @@ from .linalg import *
 from .transform import *
 from .caching import *
 from .operation import *
+from .log import Logger, LOG
