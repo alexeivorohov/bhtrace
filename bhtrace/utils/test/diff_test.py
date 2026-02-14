@@ -1,155 +1,180 @@
-import unittest
+from typing import Optional, List, Dict, Callable, Any
+
 import torch
+import pytest
 
-import sys
-import os
-
-root_path = os.path.dirname(os.path.dirname(os.getcwd()))
-sys.path.append(root_path)
-sys.path.append(os.getcwd())
+from bhtrace.utils.diff import jacobian
 
 
-from bhtrace.utils.diff import Grad, D
+# --- vector functions ---
 
-class TestDiff(unittest.TestCase):
+def const_vector(x: torch.Tensor, a: Optional[torch.Tensor] = None) -> torch.Tensor:
+    a = a or torch.ones(x.shape, dtype=x.dtype, device=x.device)
+    return a
 
-    def setUp(self):
-        
-        self.f_dict = {
-            'const': lambda X: torch.ones_like(X),
-            'linear': lambda X: 2*X,
-            'exp': lambda X: torch.exp(X)
-        }
+def diff_const_vector(x: torch.Tensor, a: Optional[torch.Tensor] = None) -> torch.Tensor:
+    return torch.zeros(x.shape, dtype=x.dtype, device=x.device)
 
-        self.expected_df = {
-            'const': lambda X: torch.zeros_like(X),
-            'linear': lambda X: 2*torch.ones_like(X),
-            'exp': lambda X: torch.exp(X)
-        }
+def poly_vector(x: torch.Tensor, a: Optional[torch.Tensor] = None, powers: Optional[List[int]] = None) -> torch.Tensor:
+    a = a or torch.eye(x.shape[:-1], dtype=x.dtype, device=x.device)
+    powers = powers or [1]
+    x_ = x @ a
 
-        self.func_param = {
-            'wx2' : lambda X, params: torch.pow(X, 2)*params
-        }
+    outp = [x_.pow(i) for i in powers]
 
-        self.tolerances = [
-            1e-2,
-            1e-4,
-            ]
+    return sum(outp)
 
+def diff_poly_vector(x: torch.Tensor, a: Optional[torch.Tensor] = None, powers: Optional[List[int]] = None):
+    a = a or torch.eye(x.shape[:-1], dtype=x.dtype, device=x.device)
+    powers = powers or [1]
+    x_ = x.bmm(a)
 
-    def test_diff_linear(self):
-        '''
-        Test derivative calculation
-        '''
-        
-        dim = 3
-        X = torch.randn(1, 2, dim)*5
-        X.to(dtype=torch.float64)
+    outp = [i*torch.bmm(a, x_.pow(i-1)) for i in powers]
+    return sum(outp)
 
-        for key, f in self.f_dict.items():
-            for eps in self.tolerances:
+def exp_vector(x: torch.Tensor, a: Optional[torch.Tensor] = None):
+    a = a or torch.ones(x.shape[:-1], dtype=x.dtype, device=x.device)
+    return torch.exp(x.bmm(a))
 
-                df = D(f, eps=eps, order=1)
-                result = df(X)
-                expected = self.expected_df[key](X)
-
-                e = torch.abs(result - expected).mean()
-                
-                message = f'Given tolerance {eps} is not acheived: MAE= {e}\n' + \
-                    f'Result:\n\t{result}\nExpected:\n\t{expected}\n' + \
-                    f'Function: {key}, scheme order: linear \n'
-                
-                tol_criterion = torch.allclose(result, expected, atol=eps*10, rtol=eps*10)
-
-                self.assertTrue(tol_criterion, message)
+def diff_exp_vector(x: torch.Tensor, a: Optional[torch.Tensor] = None):
+    a = a or torch.ones(x.shape[:-1], dtype=x.dtype, device=x.device)
+    return torch.bmm(a, torch.exp(x.bmm(a)))
 
 
-    def test_diff_horder(self):
+# --- hamiltonian ---
 
-        dim = 3
-        X = torch.randn(1, 2, dim)*5
-        X.to(dtype=torch.float64)
-        orders = [2, 4]
+def hamiltonian(
+    x: torch.Tensor, 
+    p: torch.Tensor, 
+    a: Optional[torch.Tensor] = None
+) -> torch.Tensor:
+    a = a or torch.ones(x.shape[:-1], dtype=x.dtype, device=x.device).unsqueeze(-1)
+    return p.pow(2) + a*x.pow(2)
 
-        for order in orders:
-            for key, f in self.f_dict.items():
-                for eps in self.tolerances:
+def diff_hamiltonian(
+    x: torch.Tensor,
+    p: torch.Tensor,
+    a: Optional[torch.Tensor] = None,
+) -> torch.Tensor:
+    a = a or torch.ones(x.shape[:-1], dtype=x.dtype, device=x.device).unsqueeze(-1)
+    return 2*a*x
 
-                    df = D(f, eps=eps, order=order)
-                    result = df(X)
-                    expected = self.expected_df[key](X)
+# --- fixtures ---
 
-                    e = torch.abs(result - expected).mean()
-                    
-                    tol_condition = torch.allclose(result, expected, atol=eps*10, rtol=eps*10)
+@pytest.fixture
+def f_dict():
+    """Test functions and their expected derivatives."""
+    return {
+        'const_vec': const_vector,
+        'poly_vec': poly_vector,
+        'exp_vec': exp_vector,
+        'hmlt': hamiltonian,
+    }
 
-                    message = f'Given tolerance {eps} is not acheived: MAE= {e}\n' + \
-                        f'Result:\n\t{result}\nExpected:\n\t{expected}\n' + \
-                        f'Function: {key}, scheme order: {order} \n'
+@pytest.fixture
+def diff_dict():
+    """Expected derivatives for test functions."""
+    return {
+        'const_vec': diff_const_vector,
+        'poly_vec': diff_poly_vector,
+        'exp_vec': diff_exp_vector,
+        'hmlt': hamiltonian,
+    }
 
-                    self.assertTrue(tol_condition, message)
-                                    
+@pytest.fixture
+def param_dict() -> Dict[str, List[Dict[str, Any]]]:
+    """Parameters for test functions"""
+    return {
+        'const': [
+            {'args': None, 'kwargs': None},
+            {...}
+        ],
+        'hmlt' : [
+            {'args': None, 'kwargs': None},
+        ],
+    }
 
-    def test_grad_linear(self):
+# --- test run ---
 
-        dim = 4
-        X = torch.randn(1, 2, dim)*5
-        X.to(dtype=torch.float64)
+def _test_jacobian(
+    func_name: str,
+    func: Callable[[Any], torch.Tensor],
+    diff_func: Callable[[Any], torch.Tensor],
+    x: torch.Tensor,
+    args: List,
+    kwargs: Dict,
+    order: int,
+    eps: float,
+    dtype: torch.dtype,
+    device: torch.device,
 
-        f_dict = {
-            'const': lambda X: torch.ones(*X.shape[:-1]),
-            'linear': lambda X: torch.zeros()
-        }
+):
+    """Test Jacobian computation"""
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip("CUDA not available")
 
-        for key, f in f_dict.items():
-            for eps in self.tolerances:
-
-                df = D(f, eps=eps, order=1)
-                result = df(X)
-                expected = self.expected_df[key](X)
-
-                e = torch.abs(result - expected).mean()
-                
-                message = f'Given tolerance {eps} is not acheived: MAE= {e}\n' + \
-                    f'Result:\n\t{result}\nExpected:\n\t{expected}\n' + \
-                    f'Function: {key}, scheme order: linear \n'
-                
-                tol_criterion = torch.allclose(result, expected, atol=eps*10, rtol=eps*10)
-
-                self.assertTrue(tol_criterion, message)
-
-        
-
-
-    # TODO: repair this test
-    # def test_hessian(self):
-    #     hessian = Hessian(self.func)
-    #     result = hessian(self.X, self.params)
-    #     expected = torch.diag(torch.tensor([2.0, 4.0, 6.0, 8.0]))
-    #     self.assertTrue(torch.allclose(result, expected, atol=1e-4))
-
-
-    # def test_diff_linear(self):
-    #     diff_linear = DiffLinear(self.func)
-    #     result = diff_linear(self.X, self.params)
-    #     expected = torch.tensor([2.0, 8.0, 18.0, 32.0])
-    #     self.assertTrue(torch.allclose(result, expected, atol=1e-4))
-
-
-    # def test_diff_horder_order_2(self):
-    #     diff_horder = DiffHOrder(self.func, order=2)
-    #     result = diff_horder(self.X, self.params)
-    #     expected = torch.tensor([2.0, 8.0, 18.0, 32.0])
-    #     self.assertTrue(torch.allclose(result, expected, atol=1e-4))
-
-
-    # def test_diff_horder_order_4(self):
-    #     diff_horder = DiffHOrder(self.func, order=4)
-    #     result = diff_horder(self.X, self.params)
-    #     expected = torch.tensor([2.0, 8.0, 18.0, 32.0])
-    #     self.assertTrue(torch.allclose(result, expected, atol=1e-4))
+    x = x.to(device, dtype)
+    for arg in args:
+        if isinstance(arg, torch.Tensor):
+            arg = arg.to(device, dtype)
+    for arg in kwargs.values():
+        if isinstance(arg, torch.Tensor):
+            arg = arg.to(device, dtype)
 
 
-if __name__ == '__main__':
+    result = jacobian(func, x, eps=eps, order=order, args=args, kwargs=kwargs)
+    expected = diff_func(x, *args, **kwargs)
 
-    unittest.main()
+    dlta = torch.abs(result - expected)
+    tol_condition = torch.allclose(result, expected, atol=eps * 10, rtol=eps * 10)
+
+    assert tol_condition, (
+        f'Given tolerance {eps} is not achieved: MAE={dlta.mean():.2e}, MIN={dlta.min():.2e}, MAX={dlta.max():.2e}\n'
+        f'Result:\n\t{result}\nExpected:\n\t{expected}\n'
+        f'Function: {func_name}, scheme order: {order}'
+    )
+
+@pytest.mark.parametrize("func_name", ['const_vec', 'poly_vec', 'exp_vec', 'hmlt'])
+@pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
+@pytest.mark.parametrize("input_shape", [[1, 1, 4], [16, 4], [1, 32, 2, 4]])
+@pytest.mark.parametrize("device", ['cpu', 'cuda'])
+@pytest.mark.parametrize("order", [1, 2, 4])
+@pytest.mark.parametrize("eps", [1e1, 1e-2, 1e-4])
+def test_jacobian(
+    f_dict, 
+    diff_dict,
+    param_dict,
+    func_name,
+    order,
+    eps,
+    dtype,
+    device, 
+    input_shape,
+):
+    """Test Jacobian computation"""
+    if device == 'cuda' and not torch.cuda.is_available():
+        pytest.skip("CUDA not available")
+
+    x = torch.randn(input_shape).to(dtype=dtype, device=device) * 2.0
+
+    func = f_dict[func_name]
+    diff_func = diff_dict[func_name]
+    params = param_dict.get(func, {})
+
+    for param in params:
+        args = param.get('args', [])
+        kwargs = param.get('kwargs', {})
+        if func_name == 'hmlt':
+            args = [torch.randn_like(x)].extend() # 'velocities'
+        _test_jacobian(func_name, func, diff_func, x, args, kwargs, order, eps, dtype, device)
+
+
+@pytest.mark.parametrize("order", [5, 6])
+def test_jacobian_invalid_order(order):
+    """Test that invalid orders raise ValueError."""
+    if order not in [1, 2, 4]:
+        X = torch.randn(2, 3).to(dtype=torch.float64)
+        f = lambda X: X
+
+        with pytest.raises(ValueError):
+            jacobian(f, X, order=order)
