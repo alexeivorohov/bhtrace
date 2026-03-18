@@ -12,7 +12,7 @@ import os
 import pickle
 
 from bhtrace.geometry import Spacetime, Particle
-from .tracer import Tracer
+from bhtrace.tracing._base import Tracer
 
 
 class PTracer(Tracer):
@@ -47,7 +47,7 @@ class PTracer(Tracer):
         # dX^mu = g^{mu nu} P_nu 
         # dP_nu = - partial_nu H
         dX = torch.einsum('...uv, ...u -> ...v', ginvX, P)
-        dP = - self.particle.dHmlt(X, P, self.eps)
+        dP = - self.particle.dx_hmlt(X, P)
         
         if self.__const_dx__:
             s = torch.einsum('...u, ...u -> ...', P[..., 1:], dX[..., 1:])

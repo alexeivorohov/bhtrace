@@ -6,7 +6,6 @@ import torch
 from bhtrace.geometry import Spacetime, Particle
 from bhtrace.utils.odeint import ODEint, ODE
 from bhtrace.trajectory.trajectory import Trajectory
-from bhtrace.utils.debug import debug
 
 
 class Tracer():
@@ -86,7 +85,8 @@ class Tracer():
                 nsteps: int = 128,
                 r_max: float = 30.0,
                 max_proper_t: float = 500.0,
-                dev: str = 'cpu',
+                device: str = 'cpu',
+                dtype: torch.dtype = torch.float32,
                 eps: float = None
                 ) -> Trajectory:
         '''
@@ -109,18 +109,18 @@ class Tracer():
         self.spc = particle.spacetime
         self.Ni = X0.shape[0]
 
-        if eps == None:
-            self.eps = self.default_eps
-        else:
-            self.eps = eps
+        self.eps = eps or self.default_eps
+
+        self.particle._eps = self.eps
+        self.particle.spacetime._eps = self.eps
 
         # Move initial conditions to the target device
-        X0 = X0.to(dev)
-        P0 = P0.to(dev)
+        X0 = X0.to(device)
+        P0 = P0.to(device)
 
         # Setup stopping conditions
-        self.r_max = torch.tensor([r_max], device=dev)
-        self.max_proper_t = torch.tensor([max_proper_t], device=dev)
+        self.r_max = torch.tensor([r_max], device=device)
+        self.max_proper_t = torch.tensor([max_proper_t], device=device)
 
         # --- Vectorized Integration ---
         dt = T / nsteps
@@ -143,8 +143,9 @@ class Tracer():
         # Process results
         X = solution['Y'][0]
         P = solution['Y'][1]
+        t = solution['t']
 
-        return Trajectory(X, P, particle, self)
+        return Trajectory(X, P, t, particle, self)
     
     def evnt(self,
              t: float,
@@ -186,9 +187,9 @@ class Tracer():
 
         if self.__use_cached_for_conditions__:
             with self.particle.cacher.usecache():
-                H = self.particle.Hmlt(X, P)
+                H = self.particle.hmlt(X, P)
         else:
-            H = self.particle.Hmlt(X, P)
+            H = self.particle.hmlt(X, P)
 
         dH = H - self.particle.mu
         criterion = torch.less(abs(dH), self.__hmlt_tol__)    
@@ -267,7 +268,7 @@ class MockTracer(Tracer):
         '''
 
         dX = torch.einsum('...uv, ...v -> ...u', self.spc.ginv(X), P)
-        dP = -self.particle.dHmlt(X, P, self.eps)
+        dP = -self.particle.dx_hmlt(X, P)
 
         return (dX, dP)
 

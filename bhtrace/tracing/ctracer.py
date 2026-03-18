@@ -5,7 +5,7 @@ Currently not supported
 import torch
 
 from bhtrace.geometry import Spacetime, Particle
-from .tracer import Tracer
+from bhtrace.tracing._base import Tracer
 
 class CTracer(Tracer):
 
