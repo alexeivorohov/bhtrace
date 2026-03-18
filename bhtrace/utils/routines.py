@@ -63,7 +63,7 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
     elif shape == 'square':
         smpl_y = torch.linspace(-0.5, 0.5, rng[0])
         smpl_z = torch.linspace(-0.5, 0.5, rng[1])
-        yy, zz = torch.meshgrid(smpl_y, smpl_z)
+        yy, zz = torch.meshgrid(smpl_y, smpl_z, indexing='ij')
     elif shape == 'circle':
         ph = [torch.linspace(0.0, 2.0, 4*(n+1)+1)[1:] for n in range(rng[0]-1)]
         ph = torch.cat(ph)*torch.pi

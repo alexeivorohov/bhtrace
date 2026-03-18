@@ -69,7 +69,7 @@ def rotate_points_cloud(points, dir_a, dir_b, gamma=0.0):
     v2 = dir_b / dir_b.norm()
 
     # Compute rotation axis and angle to align v1 to v2
-    axis = torch.cross(v1, v2)
+    axis = torch.cross(v1, v2, dim=-1)
     cos_angle = torch.dot(v1, v2)
 
     # Handle parallel and anti-parallel cases
@@ -82,7 +82,7 @@ def rotate_points_cloud(points, dir_a, dir_b, gamma=0.0):
             orthogonal_axis = torch.tensor([1., 0., 0.])
             if torch.allclose(v1, orthogonal_axis, atol=1e-6):
                 orthogonal_axis = torch.tensor([0., 1., 0.])
-            axis = torch.cross(v1, orthogonal_axis)
+            axis = torch.cross(v1, orthogonal_axis, dim=-1)
             axis = axis / axis.norm()
             angle_align = torch.pi
             R_align = rotation_matrix(axis, angle_align)

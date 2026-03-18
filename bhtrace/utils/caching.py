@@ -104,14 +104,17 @@ class Cacher:
         """
         A decorator that caches the result of a method.
         The caching behavior is controlled by this Cacher instance.
-        This decorator is intended for methods that do not take arguments (other than `self`)
-        and whose result depends only on the immutable state of the instance.
+
+        Note: This decorator's caching is only safe for methods that do not
+        take arguments (other than `self`). It uses the method name as the
+        cache key and will return incorrect results for methods whose output
+        depends on arguments.
         """
         method_name = func.__name__
         cacher_factory = self
 
         @functools.wraps(func)
-        def wrapper(decorated_instance):
+        def wrapper(decorated_instance, *args, **kwargs):
             if not hasattr(decorated_instance, 'cacher'):
                 decorated_instance.cacher = {}
             
@@ -120,7 +123,7 @@ class Cacher:
             if cacher_factory.should_use_cache and method_name in instance_cache:
                 return instance_cache[method_name]
 
-            result = func(decorated_instance)
+            result = func(decorated_instance, *args, **kwargs)
 
             if cacher_factory.should_cache:
                 instance_cache[method_name] = result
@@ -132,3 +135,4 @@ CACHE = Cacher()
 '''
 Global cacher, for usage details, see Cacher()
 '''
+# TODO: move to globs
