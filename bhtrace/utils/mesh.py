@@ -1,34 +1,35 @@
-'''
-This module provides classes for generating and managing coordinate nets.
+"""
+This module provides classes for generating and managing coordinate meshes.
 
-These nets are primarily used to define the initial conditions for tracing
+Meshes are primarily used to define the initial conditions for tracing
 trajectories, for instance, by defining a grid of starting points for photons
 on an observer's screen.
 
-The module includes a base `Net` class and implementations for various shapes
-such as `Linear`, `Rectangle`, and adaptively refined `Nonuniform` nets.
-'''
+The module includes a base `Mesh` class and implementations for various shapes
+such as `Linear`, `Rectangle`, and adaptively refined `Nonuniform` meshes.
+"""
+
 from abc import ABC, abstractmethod
+import math
 from typing import Tuple, List, Callable, Optional
 
 import torch
 from bhtrace.graphics import Plot3D
-from bhtrace.utils.debug import debug
 
 
 class Mesh(ABC):
     """Abstract base class for all coordinate mesh implementations.
 
-    This class defines the common interface and attributes for all nets,
+    This class defines the common interface and attributes for all meshes,
     such as node positions, weights, and cell structures.
 
     Attributes:
         pos3d (torch.Tensor): A tensor of shape (N, 3) holding the Cartesian coordinates of the N nodes.
         cells (List[List[int]]): A list of cells, where each cell is a list of node indices.
-        gen (int): The number of upsampling generations this net has undergone.
-        uniform (bool): A flag indicating if the net has uniform spacing.
-        N (int): The total number of nodes in the net.
-        anchor (torch.Tensor): The anchor point of the net, used for positioning or rotation.
+        gen (int): The number of upsampling generations this mesh has undergone.
+        uniform (bool): A flag indicating if the mesh has uniform spacing.
+        N (int): The total number of nodes in the mesh.
+        anchor (torch.Tensor): The anchor point of the mesh, used for positioning or rotation.
         weights (torch.Tensor): A tensor of shape (N,) representing the area weight of each node.
         traced (torch.Tensor): A boolean tensor of shape (N,) used as a mask to indicate which nodes have been traced.
         generation (List[int]): A list of length N indicating the upsampling generation of each node.
@@ -36,9 +37,9 @@ class Mesh(ABC):
 
     pos3d: torch.Tensor = None
     gen: int = 0
-    '''Number of refinement steps done'''
+    """Number of refinement steps done"""
 
-    '''Weights of each vertex, must sum up to 1'''
+    """Weights of each vertex, must sum up to 1"""
     uniform: bool = True
 
     cells: List[List[int]] = None
@@ -46,13 +47,13 @@ class Mesh(ABC):
     traced: List[int]
 
     def __init__(
-            self,
-            anchor: torch.Tensor = torch.zeros(3),
-            pos3d: torch.Tensor = None,
-            cells: torch.Tensor = None,
-            weights: Optional[torch.Tensor] = None,
-            traced: Optional[torch.Tensor] = None,
-            generation: Optional[List[int]] = None,
+        self,
+        anchor: torch.Tensor = torch.zeros(3),
+        pos3d: torch.Tensor = None,
+        cells: torch.Tensor = None,
+        weights: Optional[torch.Tensor] = None,
+        traced: Optional[torch.Tensor] = None,
+        generation: Optional[List[int]] = None,
     ):
         self.anchor = anchor
         self.pos3d = pos3d
@@ -64,13 +65,13 @@ class Mesh(ABC):
 
     @abstractmethod
     def info(self):
-        """Prints information about the net to the console."""
+        """Prints information about the mesh to the console."""
         pass
 
     def to(self, device=None, dtype=None):
-        """Moves and/or casts the tensors of the net.
+        """Moves and/or casts the tensors of the mesh.
 
-        This method iterates over all tensor attributes of the net and moves them
+        This method iterates over all tensor attributes of the mesh and moves them
         to the specified device. For floating-point tensors, it also casts them
         to the specified dtype.
 
@@ -79,10 +80,10 @@ class Mesh(ABC):
             dtype (torch.dtype, optional): The data type to cast floating-point tensors to.
 
         Returns:
-            Net: The modified net object.
+            mesh: The modified mesh object.
         """
         for attr_name in dir(self):
-            if attr_name.startswith('__'):
+            if attr_name.startswith("__"):
                 continue
             attr = getattr(self, attr_name)
             if isinstance(attr, torch.Tensor):
@@ -94,7 +95,7 @@ class Mesh(ABC):
         return self
 
     def show(self, direction=None, fig=None, ax=None):
-        """Visualizes the net as a 3D point cloud.
+        """Visualizes the mesh as a 3D point cloud.
 
         Args:
             direction: (Not yet implemented).
@@ -110,13 +111,13 @@ class Mesh(ABC):
 class MeshFactory:
     @staticmethod
     def create_mesh(mesh_type, **kwargs):
-        if mesh_type == 'linear':
+        if mesh_type == "linear":
             return Linear(**kwargs)
-        elif mesh_type == 'rectangle':
+        elif mesh_type == "rectangle":
             return Rectangle(**kwargs)
-        elif mesh_type == 'hex':
+        elif mesh_type == "hex":
             return Hex(**kwargs)
-        elif mesh_type == 'circle':
+        elif mesh_type == "circle":
             return Circle(**kwargs)
         else:
             raise ValueError(f"Unknown mesh type: {mesh_type}")
@@ -129,13 +130,15 @@ class Linear(Mesh):
     """
 
     def __init__(
-            self,
-            size: torch.Tensor,
-            npoints: int,
-            X0: torch.Tensor = torch.zeros(3),
-            anchor: torch.Tensor = torch.zeros(3),
+        self,
+        size: torch.Tensor,
+        npoints: int,
+        X0: torch.Tensor = torch.zeros(3),
+        anchor: torch.Tensor = torch.zeros(3),
     ):
-        pos3d = X0 + torch.linspace(-0.5, 0.5, npoints).unsqueeze(-1) * size.unsqueeze(0)
+        pos3d = X0 + torch.linspace(-0.5, 0.5, npoints).unsqueeze(-1) * size.unsqueeze(
+            0
+        )
         cells = [[i, i + 1] for i in range(npoints - 1)]
         weights = torch.ones(npoints)
         traced = torch.zeros(npoints, dtype=torch.bool)
@@ -147,8 +150,8 @@ class Linear(Mesh):
         self.X0 = X0
 
     def info(self):
-        """Prints information about the Linear net."""
-        print(f"Linear net, shape: {self.shape}, X0: {self.X0}")
+        """Prints information about the Linear mesh."""
+        print(f"Linear mesh, shape: {self.shape}, X0: {self.X0}")
 
 
 class Rectangle(Mesh):
@@ -158,25 +161,33 @@ class Rectangle(Mesh):
         size (torch.Tensor): A 2-element tensor defining the width and height of the rectangle.
         shape (Tuple[int, int]): The number of nodes along the y and z dimensions.
         X0 (torch.Tensor): The 3D coordinate of the rectangle's center.
-        anchor (torch.Tensor): The anchor point of the net.
+        anchor (torch.Tensor): The anchor point of the mesh.
     """
 
     def __init__(
-            self,
-            size: torch.Tensor,
-            shape: Tuple[int, int] = (5, 5),
-            X0: torch.Tensor = torch.zeros(3),
-            anchor: torch.Tensor = torch.zeros(3),
+        self,
+        size: torch.Tensor,
+        shape: Tuple[int, int] = (5, 5),
+        X0: torch.Tensor = torch.zeros(3),
+        anchor: torch.Tensor = torch.zeros(3),
     ):
         y_ = torch.linspace(-0.5, 0.5, shape[0]) * size[0]
         z_ = torch.linspace(-0.5, 0.5, shape[1]) * size[1]
-        y_grid, z_grid = torch.meshgrid(y_, z_, indexing='ij')
+        y_grid, z_grid = torch.meshgrid(y_, z_, indexing="ij")
         x_grid = torch.zeros_like(y_grid)
 
         pos3d = X0 + torch.stack((x_grid, y_grid, z_grid), dim=-1)
         pos3d = pos3d.flatten(0, -2)
-        cells = [[k * shape[1] + i, k * shape[1] + i + 1, (k + 1) * shape[1] + i + 1, (k + 1) * shape[1] + i]
-                 for i in range(shape[1] - 1) for k in range(shape[0] - 1)]
+        cells = [
+            [
+                k * shape[1] + i,
+                k * shape[1] + i + 1,
+                (k + 1) * shape[1] + i + 1,
+                (k + 1) * shape[1] + i,
+            ]
+            for i in range(shape[1] - 1)
+            for k in range(shape[0] - 1)
+        ]
         n_points = shape[0] * shape[1]
         weights = torch.ones(n_points)
         traced = torch.zeros(n_points, dtype=torch.bool)
@@ -188,11 +199,8 @@ class Rectangle(Mesh):
         self.X0 = X0
 
     def info(self):
-        """Prints information about the Rectangle net."""
-        print(f"Rectangle net, shape: {self.shape}, X0: {self.X0}")
-
-
-import math
+        """Prints information about the Rectangle mesh."""
+        print(f"Rectangle mesh, shape: {self.shape}, X0: {self.X0}")
 
 
 class Hex(Mesh):
@@ -205,15 +213,15 @@ class Hex(Mesh):
         size (torch.Tensor): A 2-element tensor defining the approximate width and height of the grid.
         shape (Tuple[int, int]): The number of columns (q) and rows (r) in the axial coordinate system.
         X0 (torch.Tensor): The 3D coordinate of the grid's center.
-        anchor (torch.Tensor): The anchor point of the net.
+        anchor (torch.Tensor): The anchor point of the mesh.
     """
 
     def __init__(
-            self,
-            size: torch.Tensor,
-            shape: Tuple[int, int] = (5, 5),
-            X0: torch.Tensor = torch.zeros(3),
-            anchor: torch.Tensor = torch.zeros(3),
+        self,
+        size: torch.Tensor,
+        shape: Tuple[int, int] = (5, 5),
+        X0: torch.Tensor = torch.zeros(3),
+        anchor: torch.Tensor = torch.zeros(3),
     ):
         self.size = size
         n_q, n_r = shape
@@ -257,8 +265,8 @@ class Hex(Mesh):
         self.X0 = X0
 
     def info(self):
-        """Prints information about the Hex net."""
-        print(f"Hex net, shape: {self.shape}, X0: {self.X0}")
+        """Prints information about the Hex mesh."""
+        print(f"Hex mesh, shape: {self.shape}, X0: {self.X0}")
 
 
 class Circle(Mesh):
@@ -270,15 +278,15 @@ class Circle(Mesh):
         size (torch.Tensor): A 1-element tensor defining the diameter of the circle.
         shape (Tuple[int, int]): The number of rings and the number of wedges (radial divisions).
         X0 (torch.Tensor): The 3D coordinate of the circle's center.
-        anchor (torch.Tensor): The anchor point of the net.
+        anchor (torch.Tensor): The anchor point of the mesh.
     """
 
     def __init__(
-            self,
-            size: torch.Tensor,
-            shape: Tuple[int, int] = (5, 5),
-            X0: torch.Tensor = torch.zeros(3),
-            anchor: torch.Tensor = torch.zeros(3),
+        self,
+        size: torch.Tensor,
+        shape: Tuple[int, int] = (5, 5),
+        X0: torch.Tensor = torch.zeros(3),
+        anchor: torch.Tensor = torch.zeros(3),
     ):
         self.size = size
         n_rings, n_wedges = shape
@@ -291,7 +299,7 @@ class Circle(Mesh):
         if n_rings > 0:
             radii = torch.linspace(radius / n_rings, radius, n_rings)
             angles = torch.linspace(0, 2 * torch.pi, n_wedges + 1)[:-1]
-            r_grid, a_grid = torch.meshgrid(radii, angles, indexing='ij')
+            r_grid, a_grid = torch.meshgrid(radii, angles, indexing="ij")
 
             y = r_grid * torch.cos(a_grid)
             z = r_grid * torch.sin(a_grid)
@@ -327,25 +335,28 @@ class Circle(Mesh):
         self.X0 = X0
 
     def info(self):
-        """Prints information about the Circle net."""
-        print(f"Circle net, shape: {self.shape}, X0: {self.X0}, radius: {self.size[0] / 2.0}")
+        """Prints information about the Circle mesh."""
+        print(
+            f"Circle mesh, shape: {self.shape}, X0: {self.X0}, radius: {self.size[0] / 2.0}"
+        )
 
 
 class Nonuniform(Mesh):
-    """A net created by adaptively refining a parent net.
+    """A mesh created by adaptively refining a parent mesh.
 
-    This class refines a given `parent` net by adding new nodes inside cells
+    This class refines a given `parent` mesh by adding new nodes inside cells
     that meet a certain `criterion`. It is useful for increasing resolution
     in specific areas of interest.
     """
 
-    def __init__(self,
-                 parent: Mesh,
-                 values: Optional[torch.Tensor] = None,
-                 criterion: Optional[Callable[[torch.Tensor, torch.Tensor], bool]] = None,
-                 weightening: Optional[Callable] = None,
-                 keep_parent: bool = False
-                 ):
+    def __init__(
+        self,
+        parent: Mesh,
+        values: Optional[torch.Tensor] = None,
+        criterion: Optional[Callable[[torch.Tensor, torch.Tensor], bool]] = None,
+        weightening: Optional[Callable] = None,
+        keep_parent: bool = False,
+    ):
 
         if keep_parent:
             self.parent = parent
@@ -377,7 +388,9 @@ class Nonuniform(Mesh):
 
         num_new_points = n - parent.N
         generation = parent.generation + [parent.gen + 1] * num_new_points
-        traced = torch.cat((parent.traced, torch.zeros(num_new_points, dtype=torch.bool)))
+        traced = torch.cat(
+            (parent.traced, torch.zeros(num_new_points, dtype=torch.bool))
+        )
 
         if num_new_points > 0:
             new_positions = torch.stack(new_positions)
@@ -396,14 +409,14 @@ class Nonuniform(Mesh):
         self.uniform = False
 
     def info(self):
-        """Prints information about the Nonuniform net."""
-        print(f"Nonuniform net, nodes: {self.N}, gen: {self.gen}")
+        """Prints information about the Nonuniform mesh."""
+        print(f"Nonuniform mesh, nodes: {self.N}, gen: {self.gen}")
 
     def new_cells(self, new_node: int, old_nodes: List[int]) -> List[List[int]]:
-        '''
+        """
         Creates new cells by connecting the old cell's nodes to the new center node.
         This performs a fan triangulation of the original cell.
-        '''
+        """
         cells = []
         n_nodes = len(old_nodes)
 
@@ -413,9 +426,11 @@ class Nonuniform(Mesh):
 
         return cells
 
-    def mean_strategy(self, positions: torch.Tensor, weights: torch.Tensor, values: torch.Tensor):
+    def mean_strategy(
+        self, positions: torch.Tensor, weights: torch.Tensor, values: torch.Tensor
+    ):
         """
-        A strategy for upsampling cells of network.
+        A strategy for upsampling cells of the mesh.
 
         In this strategy, a criterion on the mean and std of values is
         used to make a decision on upsampling.
