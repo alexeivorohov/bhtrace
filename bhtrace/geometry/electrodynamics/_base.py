@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 import inspect
-from bhtrace.geometry.spacetime.base import Spacetime
-from bhtrace.utils import levi_civita_tensor
 
 import torch
+
+from bhtrace.geometry.spacetime._base import Spacetime
+from bhtrace.utils import levi_civita_tensor, Registry
 
 
 class Electrodynamics(ABC):
@@ -168,6 +169,7 @@ class Electrodynamics(ABC):
         '''
         return NotImplementedError
 
+ELECTRODYNAMICS_REGISTRY = Registry(Electrodynamics)
 
 class ED_logic:
     '''

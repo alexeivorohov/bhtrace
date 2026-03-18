@@ -1,4 +1,4 @@
-from .base import Electrodynamics
+from ._base import Electrodynamics
 import torch
 
 
