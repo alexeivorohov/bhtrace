@@ -179,7 +179,7 @@ class LensingPlot:
             for peak in peaks:
                 ax.plot([b[peak], b[peak]], [0, y_top], c=dataset_color, **cls.__peak_style__)
                 # ax.axline()
-            ax.scatter(b[peak], n[peak], c=dataset_color, **cls.__peak_p_style__)
+            ax.scatter(b[peak], n[peak], color=dataset_color, **cls.__peak_p_style__)
             print(peaks)
             print('Case {label}')
             print(properties)

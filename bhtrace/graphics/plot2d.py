@@ -8,7 +8,7 @@ import matplotlib.patches as patches
 if TYPE_CHECKING:
     from bhtrace.trajectory.trajectory import Trajectory
 
-from .presets import opt_mosaic
+from .presets import opt_mosaic, Coloring
 
 class Plot2D:
     """

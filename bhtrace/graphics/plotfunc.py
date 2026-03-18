@@ -19,15 +19,16 @@ class PlotValue:
     """
 
     @classmethod
-    def plot(cls,
-             traj: 'Trajectory',
-             value_func, 
-             name='Q', 
-             labels=None, 
-             mask=None, 
-             fig: plt.Figure = None, 
-             ax: plt.Axes = None
-             ):
+    def plot(
+        cls,
+        traj: 'Trajectory',
+        value_func, 
+        name='Q', 
+        labels=None, 
+        mask=None, 
+        fig: plt.Figure = None, 
+        ax: plt.Axes = None
+    ):
         """
         Plots a custom quantity derived from the trajectory.
         The function `value_func` should take the trajectory object and return a tensor of shape (ntraj, nsteps, ...).
@@ -101,14 +102,39 @@ class PlotValue:
         return fig
 
     @classmethod
-    def plot_conservation(cls, traj: 'Trajectory', ax: plt.Axes = None):
+    def plot_energy_deviation(cls, traj: 'Trajectory', ax: plt.Axes = None):
         """
-        Plots the conservation of the Hamiltonian along the trajectory.
+        Plots the deviation of the Hamiltonian from its initial value along the trajectory.
         """
-        def value_func(t: 'Trajectory'):
-            return torch.log10(torch.abs(t.particle.Hmlt(t.X, t.P) - t.particle.mu) + 1e-7)
+        machine_eps = torch.finfo(traj.X.dtype).eps
 
-        return cls.plot(traj, value_func, name='$\\log_{10} |H - \\mu|$', ax=ax)
+        def value_func(t: 'Trajectory'):
+            return torch.log10(torch.abs(t.particle.hmlt(t.X, t.P) - t.particle.mu))
+
+        return cls.plot(traj, value_func, title=f'$\\log_{(10)} |H - \\mu|, machine epsilon={machine_eps:.2e}$', ax=ax)
+    
+    @classmethod
+    def plot_energy_deviation_histogram(cls, traj: 'Trajectory', ax: plt.Axes = None):
+        """
+        Plots a histogram of the deviation of the Hamiltonian from its initial value along the trajectory.
+        """
+        machine_eps = torch.finfo(traj.X.dtype).eps
+
+        if ax is None:
+            fig, ax = plt.subplots(1,1,figsize=(8,8))
+        else:
+            fig = ax.get_figure()
+
+        dH = torch.log10(torch.abs(traj.particle.hmlt(traj.X, traj.P) - traj.particle.mu))
+
+        bins = np.arange(-8, 2, 1)
+        ax.hist(x=dH.flatten(), bins=bins, density=True)
+        ax.grid(True)
+        ax.set_xlabel(f'$\\log_{10} |H - \\mu|$')
+        ax.set_ylabel('Density')
+        ax.axvline(x=np.log10(machine_eps), color='red', linestyle='--', label=f'machine epsilon={machine_eps:.2e}')
+        ax.legend()
+        return fig, ax
     
     @classmethod
     def plot_metrics(cls, traj: 'Trajectory', ax: plt.Axes = None):
@@ -117,26 +143,3 @@ class PlotValue:
             return t.spacetime.g(t.X)
         
         return cls.plot(traj, value_func, ax=ax)
-    
-    @classmethod
-    def plot_hmlt_stat(cls, traj: 'Trajectory', ax: plt.Axes = None):
-
-        if ax is None:
-            fig, ax = plt.subplots(1,1,figsize=(8,8))
-        else:
-            fig = ax.get_figure()
-
-        dH = torch.log10(torch.abs(traj.particle.Hmlt(traj.X, traj.P) - traj.particle.mu) + 1e-7)
-
-        bins = np.arange(-8, 2, 1)
-        ax.hist(x=dH.flatten(), bins=bins, density=True)
-        ax.grid(True)
-        ax.set_title('$\\log_{10} |H - \\mu|$')
-
-        return fig, ax
-
-
-    
-
-            
- 
