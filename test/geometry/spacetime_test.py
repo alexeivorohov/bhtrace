@@ -4,7 +4,7 @@ import unittest
 import sys
 import os
 
-from bhtrace.geometry.spacetime.base import MockSpacetime, Spacetime
+from bhtrace.geometry.spacetime._base import MockSpacetime, Spacetime
 from bhtrace.geometry.spacetime import SPACETIME_REGISTRY
 
 
