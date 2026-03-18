@@ -8,15 +8,19 @@ from .transformation import (
 
 from .spacetime import (
     Spacetime,
-    KerrSchild
+    SPACETIME_REGISTRY,
+    KerrSchild,
+    SphericallySymmetric,
 )
 from .particle import (
     Particle,
-    Photon
+    PARTICLE_REGISTRY,
+    Photon,
 )
 from .electrodynamics import (
     Electrodynamics,
-    Maxwell
+    ELECTRODYNAMICS_REGISTRY,
+    Maxwell,
 )
 
 from .observer import Observer
