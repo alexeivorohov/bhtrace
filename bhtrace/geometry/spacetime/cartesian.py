@@ -1,15 +1,14 @@
 import torch
 import torch.linalg as LA
-from .base import Spacetime
+from ._base import Spacetime
 
 
 class MinkowskiCart(Spacetime):
 
-    __coords__ = 'Cartesian'
+    __coords__ = "Cartesian"
 
     def __init__(self):
         super().__init__()
-
 
         pass
 
@@ -53,7 +52,7 @@ class KerrSchild(Spacetime):
         Q (float): The charge of the black hole (Q).
     """
 
-    __coords__ = 'Cartesian'
+    __coords__ = "Cartesian"
 
     def __init__(self, a: float = 0.6, m: float = 1.0, Q: float = 0.0):
         """Initializes the KerrSchild spacetime.
@@ -66,13 +65,12 @@ class KerrSchild(Spacetime):
         super().__init__()
 
         self.a = a
-        self.a2 = a*a
+        self.a2 = a * a
         self.m = m
         self.Q = Q
         self.eta = torch.diag(torch.tensor([-1.0, 1.0, 1.0, 1.0]))
 
         self.cr_r = 0.0
-
 
     def g(self, X: torch.Tensor) -> torch.Tensor:
         """Calculates the Kerr-Schild metric tensor.
@@ -90,10 +88,10 @@ class KerrSchild(Spacetime):
 
         shape_a = list(X.shape[:-1])
         shape_b = [1] * len(shape_a)
-                          
+
         p = X[..., 1:]
         rho = self.geom_R(X) - a2
-        r2 = 0.5 * (rho + torch.sqrt(rho**2 + 4.0 * a2 * p[..., 2]**2))
+        r2 = 0.5 * (rho + torch.sqrt(rho**2 + 4.0 * a2 * p[..., 2] ** 2))
         r = torch.sqrt(r2)
         self.r = r
         r2a2 = r2 + a2
@@ -104,12 +102,13 @@ class KerrSchild(Spacetime):
         k[..., 2] = (r * p[..., 1] - a * p[..., 0]) / r2a2
         k[..., 3] = p[..., 2] / r
 
-        outer_k = torch.einsum('...p, ...q -> ...pq', k, k)
-        f = (r2 * (2.0 * m * r - Q**2) / (r2 * r2 + (a * p[..., 2])**2)).view(*shape_a, 1, 1)
+        outer_k = torch.einsum("...p, ...q -> ...pq", k, k)
+        f = (r2 * (2.0 * m * r - Q**2) / (r2 * r2 + (a * p[..., 2]) ** 2)).view(
+            *shape_a, 1, 1
+        )
         eta = self.eta.view(*shape_b, 4, 4).to(X.device)
 
         return f * outer_k + eta
-
 
     def geom_R(self, X: torch.Tensor) -> torch.Tensor:
         """Helper function to compute the spatial radius.
@@ -120,8 +119,7 @@ class KerrSchild(Spacetime):
         Returns:
             torch.Tensor: The spatial radius for each point.
         """
-        return torch.sqrt(torch.einsum('...u, ...u -> ...', X[..., 1:], X[..., 1:]))
-
+        return torch.sqrt(torch.einsum("...u, ...u -> ...", X[..., 1:], X[..., 1:]))
 
     def ginv(self, X: torch.Tensor) -> torch.Tensor:
         """Calculates the inverse Kerr-Schild metric tensor.
@@ -133,7 +131,6 @@ class KerrSchild(Spacetime):
             torch.Tensor: The inverse metric `g^uv`, shape [..., 4, 4].
         """
         return torch.inverse(self.g(X))
-
 
     # def crit(self, X: torch.Tensor) -> torch.Tensor:
     #     """Calculates the Boyer-Lindquist radius `r` as the criticality criterion.
@@ -150,21 +147,20 @@ class KerrSchild(Spacetime):
     #     r = torch.sqrt(r2)
 
     #     return r
-        
+
 
 class SchwSchild(Spacetime):
 
-    __coords__ = 'Cartesian'
+    __coords__ = "Cartesian"
 
     def __init__(self, m=1.0, Q=0.0):
         super().__init__()
 
         self.m = m
         self.Q = Q
-        self.Q2 = Q*Q
+        self.Q2 = Q * Q
         self.eta = torch.diag(torch.tensor([-1.0, 1.0, 1.0, 1.0]))
         self.cr_r = 0.0
-
 
     def g(self, X):
 
@@ -173,32 +169,30 @@ class SchwSchild(Spacetime):
 
         shape_a = [*X.shape[:-1]]
         shape_b = [1 for _ in shape_a]
-                          
+
         p = X[..., 1:]
-        rho = self.geom_R(X) 
-        r2 = 0.5*(rho + torch.sqrt(rho**2 ))
+        rho = self.geom_R(X)
+        r2 = 0.5 * (rho + torch.sqrt(rho**2))
         r = torch.sqrt(r2)
         self.r = r
         r2a2 = r2
 
         k = torch.zeros_like(X)
         k[..., 0] = 1
-        k[..., 1] = (r*p[..., 0])/r2a2
-        k[..., 2] = (r*p[..., 1])/r2a2
-        k[..., 3] = p[..., 2]/r
+        k[..., 1] = (r * p[..., 0]) / r2a2
+        k[..., 2] = (r * p[..., 1]) / r2a2
+        k[..., 3] = p[..., 2] / r
 
-        
-        outer_k = torch.einsum('...p, ...q -> ...pq', k, k)
-        f = (r2*(2.0*m*r - Q*Q)/(r2*r2)).view(*shape_a, 1, 1)
-        eta = self.eta.view(*shape_b, 4, 4) 
+        outer_k = torch.einsum("...p, ...q -> ...pq", k, k)
+        f = (r2 * (2.0 * m * r - Q * Q) / (r2 * r2)).view(*shape_a, 1, 1)
+        eta = self.eta.view(*shape_b, 4, 4)
 
         # print(X.shape)
         # print(outer_k.shape)
         # print(f.shape)
         # print(eta.shape)
 
-        return f*outer_k + eta
-
+        return f * outer_k + eta
 
     # def conn(self, X):
 
@@ -206,16 +200,13 @@ class SchwSchild(Spacetime):
 
     #     pass
 
-
     def geom_R(self, X):
-        
-        return torch.einsum('...u, ...u -> ...', X[..., 1:], X[..., 1:])
 
+        return torch.einsum("...u, ...u -> ...", X[..., 1:], X[..., 1:])
 
-    def ginv(self, X):  
+    def ginv(self, X):
 
         return torch.inverse(self.g(X))
-
 
     # def crit(self, X):
 
