@@ -8,7 +8,7 @@ from bhtrace.grrt.radiation import Blackbody, IntegralFlux
 from bhtrace.trajectory.trajectory import Trajectory
 from bhtrace.medium._base import Medium
 from bhtrace.geometry.spacetime.spherical import MinkowskiSph
-from bhtrace.geometry.particle.implementations import Photon
+from bhtrace.geometry.particle import Photon
 from bhtrace.graphics.report import plot_grrt_report
 
 # Mock Tracer

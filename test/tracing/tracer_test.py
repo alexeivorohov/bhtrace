@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 from bhtrace.tracing import MockTracer
-from bhtrace.geometry import Photon, MinkowskiCart
+from bhtrace.geometry import Photon
+from bhtrace.geometry.spacetime import MinkowskiCart
 
 @pytest.fixture
 def tracer_setup():
