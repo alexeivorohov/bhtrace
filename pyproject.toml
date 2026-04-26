@@ -10,7 +10,6 @@ name = "bhtrace"
 version = "0.1.0"
 dependencies = [
     "numpy",
-    "pandas",
     "matplotlib",
     "uniplot",
     "jupyter",
@@ -18,7 +17,7 @@ dependencies = [
     "tqdm",
     "scipy",
     "sympy",
-    "httpx"
+    "hydra-core",
 ]
 requires-python = ">=3.12"
 authors = [
@@ -36,6 +35,9 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python"
 ]
+
+[project.scripts]
+bhtrace = "bhtrace.cli:main"
 
 [project.urls]
 Repository = "https://github.com/alexeivorohov/bhtrace.git"
