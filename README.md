@@ -1,6 +1,6 @@
 # BHTRACE - a tool for GRRT in effective geometry, sourced by nonlinear electrodynamics
 
-![image](./examples/Im_RN.png)
+![image](./examples/grrt_comparison.png)
 
 ## Description
 
