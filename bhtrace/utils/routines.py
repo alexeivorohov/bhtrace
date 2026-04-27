@@ -4,7 +4,7 @@ This module contains common methods for operating with arrays and functions
 
 '''
 
-from typing import Tuple
+from typing import Tuple, Literal
 from itertools import permutations
 
 import torch
@@ -157,6 +157,79 @@ def find_domain(func, x_min, x_max, par, alpha=1.0, maxiter=10):
             return x_min, new_xmax
         x_max[xmask1] = new_xmax[xmask1]
     return x_min, x_max
+
+def interpolate_curve(
+        curve: np.ndarray,
+        alpha: float = 2.0, 
+        kind: Literal['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'] = 'cubic',
+    ) -> np.ndarray:
+    """
+    Interpolates convex curve x, y
+
+    Parameters
+    ----------
+    curve: np.ndarray
+        Array of shape (N, n_dim) containing coordinates of the curve points
+    alpha: float (default=2.0)
+        Expansion factor - alpha > 1 increases number of points and expands the curve, alpha < 1 reduces number of points and contracts the curve
+    
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray]
+        Interpolated x and y coordinates
+    """
+    from scipy.interpolate import interp1d
+
+    n_points = curve.shape[0]
+    n_interp = int(n_points * alpha)
+
+    # Create interpolation functions for each dimension
+    interp_funcs = []
+    for i in range(curve.shape[1]):
+        interp_func = interp1d(np.arange(n_points), curve[:, i], kind=kind)
+        interp_funcs.append(interp_func)
+
+    # Generate new points for interpolation
+    x_interp = np.linspace(0, n_points - 1, n_interp)
+    y_interp = np.array([interp_func(x_interp) for interp_func in interp_funcs]).T
+
+    return y_interp
+
+
+def interplolate_surface(
+        x: np.ndarray, 
+        y: np.ndarray, 
+        z: np.ndarray, 
+        alpha: float = 2.0, 
+        kind: Literal['linear', 'nearest', 'zero', 'slinear', 'quadratic', 'cubic'] = 'cubic',
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Interpolates convex curve x, y, z
+
+    Parameters
+    ----------
+    x: np.ndarray
+        x-coordinates grid of the surface
+    y: np.ndarray
+        y-coordinates grid of the surface
+    z: np.ndarray
+        z-coordinates grid of the surface
+    alpha: float (default=2.0)
+        Expansion factor - alpha > 1 increases number of points and smooths the surface, alpha < 1 reduces number of points and sharpens the surface
+    
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Interpolated x, y and z coordinates
+    """    
+    from scipy.interpolate import RegularGridInterpolator
+
+    RegularGridInterpolator()
+    n_x, n_y = x.shape
+    n_interp_x = int(n_x * alpha)
+    n_interp_y = int(n_y * alpha)
+    x_interp = np.linspace(x.min(), x.max(), n_interp_x)
+    y_interp = np.linspace(y.min(), y.max(), n_interp_y)
 
 
 ### Function utilities
