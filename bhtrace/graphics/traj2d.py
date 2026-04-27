@@ -136,7 +136,7 @@ def _set_borders(ax: plt.Axes, borders: Optional[Tuple[float, float, float, floa
         ax.set_ylim(borders[2], borders[3])
         return
     if coords is not None and len(coords) > 0:
-        all_coords = np.vstack(coords)
+        all_coords = np.vstack(coords).reshape(-1, 2)
         if all_coords.size == 0:
             return
         x_min, y_min = np.min(all_coords, axis=0)
@@ -150,8 +150,9 @@ def _set_borders(ax: plt.Axes, borders: Optional[Tuple[float, float, float, floa
 
 @TRAJ_2D_BACKEND_REGISTRY.register('mpl', aliases=['matplotlib'])
 def _mpl_traj_2d_plotter(
-    coords: np.ndarray | List[np.ndarray],
-    q: np.ndarray | List[np.ndarray] = None,
+    x: np.ndarray,
+    y: np.ndarray,
+    q: np.ndarray = None,
     sm: ScalarMappable = None,
     projection: str | np.ndarray = "xy",
     ax: plt.Axes = None,
@@ -191,23 +192,21 @@ def _mpl_traj_2d_plotter(
     """
     fig, ax = figure_handler(fig, ax, figsize=(8, 8))
 
-    projector = Projector(projection)
-    coords_xy = projector.project(coords)
-
     if q is not None:
         if sm is None:
             raise ValueError("ScalarMappable 'sm' must be provided when 'q' is specified.")
-        coords_list = _normalize_trajectories(coords_xy)
-        _multicolored_lines_2d(
-            x=coords_list, c=q, ax=ax, sm=sm, **kwargs,
-        )
+        raise RuntimeError('This method requires refactor')
+        # coords_list = _normalize_trajectories(coords_xy)
+        # _multicolored_lines_2d(
+        #     x=coords_list, c=q, ax=ax, sm=sm, **kwargs,
+        # )
 
     else:
         label = kwargs.pop("label", None)
         color = kwargs.pop("color", None)
         ax.plot(
-            coords_xy[:, 0],
-            coords_xy[:, 1],
+            x,
+            y,
             label=label,
             color=color,
             **kwargs,
@@ -231,7 +230,7 @@ def plot2d(
     info_text: str = None,
     ax: plt.Axes = None,
     fig: plt.Figure = None,
-    **kwargs,
+    # **kwargs,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """Plot 2D projection of trajectory data
 
@@ -313,8 +312,8 @@ def plot2d(
         x=coords_xy[..., 0],
         y=coords_xy[..., 1],
         q=q,
-        horizon=horizon,
-        horizon_param=horizon_param
+        # horizon=horizon,
+        # horizon_param=horizon_param
 
     )
 

@@ -453,7 +453,7 @@ class Trajectory:
         if cleaned:
             q = q[self._genuine_steps]
 
-        fig, ax = bhg.traj2d.plot(
+        fig, ax = bhg.plot2d(
             coords_np,
             q = q,
             q_label = color_by_value,
@@ -503,8 +503,8 @@ class Trajectory:
         else:
             assert values.isnan().any(), f'Nan values in tensor quantity {quantity}'
 
-        return bhg.histogram.hist(
-            quantity = values.abs().numpy().flatten(),
+        return bhg.hist(
+            data = values.abs().numpy().flatten(),
             bins=bins,
             backend = backend,
             density = density,
@@ -517,7 +517,7 @@ class Trajectory:
             **kwargs,
         )
     
-    def hist2d(
+    def ridge(
         self,
         quantity: Literal['energy', 'mu_violation'] = 'mu_violation',
         bins: int | np.ndarray = 16,
@@ -585,7 +585,7 @@ class Trajectory:
             The figure containing the plot.
         """
 
-        return bhg.traj3d.plot(
+        return bhg.plot3d(
             points=self["Cartesian"][0][..., 1:],
             fig=fig,
             ax=ax,
