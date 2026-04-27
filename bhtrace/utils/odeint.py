@@ -224,6 +224,7 @@ class ODEint(ABC):
         self.solution = {}
         self.solution['t'] = torch.zeros(nsteps + 1, device=self.Y0[0].device, dtype=self.Y0[0].dtype)
         self.solution['Y'] = tuple(torch.zeros(self.batch_size, nsteps + 1, *Y0i.shape[1:], device=Y0i.device, dtype=Y0i.dtype) for Y0i in self.Y0)
+        self.solution['active'] = torch.zeros(self.batch_size, nsteps + 1, device=self.Y0[0].device, dtype=torch.bool)
         
         # Set initial conditions
         self.solution['t'][0] = self.t0
@@ -238,6 +239,7 @@ class ODEint(ABC):
         msg = '\nFinished: Reached maximum number of steps.\n'
 
         for i in trange(nsteps, disable=tqdm_bar):
+            self.solution['active'][:, i+1] = self.batch_mask
             if not torch.any(self.batch_mask):
                 # All trajectories stopped, fill rest of solution and break
                 last_t = self.solution['t'][i]
@@ -295,7 +297,7 @@ class ODEint(ABC):
         solution['LTE'] - local truncation error at each time step (if tracked)
         '''
         self.attach_task(term, Y0, t0)
-        return self.solve(n_steps, tqdm_bar=True)
+        return self.solve(n_steps, tqdm_bar=tqdm_bar)
 
 
     @abstractmethod
@@ -551,11 +553,58 @@ class SHI(ODEint):
     def __init__(self,):
         pass
 
+class Leapfrog(ODEint):
+    """
+    Leapfrog integrator (a specific symmetric partitioned Runge-Kutta method).
+    This is a symplectic integrator, well-suited for Hamiltonian systems.
+
+    It assumes the state Y is a tuple of (positions, momenta), i.e., (X, P),
+    and the term function returns (dX/dt, dP/dt).
+
+    The specific method implemented is a 2nd-order symplectic integrator
+    for non-separable Hamiltonians of the form H(X, P). It uses a
+    kick-drift-kick-like update sequence with three term evaluations.
+    """
+    __supports_event_tracking__ = True
+
+    def __step__(self, t: float, Y: Tuple[torch.Tensor, ...]) -> Tuple[Tuple[torch.Tensor, ...], Tuple[torch.Tensor, ...]]:
+        if self.n_vars != 2:
+            raise ValueError("Leapfrog integrator assumes the state Y is a tuple of (positions, momenta).")
+
+        X, P = Y
+        dt = self.dt
+
+        # dY at the start of the step. This is also needed for the return value.
+        dY_start = self.term(t, X, P)
+        _, dP_start = dY_start
+
+        # Kick 1 (half step for momentum P)
+        # P_{n+1/2} = P_n + (dt/2) * dP(t_n, X_n, P_n)
+        P_half = P + 0.5 * dt * dP_start
+
+        # Drift (full step for position X) using P_half
+        # We need dX(t_n + dt/2, X_n, P_{n+1/2}).
+        # We re-evaluate the term and take the dX part.
+        dX_drift, _ = self.term(t + 0.5 * dt, X, P_half)
+        X_new = X + dt * dX_drift
+
+        # Kick 2 (half step for momentum P)
+        # We need dP(t_n + dt, X_{n+1}, P_{n+1/2}).
+        # We re-evaluate the term at the new position and take the dP part.
+        _, dP_end = self.term(t + dt, X_new, P_half)
+        P_new = P_half + 0.5 * dt * dP_end
+
+        return (X_new, P_new), dY_start
+
+    def __LTE__(self, t: float, *Y: torch.Tensor) -> torch.Tensor:
+        return NotImplementedError
+
 ODE_REGISTRY = {
     'Euler': Euler,
     'RK4': RK4,
     'VCAB4': VCAB4,
-    'VCABM4': VCABM4
+    'VCABM4': VCABM4,
+    'Leapfrog': Leapfrog
 }
     
 def ODE(name: str, *args, **kwargs) -> 'ODEint':
