@@ -1,4 +1,4 @@
-# BHTRACE - A python library for modeling observations of compact objects in effective geometry, sourced by nonlinear electrodynamics
+# BHTRACE - a tool for GRRT in effective geometry, sourced by nonlinear electrodynamics
 
 ![image](./examples/Im_RN.png)
 
