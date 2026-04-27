@@ -145,7 +145,7 @@ class Tracer():
         P = solution['Y'][1]
         t = solution['t']
 
-        return Trajectory(X, P, t, particle, self)
+        return Trajectory(X, P, t, particle, self, _genuine_steps=solution['active'])
     
     def evnt(self,
              t: float,
