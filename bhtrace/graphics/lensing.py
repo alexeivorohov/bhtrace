@@ -1,202 +1,148 @@
-from typing import Dict, Tuple, Iterable, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from bhtrace.trajectory.trajectory import Trajectory
-
+from typing import List, Dict, Optional, Tuple, Literal, Protocol
+\
 import torch
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
-from . import Plot2D, opt_mosaic, Coloring
 
-class LensingPlot:
+import matplotlib.pyplot as plt
+from matplotlib.cm import ScalarMappable
+
+import bhtrace.graphics.uniplot_wraps as uniplot
+from bhtrace.graphics.utils import add_info_text, figure_handler
+from bhtrace.utils.registry import CallableRegistry
+
+
+__curve_style__ = {
+    'alpha': 0.9,
+    'zorder': 1,
+}
+
+__curve_p_style__ = {
+    'alpha': 0.5
+}
+
+__peak_style__ = {
+    'linestyle': 'dashed',
+    # 'marker': 'x',
+    'zorder': 3,
+    'alpha': 0.4
+}
+
+__peak_p_style__ = {
+    'marker': 'x',
+    'zorder': 1,
+    'alpha': 0.5
+}
+class LensingBackend(Protocol):
+    def __call__(
+        dphi: np.ndarray | Dict[str, np.ndarray],
+        b: np.ndarray | Dict[str, np.ndarray],
+        e_b: np.ndarray | Dict[str, np.ndarray ],
+        show_peaks: bool,
+        show_points: bool,
+        add_2dplot: bool,
+        peak_dist: int,
+        ax: plt.Axes,
+        fig: plt.Figure,
+    ) -> Tuple[Optional[plt.Figure], Optional[plt.Axes]]:
+        ...
+
+LENSING_BACKENDS_REGISTRY = CallableRegistry(LensingBackend)
+
+def lensing_curve(
+    b: np.ndarray | Dict[str, np.ndarray],
+    dphi: np.ndarray | Dict[str, np.ndarray],
+    show_peaks: bool = True,
+    show_points: bool = False,
+    windings: bool = False,
+    label: str = None,
+    color: str = None,
+    sm: 'ScalarMappable' = None,
+    minimal_peak_distance: int = 2,
+    backend: str = 'matplotlib',
+    ax: plt.Axes = None,
+    fig: plt.Figure = None,
+) -> Tuple[Optional[plt.Figure], Optional[plt.Axes]]:
     """
-    Provides methods for creating lensing plots (deflection angle vs. impact parameter).
+    Preset for plotting declination angle vs. impact parameter curve.
+
+    Parameters
+    ----------
+    dphi: np.ndarray | Dict[np.ndarray] - inclination angles. 
+        If dict passed, lensing curves will be displayed on the same axes and labeled with keys of this dict.
+    b: np.ndarray | Dict[np.ndarray] - impact factors
+        For dict behaviour is same as for dphi.
+    e_b: np.ndarray | Dict[np.ndarray] - unit vector in the direction of impact factor increase.
+    show_peaks: bool - determine and note peaks of lensing function (default: true)
+    show_points: bool - show points of the curve (default: false)
+    peak_dist: int - minimum distance between peaks, passed to scipy find_peaks (default: 2)
+    ax: plt.Axes - axes to plot on
+    fig: plt.Figure - figure to plot on
+    
     """
-    __curve_style__ = {
-        'alpha': 0.9,
-        'zorder': 1,
-    }
 
-    __curve_p_style__ = {
-        'alpha': 0.5
-    }
+    if windings:
+        dphi = dphi / np.pi / 2
 
-    __peak_style__ = {
-        'linestyle': 'dashed',
-        # 'marker': 'x',
-        'zorder': 3,
-        'alpha': 0.4
-    }
-
-    __peak_p_style__ = {
-        'marker': 'x',
-        'zorder': 1,
-        'alpha': 0.5
-    }
+    if show_peaks:
+        peak_idxs, _ = find_peaks(dphi, distance=minimal_peak_distance)
+    else:
+        peak_idxs = None
 
 
-    @classmethod
-    def plot(cls,
-             dphi: torch.Tensor | Dict[str, torch.Tensor] = None,
-             b: torch.Tensor | Dict[str, torch.Tensor] = None,
-             traj: 'Trajectory' | Dict[str, 'Trajectory'] = None,
-             e_b: torch.Tensor | Dict[str, torch.Tensor ] = None,
-             show_peaks: bool = True,
-             show_points: bool = False,
-             add_2dplot: bool = False,
-             peak_dist: int = 2,
-             fig: plt.Figure = None
-            ):
-        """
-        Plots lensing data. Can also show the 2D trajectory plot.
-        Data can be provided as 'dphi' and 'b' tensors/dicts, or extracted from 'traj' object(s).
+    plotter = LENSING_BACKENDS_REGISTRY[backend]
 
-        Call examples:
-            Lensing.plot(dphi, b)
-            Lensing.plot(traj=traj)
-            Lensing.plot(traj=traj, add_2dplot=True)
+    return plotter(
+        dphi = dphi,
+        b = b,
+        peak_idxs = peak_idxs,
+        label = label,
+        sm = sm,
+        color = color,
+        show_points = show_points,
+        ax = ax,
+        fig = fig,
+    )
+
+@LENSING_BACKENDS_REGISTRY.register('matplotlib', aliases=['mpl'])
+def _lensing_backend_mpl(
+    b: np.ndarray,
+    dphi: np.ndarray,
+    peak_idxs: Optional[np.ndarray] = None,
+    color: str = None,
+    sm: ScalarMappable = None,
+    show_points: bool = False,
+    label: str = None,
+    ax: plt.Axes = None,
+    fig: plt.Figure = None,
+) -> Tuple[plt.Figure, plt.Axes]:
+    print('Plotter called')
+
+    fig, ax = figure_handler(fig, ax)
+
+    if peak_idxs is not None:
+        for peak in peak_idxs.tolist():
+            ax.scatter(b[peak], dphi[peak], color=color, **__peak_p_style__)
+            ax.axvline(b[peak], color=color, **__peak_style__)
+
+    if sm is not None:
+        c = sm.to_rgba(dphi)
+        ax.plot(b, dphi, color=color, label=label, **__curve_style__)
+    else:
+        ax.plot(b, dphi, color=color, label=label, **__curve_style__)
+
+    if show_points:
+        ax.scatter(b, dphi, color=color, label=None, **__curve_p_style__)
         
-        Args:
-            dphi: torch.Tensor | Dict[torch.Tensors] - inclination angles. 
-            If dict passed, lensing curves will be displayed on the same axes and labeled with keys of this dict.
-            b: torch.Tensor | Dict[torch.Tensors] - impact factors
-            For dict behaviour is same as for dphi.
-            traj: Trajectory | Dict[Trajectory] - trajectories.
-            Will try to use .lens attribute to extract dphi and b, if present.
-            e_b: torch.Tensor | Dict[Trajectory] - unit vector in the direction of impact factor increase.
-            show_peaks: bool - determine and note peaks of lensing function (default: true)
-            add_2dplot: bool - add trajectories 2d plot (default: False)
+    return fig, ax
 
-        """
-        if traj is not None:
-            dphi, b = cls._extract_from_traj_or_use_provided(dphi, b, traj)
+if __name__ == '__main__':
 
-        if dphi is None or b is None:
-            raise ValueError("LensingPlot.plot requires either 'traj' or both 'dphi' and 'b'.")
+    b = np.linspace(0, 10, 64)
+    b_c = 3*np.sqrt(3)
+    dphi = 2*np.pi/np.sqrt(np.abs(1 - b/b_c)+0.1)
 
-        if not isinstance(dphi, dict):
-            dphi = {'data': dphi}
-            b = {'data': b}
-
-        if e_b is None:
-            e_b = [0., 1., 0.]
-
-        axes_dict, fig = cls._setup_axes(add_2dplot, fig)
-        lensing_ax = axes_dict['lensing']
-
-        dataset_colors = plt.cm.viridis(np.linspace(0, 1, len(dphi)))
-
-        # Plotting
-        for i, key in enumerate(dphi.keys()):
-            cls.plot1(b[key],
-                      dphi[key],
-                      lensing_ax,
-                      dataset_color=dataset_colors[i],
-                      label=key,
-                      show_peaks=show_peaks,
-                      show_points=show_points,
-                      peak_dist=peak_dist
-                      )
-
-        lensing_ax.set_xlabel("Impact parameter b")
-        lensing_ax.set_ylabel("Number of windings n")
-        lensing_ax.grid(True)
-        if len(dphi) > 1:
-            lensing_ax.legend()
-
-        # 2d plot
-        if add_2dplot:
-            if traj is None:
-                print("Warning: add_2dplot=True but no trajectory data provided.")
-            else:
-                plot_2d_ax = axes_dict['2d_plot']
-                trajs_to_plot = list(traj.values()) if isinstance(traj, dict) else [traj]
-                labels = list(traj.keys()) if isinstance(traj, dict) else None
-                Plot2D.plot(trajs_to_plot, ax=plot_2d_ax, labels=labels)
-                plot_2d_ax.set_title("Trajectories")
-
-        return axes_dict, fig
-
-    @classmethod
-    def _extract_from_traj_or_use_provided(cls, dphi, b, traj):
-        if isinstance(traj, dict):
-            if dphi is None: dphi = {}
-            if b is None: b = {}
-            for key, t in traj.items():
-                dphi_from_traj, b_from_traj = cls.__from_traj__(t)
-                if key not in dphi: dphi[key] = dphi_from_traj
-                if key not in b: b[key] = b_from_traj
-        else: # Single trajectory
-            dphi_from_traj, b_from_traj = cls.__from_traj__(traj)
-            if dphi is None: dphi = dphi_from_traj
-            if b is None: b = b_from_traj
-        return dphi, b
-
-    @classmethod
-    def _setup_axes(cls, add_2dplot, fig):
-        ax_ids = ['lensing']
-        if add_2dplot:
-            ax_ids.append('2d_plot')
-        
-        shape, mosaic = opt_mosaic(ax_ids)
-        
-        if fig is None:
-            fig, axes = plt.subplot_mosaic(mosaic, figsize=(8 * shape[1], 6 * shape[0]))
-        else:
-            axes = fig.subplot_mosaic(mosaic)
-        return axes, fig
-
-    @classmethod
-    def plot1(cls,
-              b: torch.Tensor,
-              dphi: torch.Tensor, 
-              ax: plt.Axes,
-              dataset_color=None,
-              label: str = None,
-              show_points = False,
-              show_peaks = True,
-              peak_dist = 2
-              ):
-        """
-        Helper to plot one set of (b, dphi) data, colored by winding number.
-
-        Requires b to be incremental. 
-        """
-
-        n = dphi / (2 * torch.pi)
-
-        # colors = Coloring.lensing_colors(n)
-        
-        label=label if label != 'data' else None
-        if show_points:
-            ax.scatter(b, n, c=dataset_color, **cls.__curve_p_style__)
-        ax.plot(b, n, color=dataset_color, label=label, **cls.__curve_style__)
-        y_bottom, y_top = ax.get_ylim()
-        if show_peaks:
-            peaks, properties = find_peaks(n.numpy(), distance = peak_dist)
-            for peak in peaks:
-                ax.plot([b[peak], b[peak]], [0, y_top], c=dataset_color, **cls.__peak_style__)
-                # ax.axline()
-            ax.scatter(b[peak], n[peak], color=dataset_color, **cls.__peak_p_style__)
-            print(peaks)
-            print('Case {label}')
-            print(properties)
-
-    @classmethod
-    def __from_traj__(cls, traj: 'Trajectory', e_b = None) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Extracts deflection angle (dphi) and impact parameter (b) from a Trajectory.
-        
-        Will try to use traj.lens property, if not presnent, eval_lens will be called;
-        """
-        if hasattr(traj, 'lens'):
-            return traj.lens
-
-        from bhtrace.scenarios.lensing import eval_lens
-        # Refactor
-        b = traj.x[..., 2]
-        dphi = eval_lens(traj=traj)
-     
-        return dphi, b
+    fig, ax = lensing_curve(b, dphi)
+    
+    plt.show()
