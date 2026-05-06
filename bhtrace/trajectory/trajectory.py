@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from bhtrace.tracing._base import Tracer
 
 # TODO: add _get_cached_scalar interface which will map keys to scalar features
+# TODO: __coords__ and coordinates are duplicated properties
 
 @dataclass
 class Trajectory:
@@ -444,29 +445,28 @@ class Trajectory:
         horizon = 2.0 # Temporary hardcoded horizon radius. # TODO: get horizon slice from spacetime object.
 
         x, _ = self['Cartesian']
-        coords_np = x[..., 1:].numpy()
+        # x = self.X[..., 1:].numpy()
 
         q = None
         if color_by_value:
             q = self._get_cached_scalar(color_by_value)
 
         if cleaned:
-            q = q[self._genuine_steps]
+            q = bhg.utils._value_cleaning_(q, self._genuine_steps)
+            x = bhg.utils._value_cleaning_(x, self._genuine_steps)
 
         fig, ax = bhg.plot2d(
-            coords_np,
+            x.numpy().swapaxes(0, 1),
             q = q,
             q_label = color_by_value,
-            horizon=horizon,
-            projection=projection,
-            label=label,
-            fig=fig,
+            horizon = horizon,
+            projection = projection,
+            label = label,
+            borders=scope,
+            fig = fig,
             ax=ax,
             **kwargs
         )
-
-        ax.set_xlim(scope[0], scope[1])
-        ax.set_ylim(scope[2], scope[3])
 
         return fig, ax
 
@@ -521,6 +521,7 @@ class Trajectory:
         self,
         quantity: Literal['energy', 'mu_violation'] = 'mu_violation',
         bins: int | np.ndarray = 16,
+        dynamic: Literal['time', 'batch'] = 'time',
         q_scale: str = 'linear',
         p_scale: str = 'linear',
         density: bool = True,
@@ -566,6 +567,9 @@ class Trajectory:
         matplotlib.figure.Figure
             The figure containing the plot.
         """
+        ...
+        
+
 
     def plot3d(
         self, fig: Optional[plt.Figure] = None, ax: Optional[plt.Axes] = None
