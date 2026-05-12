@@ -143,8 +143,9 @@ class GRRT:
 
         for i in range(self.skip_first, len(trajectory) - 1):
             x_new, p_new = trajectory.X[..., i + 1, :], trajectory.P[..., i + 1, :]
+            mask = trajectory._genuine_steps[..., i]
             dlambda = trajectory.affine_t[..., i + 1] - trajectory.affine_t[..., i]
-            _, _, s1 = self._step(trajectory.particle, x_prev, x_new, p_prev, p_new, dlambda, e0)
+            _, _, s1 = self._step(trajectory.particle, x_prev, x_new, p_prev, p_new, dlambda, e0, mask=mask)
             x_prev, p_prev = x_new, p_new
             self._s0 = s1
 
@@ -157,6 +158,7 @@ class GRRT:
         p_new: torch.Tensor,
         dlambda: torch.Tensor,
         e0: torch.Tensor,
+        mask: torch.Tensor,
     ) -> Tuple[Optional[torch.Tensor], torch.Tensor, torch.Tensor]:
 
         # Determine hit conditions
@@ -168,7 +170,7 @@ class GRRT:
         if hasattr(self.medium.spacetime, 'r_h'):
             r_new = x_new[..., 1] # Assumes r is the second coordinate
             is_outside_horizon = r_new > self.medium.spacetime.r_h
-            is_hit = is_hit & is_outside_horizon
+            is_hit = is_hit & is_outside_horizon & mask
 
         # If any hits, process radiative models
         if torch.any(is_hit):
