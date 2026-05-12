@@ -39,6 +39,7 @@ def meshgrid4d(ts, rs, ths, phs):
 
     return X
 
+# this method should be putted into backward compatibility mode - .utils.mesh module must replace it
 def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
     '''
     Routine for generating coordinate grid on observer's sky
@@ -73,6 +74,8 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
         zz = r*torch.cos(ph)
     elif shape == 'hex':
         raise NotImplementedError('hex shape is not implemented')
+    else:
+        raise ValueError(f'Unknown net type {shape}')
 
     xx = torch.ones_like(yy)*X0
     yy = yy*YZsize[0] + YZ0[0]
