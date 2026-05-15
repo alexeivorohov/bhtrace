@@ -2,7 +2,7 @@
 Provides general-purpose, generic registry implementations.
 
 This module contains two main classes:
-- `Registry`: A generic registry for mapping string keys to classes. It is
+- `ClassRegistry`: A generic registry for mapping string keys to classes. It is
   type-aware and ensures that registered items are subclasses of a specified
   base class.
 - `CallableRegistry`: A generic registry for mapping string keys to functions
@@ -16,23 +16,72 @@ import inspect
 import os
 import logging
 from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Mapping
+from bhtrace.globs import BHTRACE_LOG_FACTORY_PARAMS
 
 # from bhtrace.utils.log import Log
 
 log = logging.getLogger(__file__)
 
-MALLORN_LOG_FACTORY_PARAMS = bool(os.environ.get('MALLORN_LOG_FACTORY_PARAMS', False))
 
 T = TypeVar("T")
 
-class Registry(Generic[T]):
+class RegistryMixin:
+    """
+    Mixin class, implementing type-independent functional of Registry
+    """
+    REGISTRY: Dict
+
+    def keys(self):
+        return self.REGISTRY.keys()
+    
+    def items(self):
+        return self.REGISTRY.items()
+    
+    def values(self):
+        return self.REGISTRY.values()
+    
+    def update(self, m: Mapping[str, Type[T]]):
+        self.REGISTRY.update(m)
+    
+    def __contains__(self, item):
+        return self.REGISTRY.__contains__(item)
+    
+    def isin(self, key: str, raise_err: bool = True) -> bool:
+        """
+        Checks if a key is present in the registry.
+
+        Parameters
+        ----------
+        key : str
+            The key to check.
+        raise_err : bool, optional
+            If True, raises a KeyError if the key is not found.
+            If False, returns a boolean. Defaults to True.
+
+        Returns
+        -------
+        bool
+            True if the key exists, False otherwise (if raise_err is False).
+        """
+        if key in self.REGISTRY:
+            return True
+        if raise_err:
+            raise KeyError(
+                f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.REGISTRY.keys())}"
+            )
+        return False
+    
+
+# TODO: Rename everywhere to ClassRegistry or Type registry cleat
+class Registry(Generic[T], RegistryMixin):
     """
     A generic registry to map string keys to classes. It supports registration
     via a decorator and creating instances of registered classes. By using
     a TypeVar, it allows static type checkers to infer the correct type
     of created instances.
 
-    Example usage:
+    Examples
+    --------
     ```python
         from abc import ABC
 
@@ -40,8 +89,8 @@ class Registry(Generic[T]):
             def speak(self):
                 raise NotImplementedError
 
-        # Note the generic type hint `Registry[Animal]`
-        ANIMAL_REGISTRY = Registry(type=Animal)
+        # Note the generic type hint `ClassRegistry[Animal]`
+        ANIMAL_REGISTRY = ClassRegistry(type=Animal)
 
         @ANIMAL_REGISTRY.register(key='dog', aliases=['hound'])
         class Dog(Animal):
@@ -55,10 +104,12 @@ class Registry(Generic[T]):
         my_hound: Animal = ANIMAL_REGISTRY.create('hound')
         print(my_hound.speak()) # Output: Woof!
     ```
-    Note:
-        This implementation is not thread-safe for concurrent writes, but this
-        is generally not an issue as registration typically happens once on
-        the main thread at startup. A lock could be added if needed.
+    
+    Note
+    ----
+    This implementation is not thread-safe for concurrent writes, but this
+    is generally not an issue as registration typically happens once on
+    the main thread at startup. A lock could be added if needed.
     """
 
     def __init__(self, type: Type[T]):
@@ -73,6 +124,7 @@ class Registry(Generic[T]):
         self.type = type
         self.REGISTRY: Dict[str, Type[T]] = {}
 
+    
     def register(
         self, key: str, aliases: Optional[List[str]] = None
     ) -> Callable[[Type[T]], Type[T]]:
@@ -167,20 +219,6 @@ class Registry(Generic[T]):
         init_signature = inspect.signature(TargetClass.__init__)
         return list(init_signature.parameters.keys())
 
-    def keys(self):
-        return self.REGISTRY.keys()
-    
-    def items(self):
-        return self.REGISTRY.items()
-    
-    def values(self):
-        return self.REGISTRY.values()
-    
-    def update(self, m: Mapping[str, Type[T]]):
-        self.REGISTRY.update(m)
-    
-    def __contains__(self, item):
-        return self.REGISTRY.__contains__(item)
 
     def create(self, key: str, *args, **kwargs) -> T:
         """
@@ -200,43 +238,96 @@ class Registry(Generic[T]):
         T
             An instance of the registered class.
         """
-        if MALLORN_LOG_FACTORY_PARAMS:
+        if BHTRACE_LOG_FACTORY_PARAMS:
             log.info(
-                f"Registry {self.type} creates `{key}`:\n"
-                f"args {args} | kwargs: {kwargs}"
+                f"ClassRegistry {self.type} creates `{key}`:\n"
+                f"args: {args} | kwargs: {kwargs}"
             )
 
         TargetClass = self[key]
         return TargetClass(*args, **kwargs)
 
-    def isin(self, key: str, raise_err: bool = True) -> bool:
+
+# ----- Instance Registry -----
+
+# TODO: add lazy initialization of instances?
+class InstanceRegistry(Generic[T], RegistryMixin):
+
+    def __init__(self, type: Type[T]):
         """
-        Checks if a key is present in the registry.
+        Initializes the registry.
+
+        Parameters
+        ----------
+        type : Type[T]
+            The base class that all registered items must inherit from.
+        """
+        self.type = type
+        self.REGISTRY: Dict[str, Type[T]] = {}
+
+
+    def register(
+        self, key: str, aliases: Optional[List[str]] = None
+    ) -> Callable[[T], T]:
+        """
+        Returns a decorator to register an instance class with a given key and optional aliases.
 
         Parameters
         ----------
         key : str
-            The key to check.
-        raise_err : bool, optional
-            If True, raises a KeyError if the key is not found.
-            If False, returns a boolean. Defaults to True.
+            The primary key to associate with the class.
+        aliases : Optional[List[str]]
+            A list of alternative keys.
 
         Returns
         -------
-        bool
-            True if the key exists, False otherwise (if raise_err is False).
+        Callable[[T], T]
+            A decorator that registers the class.
+
+        Raises
+        ------
+        TypeError
+            If the object is not instance of the registry's base class.
+        KeyError
+            If the key or any of the aliases are already registered.
         """
-        if key in self.REGISTRY:
-            return True
-        if raise_err:
+
+        def decorator(instance: Type[T]) -> Type[T]:
+            if not isinstance(instance, self.type):
+                raise TypeError(
+                    f"Object `{instance.__name__}` is not an instance of"
+                    f"`{self.type.__name__}`"
+                )
+
+            all_keys = [key] + (aliases or [])
+            for k in all_keys:
+                if k in self.REGISTRY:
+                    raise KeyError(f"Key '{k}' is already registered.")
+
+            for k in all_keys:
+                self.REGISTRY[k] = instance
+
+            return instance
+
+        return decorator
+
+    def __getitem__(self, key: str) -> T:        
+        try:
+            return self.REGISTRY[key]
+        except KeyError:
             raise KeyError(
                 f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.REGISTRY.keys())}"
             )
-        return False
+    
+    def get(self, key: str, default: Optional[T] = None) -> Optional[T]:
+        """
+        Retrieves a registered instance by its key. Returns a default value if not found.
+        """
+        return self.REGISTRY.get(key, default)
 
 # ----- Callable Registry -----
 
-class CallableRegistry(Generic[T]):
+class CallableRegistry(Generic[T], RegistryMixin):
     """
     A generic registry for mapping keys to callables (e.g., functions).
     It supports registration via a decorator and uses a TypeVar to allow
@@ -275,6 +366,7 @@ class CallableRegistry(Generic[T]):
         self.type = type
         self.REGISTRY: Dict[Any, T] = {}
 
+    # TODO: add signature check?
     def register(
         self, key: Any, aliases: Optional[List[Any]] = None
     ) -> Callable[[T], T]:
@@ -295,7 +387,7 @@ class CallableRegistry(Generic[T]):
 
         Raises
         ------
-        ValueError
+        KeyError
             If the key or any of the aliases are already registered.
         """
 
@@ -303,7 +395,7 @@ class CallableRegistry(Generic[T]):
             all_keys = [key] + (aliases or [])
             for k in all_keys:
                 if k in self.REGISTRY:
-                    raise ValueError(f"Key '{k}' is already registered.")
+                    raise KeyError(f"Key '{k}' is already registered.")
 
             for k in all_keys:
                 self.REGISTRY[k] = func
@@ -344,44 +436,3 @@ class CallableRegistry(Generic[T]):
         Retrieves a registered callable by its key. Returns a default value if not found.
         """
         return self.REGISTRY.get(key, default)
-    
-    def keys(self) -> List[Any]:
-        return list(self.REGISTRY.keys())
-    
-    def items(self) -> List[tuple[Any, T]]:
-        return list(self.REGISTRY.items())
-    
-    def values(self) -> List[T]:
-        return list(self.REGISTRY.values())
-    
-    def update(self, m: Dict[Any, T]):
-        self.REGISTRY.update(m)
-    
-    def __contains__(self, item: Any) -> bool:
-        return item in self.REGISTRY
-
-    def isin(self, key: Any, raise_err: bool = True) -> bool:
-        """
-        Checks if a key is present in the registry.
-
-        Parameters
-        ----------
-        key : Any
-            The key to check.
-        raise_err : bool, optional
-            If True, raises a KeyError if the key is not found.
-            If False, returns a boolean. Defaults to True.
-        
-        Raises
-        ------
-        KeyError
-            If the key is not found and `raise_err` is True.
-        """
-        if key in self.REGISTRY:
-            return True
-        if raise_err:
-            available_keys = ", ".join(map(str, self.keys()))
-            raise KeyError(
-                f"Key '{key}' not found in registry. Available keys: [{available_keys}]"
-            )
-        return False
