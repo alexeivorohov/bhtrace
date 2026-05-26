@@ -5,7 +5,7 @@ import torch
 
 from bhtrace.geometry import Spacetime, Particle
 from bhtrace.utils.odeint import ODEint, ODE
-from bhtrace.trajectory.trajectory import Trajectory
+from bhtrace.data import Trajectory
 
 
 class Tracer():
