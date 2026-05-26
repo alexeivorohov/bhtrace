@@ -210,7 +210,7 @@ class Observer:
 
         if vel is None:
             vel = torch.ones(pos.shape[0], 4)
-            vel[:, 1:] = self.camera_dir
+            vel[:, 1:] = - self.camera_dir
         elif vel.shape[0] == 1 and vel.shape[1] == 4:
             vel = vel.repeat(pos.shape[0], 1)
 

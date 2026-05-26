@@ -123,7 +123,7 @@ class Tracer():
         self.max_proper_t = torch.tensor([max_proper_t], device=device)
 
         # --- Vectorized Integration ---
-        dt = T / nsteps
+        dt = - T / nsteps
         self.odeint = ODE(name=self.ode_method, dt=dt, event_fn=self.evnt)
         
         print(f"Starting vectorized integration of {self.Ni} particles with {self.odeint.__class__.__name__}...")
