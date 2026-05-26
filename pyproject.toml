@@ -26,7 +26,7 @@ authors = [
 maintainers = [
   {name = "Alexei Vorokhov", email = "alexei.vorohov@yandex.ru"},
 ]
-description = "Package for performing GRRT simulations of exotic compact objects in arbitrary spacetimes. Powered by PyTorch"
+description = "GRRT simulation of compact objects in arbitrary spacetimes, powered by PyTorch"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.*"]
