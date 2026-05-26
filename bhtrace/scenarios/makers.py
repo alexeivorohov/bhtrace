@@ -6,7 +6,7 @@ from typing import Literal, Optional, Any, Dict
 
 import torch
 
-from bhtrace.trajectory import Trajectory
+from bhtrace.data import Trajectory
 from bhtrace.geometry import Spacetime, Observer, Particle, PARTICLE_REGISTRY
 from bhtrace.geometry.spacetime import SphericallySymmetric, KerrBL
 from bhtrace.exact.newtonian import KeplerianTrajectories

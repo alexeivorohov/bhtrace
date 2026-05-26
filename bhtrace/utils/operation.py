@@ -10,7 +10,7 @@ import argparse
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bhtrace.trajectory import Trajectory
+    from bhtrace.data import Trajectory
 
 def print_status_bar(progress, total, elapsed_time):
     '''
