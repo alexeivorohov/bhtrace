@@ -12,10 +12,10 @@ This module contains two main classes:
 Both registries support registration via decorators, making them easy to use
 for building extensible, plug-in-based architectures.
 """
+from abc import abstractmethod, ABC
 import inspect
-import os
 import logging
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Mapping
+from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Mapping, Tuple, overload
 from bhtrace.globs import BHTRACE_LOG_FACTORY_PARAMS
 
 # from bhtrace.utils.log import Log
@@ -25,28 +25,69 @@ log = logging.getLogger(__file__)
 
 T = TypeVar("T")
 
-class RegistryMixin:
+class RegistryMixin(ABC):
     """
     Mixin class, implementing type-independent functional of Registry
+
+    Note
+    ----
+    This implementation is not thread-safe for concurrent writes, but this
+    is generally not an issue as registration typically happens once on
+    the main thread at startup. A lock could be added if needed.
     """
     REGISTRY: Dict
+    _alias_to_key: Dict[str, str]
+    _key_to_alias: Dict[str, Tuple[str]]
+    type: T
+
+    def r(self, obj: Any, key: Any, *aliases: Any):
+        if key in self.REGISTRY:
+            raise ValueError(f"Unique key '{key}' is already registered.")
+
+        all_keys = [key, *aliases]
+        for k in all_keys:
+            if k in self._alias_to_key:
+                print(obj)
+                raise ValueError(f"Key or alias '{k}' is already registered.")
+
+        self.REGISTRY[key] = obj
+        for k in all_keys:
+            self._alias_to_key[k] = key
+        self._key_to_alias[k] = (aliases)
+
+        return obj
+
+    @abstractmethod
+    def _check(self, obj: Any) -> bool:
+        """Controls how typecheck is done for this registry"""
+        pass
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(containing:"
+        )
+    
+    def unique(self):
+        return self.REGISTRY.keys()
 
     def keys(self):
-        return self.REGISTRY.keys()
-    
+        return self._alias_to_key.keys()
+
     def items(self):
-        return self.REGISTRY.items()
-    
+        """Returns registered items"""
+        return [(k, self.REGISTRY[v]) for k, v in self._alias_to_key.items()]
+
     def values(self):
         return self.REGISTRY.values()
-    
-    def update(self, m: Mapping[str, Type[T]]):
-        self.REGISTRY.update(m)
-    
+
+    def update(self, m: Mapping[str, Any]):
+        map(self.r, m.values(), m.keys())
+        # for k, v in m.items():
+
     def __contains__(self, item):
-        return self.REGISTRY.__contains__(item)
-    
-    def isin(self, key: str, raise_err: bool = True) -> bool:
+        return item in self._alias_to_key
+
+    def isin(self, key: Any, raise_err: bool = True) -> bool:
         """
         Checks if a key is present in the registry.
 
@@ -63,53 +104,66 @@ class RegistryMixin:
         bool
             True if the key exists, False otherwise (if raise_err is False).
         """
-        if key in self.REGISTRY:
+        if key in self._alias_to_key:
             return True
         if raise_err:
             raise KeyError(
-                f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.REGISTRY.keys())}"
+                f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.keys())}"
             )
         return False
     
+    def __getitem__(self, key: Any) -> Any:
+        """
+        Retrieves a registered item by its key.
+        """
+        try:
+            unique_key = self._alias_to_key[key]
+            return self.REGISTRY[unique_key]
+        except KeyError:
+            raise KeyError(
+                f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.keys())}"
+            )
 
-# TODO: Rename everywhere to ClassRegistry or Type registry cleat
-class Registry(Generic[T], RegistryMixin):
+    def get(self, key: Any, default: Optional[Any] = None) -> Optional[Any]:
+        """
+        Retrieves a registered item by its key. Returns a default value if not found.
+        """
+        unique_key = self._alias_to_key.get(key)
+        if unique_key is None:
+            return default
+        return self.REGISTRY.get(unique_key, default)
+    
+    def typesafe(self, o: object, default: Any):
+        """
+        Accepts any object, returns correct type
+        """
+        if isinstance(o, str):
+            return self[o]
+        elif self._check(o):
+            return o
+        elif default is not None:
+            return self.typesafe(default, None)
+        else:
+            raise TypeError(
+                f"Object `o` is not valid key or instance of {self.type} and no default is provided"
+            )
+
+    def info(self) -> str:
+        """Returns information about this registry"""
+        return (
+            f"{self.__class__.__name__}({self.type}), containing:\n\t" +
+            "\n\t".join(
+                f"{k}: {self[k].__repr__()}, aliases: {self._key_to_alias.get(k)}"
+                for k in self.unique()
+            )
+        )
+
+class ClassRegistry(Generic[T], RegistryMixin):
     """
     A generic registry to map string keys to classes. It supports registration
     via a decorator and creating instances of registered classes. By using
     a TypeVar, it allows static type checkers to infer the correct type
     of created instances.
-
-    Examples
-    --------
-    ```python
-        from abc import ABC
-
-        class Animal(ABC):
-            def speak(self):
-                raise NotImplementedError
-
-        # Note the generic type hint `ClassRegistry[Animal]`
-        ANIMAL_REGISTRY = ClassRegistry(type=Animal)
-
-        @ANIMAL_REGISTRY.register(key='dog', aliases=['hound'])
-        class Dog(Animal):
-            def speak(self):
-                return "Woof!"
-
-        # create() returns the correct type for static analysis
-        my_dog: Animal = ANIMAL_REGISTRY.create('dog')
-        print(my_dog.speak())  # Output: Woof!
-
-        my_hound: Animal = ANIMAL_REGISTRY.create('hound')
-        print(my_hound.speak()) # Output: Woof!
-    ```
-    
-    Note
-    ----
-    This implementation is not thread-safe for concurrent writes, but this
-    is generally not an issue as registration typically happens once on
-    the main thread at startup. A lock could be added if needed.
     """
 
     def __init__(self, type: Type[T]):
@@ -123,11 +177,16 @@ class Registry(Generic[T], RegistryMixin):
         """
         self.type = type
         self.REGISTRY: Dict[str, Type[T]] = {}
+        self._alias_to_key: Dict[str, str] = {}
+        self._key_to_alias: Dict[str, str] = {}
 
+    def _check(self, obj: Any) -> bool:
+        return issubclass(obj, self.type)
     
-    def register(
-        self, key: str, aliases: Optional[List[str]] = None
-    ) -> Callable[[Type[T]], Type[T]]:
+    def r(self, cls: Type[T], key: str, *aliases) -> Type[T]:
+        return super().r(cls, key, *aliases)
+    
+    def register(self, key: str, *alias: str, aliases: List[str] = None) -> Callable[[Type[T]], Type[T]]:
         """
         Returns a decorator to register a class with a given key and optional aliases.
 
@@ -150,56 +209,16 @@ class Registry(Generic[T], RegistryMixin):
         ValueError
             If the key or any of the aliases are already registered.
         """
-
         def decorator(cls: Type[T]) -> Type[T]:
-            if not issubclass(cls, self.type):
-                raise TypeError(
-                    f"Registered class '{cls.__name__}' must be a subclass of '{self.type.__name__}'"
-                )
-
-            all_keys = [key] + (aliases or [])
-            for k in all_keys:
-                if k in self.REGISTRY:
-                    raise ValueError(f"Key '{k}' is already registered.")
-
-            for k in all_keys:
-                self.REGISTRY[k] = cls
-
-            return cls
+            return self.r(cls, key, *alias)
 
         return decorator
 
     def __getitem__(self, key: str) -> Type[T]:
-        """
-        Retrieves a registered class by its key.
-
-        Parameters
-        ----------
-        key : str
-            The key of the class to retrieve.
-
-        Returns
-        -------
-        Type[T]
-            The class associated with the key.
-
-        Raises
-        ------
-        KeyError
-            If the key is not found.
-        """
-        try:
-            return self.REGISTRY[key]
-        except KeyError:
-            raise KeyError(
-                f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.REGISTRY.keys())}"
-            )
+        return super().__getitem__(key)
     
     def get(self, key: str, default: Optional[Type[T]] = None) -> Optional[Type[T]]:
-        """
-        Retrieves a registered class by its key. Returns a default value if not found.
-        """
-        return self.REGISTRY.get(key, default)
+        return super().get(key, default)
     
     def get_init_params(self, key: str) -> List[str]:
         """
@@ -218,7 +237,6 @@ class Registry(Generic[T], RegistryMixin):
         TargetClass = self[key]
         init_signature = inspect.signature(TargetClass.__init__)
         return list(init_signature.parameters.keys())
-
 
     def create(self, key: str, *args, **kwargs) -> T:
         """
@@ -247,10 +265,8 @@ class Registry(Generic[T], RegistryMixin):
         TargetClass = self[key]
         return TargetClass(*args, **kwargs)
 
+Registry = ClassRegistry  # Alias for backward compatiblity
 
-# ----- Instance Registry -----
-
-# TODO: add lazy initialization of instances?
 class InstanceRegistry(Generic[T], RegistryMixin):
 
     def __init__(self, type: Type[T]):
@@ -263,26 +279,31 @@ class InstanceRegistry(Generic[T], RegistryMixin):
             The base class that all registered items must inherit from.
         """
         self.type = type
-        self.REGISTRY: Dict[str, Type[T]] = {}
+        self.REGISTRY: Dict[str, T] = {}
+        self._alias_to_key: Dict[str, str] = {}
+        self._key_to_alias: Dict[str, str] = {}
 
+    def _check(self, obj) -> bool:
+        return isinstance(obj, self.type)
 
-    def register(
-        self, key: str, aliases: Optional[List[str]] = None
-    ) -> Callable[[T], T]:
+    def r(self, instance: T, key: str, *aliases: str) -> T:
+        return super().r(instance, key, *aliases)
+
+    def register(self, key: str, *alias, aliases: List[str] = None) -> Callable[[T], T]:
         """
-        Returns a decorator to register an instance class with a given key and optional aliases.
+        Returns a decorator to register an instance with a given key and optional aliases.
 
         Parameters
         ----------
         key : str
             The primary key to associate with the class.
-        aliases : Optional[List[str]]
-            A list of alternative keys.
+        *aliases : 
+            Key aliases
 
         Returns
         -------
         Callable[[T], T]
-            A decorator that registers the class.
+            A decorator that registers the instance.
 
         Raises
         ------
@@ -291,66 +312,33 @@ class InstanceRegistry(Generic[T], RegistryMixin):
         KeyError
             If the key or any of the aliases are already registered.
         """
-
-        def decorator(instance: Type[T]) -> Type[T]:
-            if not isinstance(instance, self.type):
-                raise TypeError(
-                    f"Object `{instance.__name__}` is not an instance of"
-                    f"`{self.type.__name__}`"
-                )
-
-            all_keys = [key] + (aliases or [])
-            for k in all_keys:
-                if k in self.REGISTRY:
-                    raise KeyError(f"Key '{k}' is already registered.")
-
-            for k in all_keys:
-                self.REGISTRY[k] = instance
-
-            return instance
+        aliases = aliases or []
+        def decorator(instance: T) -> T:
+            return self.r(instance, key, *alias, *aliases)
 
         return decorator
 
-    def __getitem__(self, key: str) -> T:        
-        try:
-            return self.REGISTRY[key]
-        except KeyError:
-            raise KeyError(
-                f"Key '{key}' not found in {self.__class__.__name__}. Available keys: {list(self.REGISTRY.keys())}"
-            )
+    def __getitem__(self, key: str) -> T:
+        return super().__getitem__(key)
     
     def get(self, key: str, default: Optional[T] = None) -> Optional[T]:
-        """
-        Retrieves a registered instance by its key. Returns a default value if not found.
-        """
-        return self.REGISTRY.get(key, default)
+        return super().get(key, default)
+    
+    def typesafe(self, o: Any, default: Optional[str | T] = None) -> T:
+        """Accepts any object or key, returns instance or raises an error"""
+        return super().typesafe(o, default)
+
 
 # ----- Callable Registry -----
-
 class CallableRegistry(Generic[T], RegistryMixin):
     """
     A generic registry for mapping keys to callables (e.g., functions).
     It supports registration via a decorator and uses a TypeVar to allow
     static type checkers to infer the correct callable type.
 
-    Example usage:
-    ```python
-        from typing import Protocol
-
-        class Greeter(Protocol):
-            def __call__(self, name: str) -> str: ...
-
-        # The generic type hint is the protocol
-        GREETING_REGISTRY = CallableRegistry(Greeter)
-
-        @GREETING_REGISTRY.register(key='formal')
-        def formal_greeting(name: str) -> str:
-            return f"Hello, {name}."
-
-        # get() or __getitem__ returns the correct callable type
-        greeter_func = GREETING_REGISTRY.get('formal') # type is inferred
-        print(greeter_func("Alice"))  # Output: Hello, Alice.
-    ```
+    Note
+    ----
+    It only differs from 
     """
 
     def __init__(self, type: Optional[Type[T]] = None):
@@ -363,13 +351,19 @@ class CallableRegistry(Generic[T], RegistryMixin):
             The protocol or base callable type for type hinting.
             This is not used for runtime validation.
         """
-        self.type = type
+        self.type = type or Callable
         self.REGISTRY: Dict[Any, T] = {}
+        self._alias_to_key: Dict[str, str] = {}
+        self._key_to_alias: Dict[str, str] = {}
 
-    # TODO: add signature check?
-    def register(
-        self, key: Any, aliases: Optional[List[Any]] = None
-    ) -> Callable[[T], T]:
+    # TODO: add/replace to signature check?
+    def _check(self, obj) -> bool:
+        return isinstance(obj, self.type)
+
+    def r(self, instance: T, key: str, *aliases: str) -> T:
+        return super().r(instance, key, *aliases)
+
+    def register(self, key: Any, *alias, aliases: List[str] = None) -> Callable[[T], T]:
         """
         Returns a decorator to register a callable with a given key and optional aliases.
 
@@ -390,49 +384,18 @@ class CallableRegistry(Generic[T], RegistryMixin):
         KeyError
             If the key or any of the aliases are already registered.
         """
-
+        # aliases = (aliases or []).extend(alias)
         def decorator(func: T) -> T:
-            all_keys = [key] + (aliases or [])
-            for k in all_keys:
-                if k in self.REGISTRY:
-                    raise KeyError(f"Key '{k}' is already registered.")
-
-            for k in all_keys:
-                self.REGISTRY[k] = func
-
+            self.r(func, key, *alias)
             return func
 
         return decorator
 
+    def signature(self, key: str) -> inspect.Signature:
+        return inspect.signature(self[key])
+
     def __getitem__(self, key: Any) -> T:
-        """
-        Retrieves a registered callable by its key.
-
-        Parameters
-        ----------
-        key : Any
-            The key of the callable to retrieve.
-
-        Returns
-        -------
-        T
-            The callable associated with the key.
-
-        Raises
-        ------
-        KeyError
-            If the key is not found.
-        """
-        try:
-            return self.REGISTRY[key]
-        except KeyError:
-            available_keys = ", ".join(map(str, self.keys()))
-            raise KeyError(
-                f"Key '{key}' not found in registry. Available keys: [{available_keys}]"
-            )
+        return super().__getitem__(key)
     
     def get(self, key: Any, default: Optional[T] = None) -> Optional[T]:
-        """
-        Retrieves a registered callable by its key. Returns a default value if not found.
-        """
-        return self.REGISTRY.get(key, default)
+        return super().get(key, default)
