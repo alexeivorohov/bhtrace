@@ -1,4 +1,4 @@
-"""Submodule for simplifying work with dimensional quantities and unit systems
+r"""Submodule for simplifying work with dimensional quantities and unit systems
 
 This module provides tools for defining, manipulating, and converting physical quantities
 with associated units. It supports basic mathematical operations and conversions
