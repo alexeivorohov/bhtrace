@@ -1,13 +1,15 @@
 """
 Provides general-purpose, generic registry implementations.
 
+
 This module contains two main classes:
 - `ClassRegistry`: A generic registry for mapping string keys to classes. It is
   type-aware and ensures that registered items are subclasses of a specified
   base class.
+- `InstanceRegistry`: A generic registry for mapping sreing keys to instances of
+  some class.
 - `CallableRegistry`: A generic registry for mapping string keys to functions
-  or other callables. It is also type-aware, allowing for static analysis of
-  the retrieved callables.
+  or other callables.
 
 Both registries support registration via decorators, making them easy to use
 for building extensible, plug-in-based architectures.
