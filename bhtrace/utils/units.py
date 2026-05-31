@@ -24,10 +24,10 @@ Quantity(1.581e-35 [L^1, T^-2])
 
 Notes
 -----
-This implementation follows BIPM 2022 choice of fundamental units [1]_, [2]_ and takes
-most of the constants from `scipy.constants`, which is using latest CODATA values.
+This implementation follows BIPM 2022 choice of fundamental units [[1]_, [2]_] and takes
+most of the constants from `scipy.constants`, which is using the latest CODATA values.
 
-For planck units
+For planck units, charge scale is selected so that :math:`\epsilon_0=1`
 
 References
 ----------
@@ -108,7 +108,7 @@ class Quantity:
         """
         return self._system
 
-    @property
+    @cached_property
     def f(self) -> float:
         """Numerical value of this quantity in its current unit system.
 
@@ -537,6 +537,32 @@ planck_time = QUANTITY_REGISTRY.r((hbar * G * c.pow(-5)).sqrt(), 'planck_T')
 planck_temperature = QUANTITY_REGISTRY.r((hbar * c.pow(5) * kB.pow(-2) / G).sqrt(), 'planck_K')
 planck_charge = QUANTITY_REGISTRY.r(e / (4 * math.pi * alpha).sqrt(), 'planck_Q')
 
+light_year = QUANTITY_REGISTRY.r(year * c, 'light_year', 'ly')
+ly = light_year
+
+au = QUANTITY_REGISTRY.r(constants.au * meter, 'au', 'astronomical unit')
+
+dminute = QUANTITY_REGISTRY.r(deg / 60, 'deg`', 'degree minute')
+dsec = QUANTITY_REGISTRY.r(dminute / 60, 'deg``', 'degree second')
+muarcsec = QUANTITY_REGISTRY.r(dsec * 1e-6, 'muarcs', 'muarcsec')
+parsec = QUANTITY_REGISTRY.r(constants.parsec * meter, 'pc', 'parsec')
+
+bb_scale = QUANTITY_REGISTRY.r(2 * h / c**2, 'bb_scale')
+"""Leading coefficient in the Planck blackbody radiation law"""
+
+bb_power = QUANTITY_REGISTRY.r(h / kB, 'bb_pow') 
+"""Coefficient before nu/T in the exponent in the Planck blackbody radiation law"""
+
+m_sgrA = m_sun * 4.297e6
+"""Mass of Saggitarius A"""
+D_sgrA = 22_996 * ly
+"""Distance to Saggitarius A"""
+
+m_M87 = m_sun * 6.5e9 
+"""Mass of M87"""
+D_M87 = 53.5e6 * ly
+"""Distance to M87"""
+
 
 # TODO: replace principals dict with frozendict in python 3.15
 class UnitSystem:
@@ -703,7 +729,7 @@ class UnitSystem:
         other = UNIT_SYSTEMS_REGISTRY.typesafe(other)
         return _compare_principal_reprs(self._principals, other._principals)
 
-    @cached_property
+    @property
     def all(self) -> str:
         """Provides a string representation of all registered quantities converted to this unit system.
 
