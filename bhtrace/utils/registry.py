@@ -16,7 +16,7 @@ from abc import abstractmethod, ABC
 import inspect
 import logging
 from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar, Mapping, Tuple, overload
-from bhtrace.globs import BHTRACE_LOG_FACTORY_PARAMS
+from bhtrace.globs import LOG_FACTORY_PARAMS
 
 # from bhtrace.utils.log import Log
 
