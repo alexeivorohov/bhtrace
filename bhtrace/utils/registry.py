@@ -11,7 +11,7 @@ This module contains two main classes:
 - `CallableRegistry`: A generic registry for mapping string keys to functions
   or other callables.
 
-Both registries support registration via decorators, making them easy to use
+All registries support registration via decorators, making them easy to use
 for building extensible, plug-in-based architectures.
 """
 from abc import abstractmethod, ABC
@@ -268,7 +268,7 @@ class ClassRegistry(Generic[T], RegistryMixin):
         T
             An instance of the registered class.
         """
-        if BHTRACE_LOG_FACTORY_PARAMS:
+        if LOG_FACTORY_PARAMS:
             log.info(
                 f"ClassRegistry {self.type} creates `{key}`:\n"
                 f"args: {args} | kwargs: {kwargs}"
