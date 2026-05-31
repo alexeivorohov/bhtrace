@@ -41,14 +41,24 @@ class RegistryMixin(ABC):
     type: T
 
     def r(self, obj: Any, key: Any, *aliases: Any):
+
+        if not self._check(obj):
+            raise TypeError(
+                f"Can not register object of type {type(obj)} "
+                f"in a Registry for type {self.type}"
+            )
+
         if key in self.REGISTRY:
-            raise ValueError(f"Unique key '{key}' is already registered.")
+            raise ValueError(
+                f"Unique key '{key}' is already registered."
+            )
 
         all_keys = [key, *aliases]
         for k in all_keys:
             if k in self._alias_to_key:
                 print(obj)
                 raise ValueError(f"Key or alias '{k}' is already registered.")
+
 
         self.REGISTRY[key] = obj
         for k in all_keys:
@@ -332,16 +342,26 @@ class InstanceRegistry(Generic[T], RegistryMixin):
 # ----- Callable Registry -----
 class CallableRegistry(Generic[T], RegistryMixin):
     """
-    A generic registry for mapping keys to callables (e.g., functions).
-    It supports registration via a decorator and uses a TypeVar to allow
-    static type checkers to infer the correct callable type.
+    A generic registry designed to map unique keys to callable objects 
+    (e.g., functions, methods).
 
-    Note
-    ----
-    It only differs from 
+    It supports registration through a dedicated decorator and leverages 
+    a TypeVar to enable static type checkers from accurately inferring the 
+    registered callable's specific type.
+
+    Notes
+    -----
+    While this class shares structural similarities with `InstanceRegistry` 
+    (as callables often behave like instances), a separate registry is necessary 
+    for two primary reasons:
+    1. **Functionality:** Providing direct access to the callable's signature 
+       via the dedicated `__call__` method. 
+    2. **Type Handling:** Oftenly callable registries require strict type checking 
+    to be disabled.
     """
 
-    def __init__(self, type: Optional[Type[T]] = None):
+
+    def __init__(self, type: Optional[Type[T]] = None, strict: bool = False):
         """
         Initializes the registry.
 
@@ -349,16 +369,20 @@ class CallableRegistry(Generic[T], RegistryMixin):
         ----------
         type : Optional[Type[T]], optional
             The protocol or base callable type for type hinting.
-            This is not used for runtime validation.
+        strict : bool, default=False
+            Enables the type checking.
         """
         self.type = type or Callable
         self.REGISTRY: Dict[Any, T] = {}
         self._alias_to_key: Dict[str, str] = {}
         self._key_to_alias: Dict[str, str] = {}
+        self.strict = strict
 
     # TODO: add/replace to signature check?
     def _check(self, obj) -> bool:
-        return isinstance(obj, self.type)
+        if self.strict:
+            return isinstance(obj, self.type)
+        return True
 
     def r(self, instance: T, key: str, *aliases: str) -> T:
         return super().r(instance, key, *aliases)
