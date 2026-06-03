@@ -1,12 +1,13 @@
 '''
 Submodule for hanlding several routines:
-- Image plotting and graphical pre-sets
 - Differentiation
 - ODE Integration
 - Linear and tensor algebra
 - Rootfinfding
+- Physical constants and unit systems
 - etc
 '''
+from . import units
 
 from .routines import *
 from .odeint import *

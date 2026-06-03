@@ -915,6 +915,42 @@ class NaturalGeometric(UnitSystem):
         )
         self.M_si = M_si
 
+class GRRTUnitSystem(UnitSystem):
+    r"""
+    Unit system, convenient for GRRT purposes. It is selected so that distances
+    are aligned with geometrized units, used during ray-tracing, while radiatively 
+    important parameters have "sane" scales.
+
+    Notes
+    -----
+
+    Units of this system are scaled so that:
+    .. math::
+
+        c = 1, G = 1, M = 1, R_s = 2, T_{\text{char}} = 1
+    
+    Where :math:`c` is speed of light, :math:`G` is gravitational constant
+    :math:`M` is a mass of the central object (e.g. black hole), :math:`R_s`
+    is a Schwarzschild radius, :math:T_{\text{char}} - characteristic temperature.
+    
+    """
+
+    def __init__(self, mass: float, temperature: float = 6.0e3):
+        """
+        Initializes the GRRTUnitSystem.
+
+        Parameters
+        ----------
+        mass : float
+            Mass of the object in SI units (kg).
+        temperature : float, optional
+            Characteristic temperature of the object in SI units (K).
+            Defaults to 6000 K.
+        """
+        L = mass * G * c.pow(-2)
+        T = L / c 
+        super().__init__(L=L.si, T=T.si, M=mass, K=temperature)
+
 
 def info():
     """Prints information about defined units & units system.
