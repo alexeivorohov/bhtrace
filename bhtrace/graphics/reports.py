@@ -8,7 +8,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from bhtrace.grrt.runner import GRRT
-    from bhtrace.trajectory.trajectory import Trajectory
+    from bhtrace.data import Trajectory
 
 def tracing_report(trajectory: 'Trajectory'):
     ...

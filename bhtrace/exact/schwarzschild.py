@@ -3,7 +3,7 @@ from typing import Tuple, List
 import torch
 
 from ._base import AnalyticSolution
-from bhtrace.trajectory import Trajectory
+from bhtrace.data import Trajectory
 from bhtrace.geometry.spacetime import SchwSchild
 
 class Schwarzschild(AnalyticSolution):
