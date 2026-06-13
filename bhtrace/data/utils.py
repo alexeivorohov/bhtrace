@@ -1,8 +1,6 @@
 from typing import List, Dict
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .trajectory import Trajectory
+from .trajectory import Trajectory
 
 def join_trajectories( trajectories: List[Trajectory], fill_reprs: bool = True) -> Trajectory:
     """Joins a list of trajectories to the current one.
@@ -75,3 +73,21 @@ def join_trajectories( trajectories: List[Trajectory], fill_reprs: bool = True) 
 
     # self.ntraj += sum([t.ntraj for t in trajectories])
     # return self
+
+def trajectory_from_dict(data: Dict) -> Trajectory:
+    """Creates a Trajectory object from a dictionary.
+
+    Parameters
+    ----------
+    data : dict
+        A dictionary containing trajectory data, typically loaded from a file.
+
+    Returns
+    -------
+    Trajectory
+        A new Trajectory object.
+    """
+
+    parameters = {}
+
+    return Trajectory(**parameters)

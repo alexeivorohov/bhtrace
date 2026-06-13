@@ -1,24 +1,21 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional, Union, Type, Literal
+from typing import List, Tuple, Optional, Union, Type, Literal, Dict, Any
 from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
-from functools import cached_property, cache, lru_cache
+from functools import cached_property
 
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 from bhtrace.geometry.spacetime._base import Spacetime
 from bhtrace.geometry.particle import Particle
 from bhtrace.geometry.transformation import relation_dict
 import bhtrace.graphics as bhg
 
-import matplotlib.pyplot as plt
-
 if TYPE_CHECKING:
     from bhtrace.tracing._base import Tracer
-    from bhtrace.data.grrtdata import GRRTData
-
-# TODO: add get_scalar interface which will map keys to scalar features
 
 @dataclass
 class Trajectory:
@@ -281,36 +278,24 @@ class Trajectory:
         Trajectory
             A new Trajectory object.
         """
-        from bhtrace.tracing import MockTracer
-        from bhtrace.geometry import Particle
+        from bhtrace.data.utils import trajectory_from_dict
+        return trajectory_from_dict(data)
+    
 
-        particle = Particle.from_dict(data["particle_state"])
-        spacetime = particle.spacetime
-        # TODO: Save tracer state
-        tracer = MockTracer(particle, spacetime)
+    def join(self, others: List[Trajectory], fill_reprs: bool = False):
+        from bhtrace.data.utils import join_trajectories
+        return join_trajectories([self].extend(others), fill_reprs=fill_reprs)
 
-        affine_t = data.get("affine_t")
-        if affine_t is None:
-            affine_t = data.get("l")  # For backward compatibility
-        if affine_t is None:
-            # For backward compatibility with very old trajectory files
-            affine_t = torch.zeros(
-                data["X"].shape[0],
-                data["X"].shape[1],
-                dtype=data["X"].dtype,
-                device=data["X"].device,
-            )
 
-        traj = cls(
-            data["X"], data["P"], affine_t, particle, tracer, data["coord_original"]
-        )
-        if "__XP_reprs__" in data:
-            traj.__XP_reprs__ = data["__XP_reprs__"]
-
-        if "lens" in data:
-            traj.lens = data["lens"]
-
-        return traj
+    def state(self) -> Dict[str, Any]:
+        return {
+            "X": self._X,
+            "P": self._P,
+            "affine_t": self.affine_t,
+            "coord_original": self.solution_coordinates,
+            "particle_state": self.particle.state(),
+            "spacetime_state": self.spacetime.state(),
+        }
 
     def save(self, filename: str, save_reprs: bool = True) -> None:
         """Saves the trajectory data to a file.
@@ -322,21 +307,12 @@ class Trajectory:
         save_reprs : bool, optional
             If True, saves all cached coordinate representations. Defaults to True.
         """
-        data = {
-            "X": self._X,
-            "P": self._P,
-            "affine_t": self.affine_t,
-            "coord_original": self.solution_coordinates,
-            "particle_state": self.particle.state(),
-            "spacetime_state": self.spacetime.state(),
-        }
+        data = self.state()
         if save_reprs:
             data["__XP_reprs__"] = self.__XP_reprs__
-        if hasattr(self, "lens"):
-            data["lens"] = self.lens
-
+        
         torch.save(data, filename)
-        print(f"File saved at {filename}")
+
 
     @staticmethod
     def load(filename: str) -> Trajectory:
