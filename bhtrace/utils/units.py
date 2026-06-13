@@ -509,6 +509,8 @@ schwinger_E = QUANTITY_REGISTRY.r((m_e**2 * c**3) / (e * hbar), "E_crit", "schwi
 schwinger_B = QUANTITY_REGISTRY.r((m_e**2 * c**2) / (e * hbar), "B_crit", "schwinger B")
 """Schwinger critical magnetic field"""
 
+
+
 eps0 = QUANTITY_REGISTRY.r(
     constants.epsilon_0 * capacitance / length, "eps0", "vacuum permittivity"
 )
@@ -563,6 +565,15 @@ m_M87 = m_sun * 6.5e9
 D_M87 = 53.5e6 * ly
 """Distance to M87"""
 
+electron_radius = QUANTITY_REGISTRY.r(
+    1 / 4 / math.pi / eps0 / m_e * (e / c).pow(2), 'electron radius'
+)
+"""Classical electron radius"""
+
+born_infeld_E = QUANTITY_REGISTRY.r(
+    e / electron_radius.pow(2), 'born-infeld E'
+)
+"""Upper limit on electric field in Born-Infeld model"""
 
 # TODO: replace principals dict with frozendict in python 3.15
 class UnitSystem:
@@ -865,6 +876,7 @@ UNIT_SYSTEMS_REGISTRY = InstanceRegistry(UnitSystem)
 
 SI = UnitSystem(aliases=["si", "SI"])
 """International Unit System"""
+si = SI
 
 planck = UnitSystem(
     aliases=["planck"],

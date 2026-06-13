@@ -1,7 +1,8 @@
 from . import spacetime
 from . import particle
-from . import electrodynamics
 from . import transformation
+
+
 from .transformation import (
     CoordinateTransformation
 )
@@ -17,10 +18,6 @@ from .particle import (
     PARTICLE_REGISTRY,
     Photon,
 )
-from .electrodynamics import (
-    Electrodynamics,
-    ELECTRODYNAMICS_REGISTRY,
-    Maxwell,
-)
+
 
 from .observer import Observer
