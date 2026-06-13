@@ -36,6 +36,12 @@ classifiers = [
   "Programming Language :: Python"
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-mock"
+]
+
 [project.scripts]
 bhtrace = "bhtrace.cli:main"
 
