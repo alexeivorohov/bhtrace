@@ -7,6 +7,7 @@ PyTorch-based library for modeling images of compact objects
 # Submodules
 
 from . import geometry
+from . import physics
 from . import graphics
 from . import grrt
 from . import medium
