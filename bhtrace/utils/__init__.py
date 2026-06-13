@@ -15,7 +15,12 @@ from .odeint import *
 from .diff import *
 from .linalg import *
 from .transform import *
-from .caching import *
+from .caching import * # DEPRECATING
 from .operation import *
 from .log import Logger, LOG
-from .registry import Registry, CallableRegistry
+from .registry import (
+    Registry, # OLD NAME
+    CallableRegistry,
+    InstanceRegistry,
+    ClassRegistry,
+)
