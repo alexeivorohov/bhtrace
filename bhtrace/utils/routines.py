@@ -13,6 +13,59 @@ import numpy as np
 
 ### Array utilities
 
+def xz_grid_4d_spherical(
+        N_x: int = 16, 
+        N_z: int = 1, 
+        x_lims: Tuple[float, float] = (2.0, 20.0), 
+        z_lims: Tuple[float, float] = (-9.0, 9.0),
+        t: float = 0.0,
+        phi: float = 0.0,
+    ) -> torch.Tensor:
+    """
+    Produces a regular XZ grid in 4D spherical coordinates
+
+    Parameters
+    ----------
+    N_x : int, defaults to 16
+        Number of points in the X dimension.
+    N_z : int, defaults to 1
+        Number of points in the Z dimension.
+    x_lims : Tuple (min, max), defaults to (2.0, 20.0)
+        Grid limits along X coordinate.
+    z_lims : Tuple (min, max), defaults to (-9.0, 9.0)
+        Grid limits along Z coordinate.
+    t : float, defaults to 0.0
+        The fixed time coordinate for the grid slice.
+    phi : float, defaults to 0.0
+        Fixed azimuthal angle for the grid
+    Returns
+    -------
+    torch.Tensor, shape (N_x, N_z, 4).
+        A tensor containing the coordinate mesh
+    """
+    
+    x_span = torch.linspace(x_lims[0], x_lims[1], N_x)
+    if N_z > 1:
+        z_span = torch.linspace(z_lims[0], z_lims[1], N_z)
+    else:
+        z_span = torch.tensor([sum(z_lims)])
+
+    z_grid, x_grid,  = torch.meshgrid(
+        z_span, x_span, indexing='ij'
+    )
+
+    theta_grid = torch.atan2(x_grid, z_grid)
+    r_grid = (x_grid.pow(2) + z_grid.pow(2)).sqrt()
+    
+    outp = torch.zeros(N_z, N_x, 4)
+    outp[..., 0] = t
+    outp[..., 1] = r_grid
+    outp[..., 2] = theta_grid
+    outp[..., 3] = phi
+
+    return outp
+
+
 def meshgrid4d(ts, rs, ths, phs):
     '''
     Constructs 4d meshgrid from given arrays
@@ -39,6 +92,7 @@ def meshgrid4d(ts, rs, ths, phs):
 
     return X
 
+# this method should be putted into backward compatibility mode - .utils.mesh module must replace it
 def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
     '''
     Routine for generating coordinate grid on observer's sky
@@ -73,6 +127,8 @@ def net(shape='square', rng=(5, 5), YZ0=[0, 0], X0=20, YZsize=[8, 8]):
         zz = r*torch.cos(ph)
     elif shape == 'hex':
         raise NotImplementedError('hex shape is not implemented')
+    else:
+        raise ValueError(f'Unknown net type {shape}')
 
     xx = torch.ones_like(yy)*X0
     yy = yy*YZsize[0] + YZ0[0]

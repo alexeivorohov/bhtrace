@@ -14,7 +14,7 @@ import math
 from typing import Tuple, List, Callable, Optional
 
 import torch
-from bhtrace.graphics import Plot3D
+import bhtrace.graphics as bhg
 
 
 class Mesh(ABC):
@@ -105,22 +105,9 @@ class Mesh(ABC):
         Returns:
             A tuple containing the figure and axes.
         """
-        return Plot3D.point_cloud(self.pos3d, self.generation, fig=fig, ax=ax)
+        return bhg.plot3d.point_cloud(self.pos3d, self.generation, fig=fig, ax=ax)
 
 
-class MeshFactory:
-    @staticmethod
-    def create_mesh(mesh_type, **kwargs):
-        if mesh_type == "linear":
-            return Linear(**kwargs)
-        elif mesh_type == "rectangle":
-            return Rectangle(**kwargs)
-        elif mesh_type == "hex":
-            return Hex(**kwargs)
-        elif mesh_type == "circle":
-            return Circle(**kwargs)
-        else:
-            raise ValueError(f"Unknown mesh type: {mesh_type}")
 
 
 class Linear(Mesh):

@@ -72,7 +72,7 @@ uniplot_wraps : (visible as bhg.uniplot)
 # --- Public API ---
 
 from .traj2d import plot2d
-from .traj3d import plot3d
+from .traj3d import plot3d, scatter3d
 # from .lensing import lensing_curve
 from .histogram import hist, ridge
 

@@ -11,12 +11,12 @@ and connection coefficients.
 from abc import ABC, abstractmethod
 from typing import Literal
 import inspect
+from functools import cached_property
 
 import torch
 
 from bhtrace.utils.numrel import numeric_conn, numeric_tetrad, jacobian
 from bhtrace.utils import Cacher, Logger, LOG, Registry
-
 
 class Spacetime(ABC):
     """Abstract base class for all spacetime geometries.
@@ -314,6 +314,7 @@ class Spacetime(ABC):
         """
         return self.tetrad(x)
 
+    @property
     def r_isco(self) -> float:
         """Return the radius of the innermost stable circular orbit (ISCO).
 
@@ -330,8 +331,10 @@ class Spacetime(ABC):
     def compile(self):
         """Compile the class with `torch.jit.script` for performance.
 
-        .. note:: This is an experimental feature and may not work for all
-                  subclasses.
+        .. note:: 
+        
+        This is an experimental feature and may not
+        work for all subclasses.
 
         """
         return torch.jit.script(self)
@@ -340,10 +343,6 @@ class Spacetime(ABC):
     def real(self) -> "Spacetime":
         """Return the real spacetime.
 
-        Notes
-        -----
-        The purpose of this property is unclear without more context on
-        effective spacetime geometries. It returns the object itself.
         """
         return self
 
@@ -351,16 +350,14 @@ class Spacetime(ABC):
     def eff(self) -> "Spacetime":
         """Return the effective spacetime.
 
-        Notes
-        -----
-        The purpose of this property is unclear without more context on
-        effective spacetime geometries. It returns the object itself.
         """
         return self
 
     def __repr__(self) -> str:
         return self.__class__.__name__
 
+    def local(self, x: torch.Tensor) -> 'SpacetimeLocal':
+        return SpacetimeLocal(self, x)
 
 SPACETIME_REGISTRY = Registry(Spacetime)
 
@@ -403,3 +400,48 @@ class MockSpacetime(Spacetime):
         outp[..., 3, 3] = 1 / self.coefs[3]
 
         return outp
+
+
+class SpacetimeLocal:
+    """Data transfer object for spacetime properties at a point X.
+    
+    Binds the methods of given `Spacetime` instance to a given batch of points
+
+    All properties are computed once on demand and can be acessed in any time and in any order.
+    """
+    def __init__(self, spacetime: 'Spacetime', x: torch.Tensor):
+        self.spacetime = spacetime
+        self.x = x
+        self.batch = self.x.shape[:-1] 
+
+    @cached_property
+    def g(self) -> torch.Tensor:
+        return self.spacetime.g(self.x)
+    
+    @cached_property
+    def ginv(self) -> torch.Tensor:
+        return self.spacetime.ginv(self.x)
+    
+    @cached_property
+    def detg(self) -> torch.Tensor:
+        return torch.linalg.det(self.g)
+    
+    @cached_property
+    def conn(self) -> torch.Tensor:
+        return self.spacetime.conn(self.x)
+    
+    @cached_property
+    def dg(self) -> torch.Tensor:
+        return self.spacetime.dg(self.x)
+    
+    @cached_property
+    def sqrtmg(self) -> torch.Tensor:
+        return (- self.detg).sqrt()
+    
+    @cached_property
+    def tetrad(self) -> torch.Tensor:
+        return self.spacetime.tetrad(self.x)
+    
+    @cached_property
+    def lnrf(self) -> torch.Tensor:
+        return self.spacetime.lnrf(self.x)

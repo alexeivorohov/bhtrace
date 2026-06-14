@@ -4,13 +4,13 @@ This module contains utilities for dispalying calculation progress
 '''
 import os
 import sys
-import time
-import argparse
+import pathlib
+import logging
 
 from typing import Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bhtrace.trajectory import Trajectory
+    from bhtrace.data import Trajectory
 
 def print_status_bar(progress, total, elapsed_time):
     '''
@@ -41,21 +41,35 @@ def print_status_bar(progress, total, elapsed_time):
     sys.stdout.write(status + info)
     sys.stdout.flush()
 
-def addparser(docstr):
-    '''
+def _env_var_path_override(name: str, is_dir: bool = False, log: logging.Logger = None) -> str | None:
+
+    path = os.environ.get(name)
+    if path is None:
+        return None
+
+
+    path = pathlib.Path(path)
+    assert path.exists(),\
+        f"Detected path override by environment variable {name}, but path does not exist {path}"
     
-    '''
-    parser = argparse.ArgumentParser(
-    description=docstr)
-    parser.add_argument('-l', '--load', action='store_true', 
-                        help='Indicates if the program should load data from a file (default: False)')
-    parser.add_argument('-s', '--save', action='store_true', 
-                        help='Indicates if the program should overwrite existing saves (default: True)')
-        
-    return parser
+    if is_dir:
+        assert path.is_dir(),\
+            f"Path override by environment variable {name} is not a directory: {path}"
+    else:
+        assert path.is_file(),\
+            f"Path override by environment variable {name} is not a file: {path}"
+
+    log = log or logging.getLogger(__file__)
+
+    log.info(
+        f"Successfully read path override from environment variable {name}, "
+        f"set {name} to {path}"
+    )
+
+    return path
 
 def loader(directory) -> Dict[str, 'Trajectory']:
-    from bhtrace.trajectory import Trajectory
+    from bhtrace.data import Trajectory
     try:
         files = os.listdir(directory)
         trajs = {}

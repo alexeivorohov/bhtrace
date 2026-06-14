@@ -7,7 +7,7 @@ from typing import Tuple
 import torch
 import tqdm
 
-from bhtrace.trajectory import Trajectory
+from bhtrace.data import Trajectory
 from bhtrace.tracing import Tracer
 from bhtrace.geometry import Particle, Observer
 from bhtrace.utils import weightened_upsample_1d
@@ -32,6 +32,8 @@ def eval_lens(traj: Trajectory,
 
     return dphi
 
+
+
 class Lensing:
     '''
     This class implements effective construction of trajectories for lensing scenario
@@ -50,11 +52,12 @@ class Lensing:
         self.diff_threshold_func = lambda tgt: torch.greater(tgt, 0.1*torch.pi*2)
         self.mean_threshold_func = lambda tgt: torch.greater(tgt, 0.75*torch.pi*2)
 
-    def forward(self,
-                nsplits: int = 5,
-                T: float = 30,
-                nsteps: int = 128,
-                ) -> Tuple[torch.Tensor, torch.Tensor, Trajectory]:
+    def forward(
+        self,
+        nsplits: int = 5,
+        T: float = 30,
+        nsteps: int = 128,
+    ) -> Tuple[torch.Tensor, torch.Tensor, Trajectory]:
         '''
         Args:
             nsplits: int - number of recursive upsampling steps.
@@ -71,11 +74,9 @@ class Lensing:
         x_new = self.observer.X_net.clone()
         pos, p0 = self.observer.setup_ic(particle=self.particle)
 
-        traj = self.tracer.forward(particle=self.particle,
-                              X0=pos,
-                              P0=p0,
-                              T=T,
-                              nsteps=nsteps)
+        traj = self.tracer.forward(
+            self.particle, X0=pos, P0=p0, T=T, nsteps=nsteps
+        )
         
         dphi = eval_lens(traj)
         trajs = []
@@ -103,8 +104,8 @@ class Lensing:
             trajs.append(traj_)
 
         traj.join(trajs)
-        traj.lens = (dphi, x_new[..., 2])
-
+        # traj.lens = (dphi, x_new[..., 2])
+        traj = None
         return x_new, dphi, traj
     
     def setup(self, config) -> None:
@@ -122,11 +123,11 @@ class Lensing:
 
     @staticmethod
     def prepare_ic(
-                   N_init: int = 3,
-                   d0: torch.Tensor = torch.tensor([20, 0, 0]),
-                   b0: Tuple[float] = (-16.0, 16.0),
-                   X_ab: Tuple[torch.Tensor] = None
-                   ) -> Tuple[torch.Tensor, torch.Tensor]:
+        N_init: int = 3,
+        d0: torch.Tensor = torch.tensor([20, 0, 0]),
+        b0: Tuple[float] = (-16.0, 16.0),
+        X_ab: Tuple[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         '''Prepare initial positions for a lensing simulation screen.
         
         Args:

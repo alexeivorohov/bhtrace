@@ -438,18 +438,18 @@ class KerrBL(Spacetime):
         costh2 = torch.pow(costh, 2)
         sinth2 = torch.pow(sinth, 2)
 
-        rho2 = r2 + self.a2 * costh2
-        z = 2 * r / rho2
+        sgma = r2 + self.a2 * costh2
+        z = 2.0 * r / sgma
         dlta = r2 + self.a2 - 2 * r
-        sgma = (r2 + self.a2) ** 2 - self.a2 * dlta * sinth2
+        # sgma = (r2 + self.a2) ** 2 - self.a2 * dlta * sinth2
 
         outp[..., 0, 0] = z - 1
-        outp[..., 0, 3] = -z * self.a * sinth2
+        outp[..., 0, 3] = - z * self.a * sinth2
         outp[..., 3, 0] = outp[..., 0, 3]
 
-        outp[..., 1, 1] = rho2 / dlta
-        outp[..., 2, 2] = rho2
-        outp[..., 3, 3] = sgma * sinth2 / rho2
+        outp[..., 1, 1] = sgma / dlta
+        outp[..., 2, 2] = sgma
+        outp[..., 3, 3] = (r2 + self.a2 + self.a2 * z) * sinth2
 
         return outp
 
@@ -478,31 +478,28 @@ class KerrBL(Spacetime):
         costh2 = torch.pow(costh, 2)
         sinth2 = torch.pow(sinth, 2)
 
-        rho2 = r2 + self.a2 * costh2
-        dlta = r2 + self.a2 - 2 * r
-
-        # g^rr
-        outp[..., 1, 1] = dlta / rho2
-        # g^thth
-        outp[..., 2, 2] = 1 / rho2
-
-        # (t, phi) block
-        sgma_term = (r2 + self.a2) ** 2 - self.a2 * dlta * sinth2
-        inv_rho2_dlta = 1.0 / (rho2 * dlta)
+        sgma = r2 + self.a2 * costh2
+        dlta = r2 + self.a2 - 2.0 * r
+        inv_sgma_dlta = (sgma * dlta).pow(-1)
+        
+        big_a = (r2 + self.a2).pow(2) - self.a2 * dlta * sinth2
 
         # g^tt
-        outp[..., 0, 0] = -sgma_term * inv_rho2_dlta
+        outp[..., 0, 0] = - big_a * inv_sgma_dlta
         # g^tphi
-        outp[..., 0, 3] = -2 * self.a * r * inv_rho2_dlta
+        outp[..., 0, 3] = - 2.0 * self.a * r * inv_sgma_dlta
         outp[..., 3, 0] = outp[..., 0, 3]
-
+        # g^rr
+        outp[..., 1, 1] = dlta / sgma
+        # g^thth
+        outp[..., 2, 2] = 1.0 / sgma
         # g^phiphi
-        outp[..., 3, 3] = (dlta - self.a2 * sinth2) * inv_rho2_dlta / sinth2
+        outp[..., 3, 3] = (dlta - self.a2 * sinth2) * inv_sgma_dlta / sinth2
 
         return outp
 
     def tetrad(
-        self, x: torch.Tensor, zeta: float | torch.Tensor = 0.0, sgn: float = +1
+        self, x: torch.Tensor, zeta: float | torch.Tensor = 0.0, sgn: float = -1
     ) -> torch.Tensor:
         """
         Compute a general local tetrad for Kerr spacetime.
@@ -515,7 +512,7 @@ class KerrBL(Spacetime):
             Frame angular velocity, by default 0.0.
         sgn : float, optional
             A sign parameter, by default +1.
-            .. note:: The physical interpretation of this sign is unclear.
+           The physical interpretation of this sign is unclear.
 
         Returns
         -------
@@ -530,19 +527,23 @@ class KerrBL(Spacetime):
         r = x[..., 1]
         r2 = r.pow(2)
 
+        costh = torch.cos(x[..., 2])
         sinth = torch.sin(x[..., 2])
+
+        costh2 = torch.pow(costh, 2)
         sinth2 = torch.pow(sinth, 2)
 
         dlta = r2 + self.a2 - 2 * r
-        sgma = (r2 + self.a2) ** 2 - self.a2 * dlta * sinth2
+        sgma = r2 + self.a2 * costh2
+
         dlta_sqrt = dlta.sqrt()
         sgma_sqrt = sgma.sqrt()
 
-        g_tt = -(1 - 2 * r / sgma)
-        g_tphi = -2 * self.a * r * sinth2 / sgma
-        g_phiphi = r2 + self.a2 + 2 * self.a2 * r * sinth2 / sgma
+        g_tt = -(1 - 2.0 * r / sgma)
+        g_tphi = - 2.0 * self.a * r * sinth2 / sgma
+        g_phiphi = (r2 + self.a2 - g_tphi*self.a) * sinth2
 
-        gma_inv_sqare = -g_tt - 2 * zeta * g_tphi - zeta.pow(2) * g_phiphi
+        gma_inv_sqare = - g_tt - 2 * zeta * g_tphi - zeta.pow(2) * g_phiphi
         # print(gma_inv_sqare.shape)
         gma = gma_inv_sqare.pow(-2)
 
@@ -587,17 +588,23 @@ class KerrBL(Spacetime):
         r = x[..., 1]
         r2 = r.pow(2)
 
+
+        costh = torch.cos(x[..., 2])
         sinth = torch.sin(x[..., 2])
+
+        costh2 = torch.pow(costh, 2)
         sinth2 = torch.pow(sinth, 2)
 
         dlta = r2 + self.a2 - 2 * r
-        sgma = (r2 + self.a2) ** 2 - self.a2 * dlta * sinth2
+        sgma = r2 + self.a2 * costh2
+
         dlta_sqrt = dlta.sqrt()
         sgma_sqrt = sgma.sqrt()
 
-        g_tphi = -2 * self.a * r * sinth2 / sgma
-        g_phiphi = r2 + self.a2 + 2 * self.a2 * r * sinth2 / sgma
-        omega = -g_tphi / g_phiphi  # may be zero
+        g_tphi = - 2.0 * self.a * r * sinth2 / sgma
+        g_phiphi = (r2 + self.a2 - g_tphi*self.a) * sinth2
+
+        omega = - g_tphi / g_phiphi  # tends to infinity near poles
         _a_sqrt = (2 * self.a * r / omega).sqrt()
 
         # e_(0)^{\mu}
@@ -607,7 +614,7 @@ class KerrBL(Spacetime):
         # e_(1)^{\mu}
         outp[..., 1, 1] = dlta_sqrt / sgma_sqrt
         # e_(2)^{\mu}
-        outp[..., 2, 2] = 1 / sgma_sqrt
+        outp[..., 2, 2] = 1.0 / sgma_sqrt
         # e_(3)^{\mu}
         outp[..., 3, 3] = sgma_sqrt / _a_sqrt / sinth
 

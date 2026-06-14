@@ -1,10 +1,14 @@
-import warnings
+"""
+This submodule defines some methods and presets common in colored plots, mostly matplotlib-specific.
+
+"""
+
 from typing import Tuple, List
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from matplotlib.collections import LineCollection, Collection
+from matplotlib.collections import LineCollection
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 from matplotlib.colors import Colormap, Normalize
@@ -12,33 +16,62 @@ import matplotlib.cm as cm
 from matplotlib.cm import ScalarMappable
 
 
-def _multicolored_line_2d_single(
-    x: np.ndarray, 
-    c: np.ndarray, 
-    ax: plt.Axes,
-    linewidth: int,
-    sm: ScalarMappable,
-    **kwargs
-) -> Collection:
+def _single_rgba_vs_coords(rgba: np.ndarray, coords: np.ndarray, i: int = None) -> np.ndarray:
     """
-    Plot a line with a color specified along the line by a third value.
-
-    Mostly follows matplotlib example:
-    https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html
-    """
-    x_midpts = 0.5*(x[1:, :] + x[:-1, :])
-    coord_start = x[:-1, np.newaxis, :]
-    coord_mid = x_midpts[:, np.newaxis, :]
-    coord_end = x[1:, np.newaxis, :]
-
-    segments = np.concatenate((coord_start, coord_mid, coord_end), axis=1)
-
-    lc = LineCollection(segments, linewidth=linewidth, **kwargs)
-    # c has shape (N,), segments has shape (N-1, ...).
-    # We color segments by the color of the starting point.
-    lc.set_color(sm.to_rgba(c[:-1]))
     
-    return ax.add_collection(lc)
+    Parameters
+    ----------
+    rgba : np.ndarray of shape (N, C) or (1, C)
+        Input rgba colors.
+    xy : np.ndarray of shape (N, D)
+    
+    Returns
+    -------
+    np.ndarray
+    """ 
+    if rgba.shape[0] == 1:
+        return rgba.repeat(coords.shape[0], 0)
+    if rgba.shape[0] == coords.shape[0]:
+        return rgba
+    raise ValueError(
+        f"Shape mismatch: {rgba.shape} non broadcastable to {coords.shape}"
+    )
+
+
+def _normalize_rgba_to_list(rgba: np.ndarray | List[np.ndarray], coords_list: List[np.ndarray]) -> List[np.ndarray]:
+    """
+    Produces list of color arrays, consistent to the list of array coordinates
+
+    Parameters
+    ----------
+    rgba : np.ndarray or list of np.ndarray
+        Input rgba colors. Expected as list of np.ndarrays or 
+
+    Return
+    ------
+    list of np.ndarray
+
+    """
+    n = len(coords_list)
+    if isinstance(rgba, np.ndarray):
+        if rgba.ndim == 3: # batched colors for each step
+            rgba = [rgba[i, ...] for i in range(n)]
+        elif rgba.ndim == 2: # one color for each trajectory
+            rgba = [rgba[i, np.newaxis, ...] for i in range(n)]
+        elif rgba.ndim == 1: # one color for all trajectories
+            rgba = [rgba[np.newaxis, ...]] * len(coords_list)
+        else:
+            raise ValueError(
+                f"Usupported dimensity of `rgba` ({rgba.ndim})"
+            )
+
+    if isinstance(rgba, list) and len(rgba) == len(coords_list):            
+        idx = list(range(len(coords_list)))
+        return list(map(_single_rgba_vs_coords, rgba, coords_list, idx))
+        
+    raise ValueError(
+        f"Unsupported type or len of `rgba`: type={type(rgba)}, len={len(rgba)}"
+    )
 
 
 def _get_scalar_mappable(
@@ -69,95 +102,120 @@ def _get_scalar_mappable(
     return sm
 
 
+def _multicolored_line_2d_single(
+    xy: np.ndarray, 
+    rgba: np.ndarray, 
+    ax: plt.Axes,
+    linewidth: int,
+    **kwargs
+) -> None:
+    """
+    Plot a line with a color specified along the line by a third value.
+
+    Mostly follows matplotlib example:
+    https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html
+    """
+    if len(xy) > 1:
+        pass
+
+    xy_midpts = 0.5*(xy[1:, :] + xy[:-1, :])
+    coord_start = xy[:-1, np.newaxis, :]
+    coord_mid = xy_midpts[:, np.newaxis, :]
+    coord_end = xy[1:, np.newaxis, :]
+
+    segments = np.concatenate((coord_start, coord_mid, coord_end), axis=1)
+
+    lc = LineCollection(segments, linewidth=linewidth, **kwargs)
+    # c has shape (N,), segments has shape (N-1, ...).
+    # We color segments by the color of the starting point.
+    lc.set_color(rgba[:-1])
+    ax.add_collection(lc)
+
+
 def _multicolored_lines_2d(
-        x: List[np.ndarray], # Changed type hint
-        c: List[np.ndarray] | np.ndarray, # Changed type hint
-        ax: plt.Axes,
-        sm: ScalarMappable,
-        linewidth: int = 2,
-        **lc_kwargs,
-    ) -> ScalarMappable:
+    xy_list: List[np.ndarray],
+    rgba_list: List[np.ndarray],
+    ax: plt.Axes,
+    linewidth: int = 2,
+    **lc_kwargs,
+) -> None:
     """Plots multiple colored 2d lines
 
     Parameters
     ----------
-    x : List[np.ndarray]
+    xy_list : List[np.ndarray]
         Line coordinates. Expected to be a list of 2D numpy arrays,
         each of shape (N_i, 2).
-    c : List[np.ndarray] | np.ndarray
-        Array of values, passed to colormap. Can be:
-        - List of 1D numpy arrays, each of shape (N_i,) for per-point coloring.
-        - Single 1D numpy array of shape (B,) for per-line coloring (broadcast).
-
+    rgba_list : List[np.ndarray]
+        Array of rgba color values. Can be:
+        - List of 1D numpy arrays, each of shape (N_i, 4) for per-point coloring.
+        - Single 1D numpy array of shape (B, 4) for per-line coloring (broadcast).
     ax : Axes
         Axis object on which to plot the colored line.
-    sm : matplotlib.cm.ScalarMappable
-        A pre-configured scalar mappable object that defines the color mapping.
     **lc_kwargs
         Any additional arguments to pass to matplotlib.collections.LineCollection
         constructor. This should not include the array keyword argument because
         that is set to the color argument. If provided, it will be overridden.
 
-    Returns
-    -------
-    matplotlib.cm.ScalarMappable
-        The generated scalar mappable, which can be used to create a colorbar.
-
     """
     default_kwargs = {"capstyle": "butt"}
     default_kwargs.update(lc_kwargs)
 
-    x_list = x # x is now guaranteed to be a list
-    c_list = []
-
-    # c can be a list of arrays or a single array to be broadcasted
-    if isinstance(c, list):
-        if len(x_list) != len(c):
-            raise ValueError(f"For ragged input lengths of x and c must match, got {len(x_list)} and {len(c)}")
-        c_list = c
-    elif isinstance(c, np.ndarray) and c.ndim == 1 and len(c) == len(x_list):
-        # c has shape (B,), x is a list of B arrays
-        # broadcast c to each line
-        c_list = [np.full(len(x_i), c_i) for x_i, c_i in zip(x_list, c)]
-    elif isinstance(c, np.ndarray) and len(x_list) == 1:
-        c_list = [c]
-    else:
-        raise ValueError("Invalid shape for c with list x input. Expected list of np.ndarray or a 1D np.ndarray for broadcasting.")
-
-    for x_, c_ in zip(x_list, c_list):
-        if len(x_) > 1:
-            _multicolored_line_2d_single(
-                x=x_, c=c_, ax=ax, linewidth=linewidth, sm=sm, **default_kwargs,
-            )
-
-    return sm
+    for xy_, rgba_ in zip(xy_list, rgba_list):
+        _multicolored_line_2d_single(
+            xy=xy_, rgba=rgba_, ax=ax, linewidth=linewidth, **default_kwargs,
+        )
 
 
 def _multicolored_line_3d_single(
-    x: np.ndarray, 
-    c: np.ndarray, 
+    xyz: np.ndarray, 
+    rgba: np.ndarray, 
     ax: plt.Axes,
     linewidth: int,
-    sm: ScalarMappable,
     **kwargs
-) -> Tuple[plt.Axes, plt.Figure]:
+) -> None:
     """
     """
-
-    x_midpts = 0.5*(x[1:, :] + x[:-1, :])
-    coord_start = x[:-1, np.newaxis, :]
-    coord_mid = x_midpts[:, np.newaxis, :]
-    coord_end = x[1:, np.newaxis, :]
+    xyz_midpts = 0.5*(xyz[1:, :] + xyz[:-1, :])
+    coord_start = xyz[:-1, np.newaxis, :]
+    coord_mid = xyz_midpts[:, np.newaxis, :]
+    coord_end = xyz[1:, np.newaxis, :]
 
     segments = np.concatenate((coord_start, coord_mid, coord_end), axis=1)
-
     lc = Line3DCollection(segments, linewidth=linewidth, **kwargs)
-    # c has shape (N,), segments has shape (N-1, ...).
-    # We color segments by the color of the starting point.
-    lc.set_color(sm.to_rgba(c[:-1]))
-
+    lc.set_color(rgba[:-1])
     ax.add_collection(lc)
-    return ax.get_figure(), ax
 
 
+def _multicolored_lines_3d(
+    xyz_list: List[np.ndarray],
+    rgba_list: List[np.ndarray],
+    ax: plt.Axes,
+    linewidth: int = 2,
+    **lc_kwargs,
+) -> None:
+    """Plots multiple colored 3d lines
 
+    Parameters
+    ----------
+    xyz_list : List[np.ndarray]
+        Line coordinates. Expected to be a list of 2D numpy arrays,
+        each of shape (N_i, 3).
+    rgba_list : List[np.ndarray]
+        Array of rgba color values. Can be:
+        - List of 1D numpy arrays, each of shape (N_i, 4) for per-point coloring.
+        - Single 1D numpy array of shape (B, 4) for per-line coloring (broadcast).
+    ax : Axes
+        Axes object on which to plot the colored line.
+    **lc_kwargs
+        Any additional arguments to pass to matplotlib.collections.LineCollection
+        constructor. This should not include the array keyword argument because
+        that is set to the color argument. If provided, it will be overridden.
+    """
+    default_kwargs = {"capstyle": "butt"}
+    default_kwargs.update(lc_kwargs)
+
+    for xyz_, rgba_ in zip(xyz_list, rgba_list):
+        _multicolored_line_3d_single(
+            xyz=xyz_, rgba=rgba_, ax=ax, linewidth=linewidth, **default_kwargs,
+        )

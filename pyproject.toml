@@ -7,7 +7,7 @@ packages = ["bhtrace"]
 
 [project]
 name = "bhtrace"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
     "numpy",
     "matplotlib",
@@ -26,7 +26,7 @@ authors = [
 maintainers = [
   {name = "Alexei Vorokhov", email = "alexei.vorohov@yandex.ru"},
 ]
-description = "Package for performing GRRT simulations of exotic compact objects in arbitrary spacetimes. Powered by PyTorch"
+description = "GRRT simulation of compact objects in arbitrary spacetimes, powered by PyTorch"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.*"]
@@ -36,8 +36,11 @@ classifiers = [
   "Programming Language :: Python"
 ]
 
-[project.scripts]
-bhtrace = "bhtrace.cli:main"
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-mock"
+]
 
 [project.urls]
 Repository = "https://github.com/alexeivorohov/bhtrace.git"

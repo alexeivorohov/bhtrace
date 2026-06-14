@@ -6,6 +6,7 @@ import os
 import re
 
 import bhtrace.graphics as bhg
+from bhtrace.scenarios.makers import make_schwarzschild
 
 OUTPUT_DIR = 'test/outputs'
 
@@ -45,6 +46,46 @@ def multiple_trajectories():
         z = t / 4 + i
         trajectories.append(torch.stack([x, y, z], dim=1))
     return trajectories
+
+@pytest.fixture(scope="session")
+def spiral_3d_batched():
+    """Returns a batch of continuous 3D trajectories as numpy array."""
+    t = np.linspace(0, 4 * np.pi, NSTEPS)
+    trajectories = []
+    for i in range(BATCH_SIZE):
+        # Varying spirals
+        x = t * np.cos(t + i * np.pi / 4)
+        y = t * np.sin(t + i * np.pi / 4)
+        z = t + i
+        trajectories.append(np.stack([x, y, z], axis=1))
+    return np.stack(trajectories)
+    
+@pytest.fixture(scope="session")
+def spiral_3d_ragged():
+    """Returns a list of continuous trajectories of different lengths as numpy arrays."""
+    trajectories = []
+    for i in range(3):
+        t = np.linspace(0, np.random.uniform(2, 6) * np.pi, NSTEPS + i*8)
+        x = (t + i * 2) * np.cos(t)
+        y = (t + i * 2) * np.sin(t)
+        z = t
+        trajectories.append(np.stack([x, y, z], axis=1))
+    return trajectories
+
+
+@pytest.fixture(scope="session")
+def spiral_3d():
+    """Returns a single continuous 3D trajectory (a spiral) as numpy array."""
+    
+    t = np.linspace(0, 4 * np.pi, NSTEPS)
+    x = t * np.cos(t)
+    y = t * np.sin(t)
+    z = t
+    return np.stack([x, y, z], axis=1)
+
+@pytest.fixture(scope="session")
+def schwarzschild_3d() -> 'Trajectory':
+    return make_schwarzschild('square')
 
 @pytest.fixture
 def points_and_vectors():
