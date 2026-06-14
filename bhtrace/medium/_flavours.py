@@ -1,19 +1,21 @@
 """
 This module describes main subtypes of Medium class
 """
-from abc import abstractmethod 
+
+from abc import abstractmethod
 from typing import Dict, List, Tuple, Optional, Any
 
 import torch
 
 from bhtrace.medium._base import Medium, Spacetime
 
+
 class ThinDisk(Medium):
     r"""
     Base class for all geometrically thin (H(r) << r) disk models.
 
     This class provides a foundational structure for modeling thin accretion disks
-    around compact objects. 
+    around compact objects.
     Attributes
     ----------
     r_isco : float
@@ -68,7 +70,7 @@ class ThinDisk(Medium):
         r_cut: Optional[float] = None,
         horizon_tol: float = 1e-2,
         clockwise: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Initializes the ThinDisk base class.
@@ -105,15 +107,14 @@ class ThinDisk(Medium):
             -1.0 for clockwise).
         """
         super().__init__(spacetime=spacetime, **kwargs)
-        self.r_isco = spacetime.r_isco() # will not hold for 
-        self.r_cut = r_cut or 5*self.r_isco
+        self.r_isco = spacetime.r_isco  # TODO: implement automatic R_isco derivation
+        self.r_cut = r_cut or 5 * self.r_isco
         self.horizon_tol = horizon_tol
         if clockwise:
             self._rot_dir = -1.0
         else:
             self._rot_dir = 1.0
- 
-  
+
     @abstractmethod
     def height(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
         """
@@ -140,11 +141,9 @@ class ThinDisk(Medium):
         """
         raise NotImplementedError
 
-    
     def hit_condition(self, s0: torch.Tensor, s1: torch.Tensor) -> torch.Tensor:
-        
-        return torch.sign(s0) != torch.sign(s1)
 
+        return torch.sign(s0) != torch.sign(s1)
 
     def signed_distance(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -164,7 +163,7 @@ class ThinDisk(Medium):
             Coordinates in spacetime, expected to be in spherical
             Boyer-Lindquist coordinates [t, r, theta, phi], with shape
             [..., 4].
-        
+
         Returns
         -------
         torch.Tensor
@@ -173,7 +172,7 @@ class ThinDisk(Medium):
             the event horizon.
         """
         r = x[..., 1]
-        z = r*torch.cos(x[..., 2])
+        z = r * torch.cos(x[..., 2])
         z[r < self.spacetime.r_h + self.horizon_tol] = torch.inf
 
         return z

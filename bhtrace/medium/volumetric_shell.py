@@ -17,6 +17,7 @@ from bhtrace.medium._base import Medium, MEDIUM_REGISTRY
 from bhtrace.geometry.spacetime import Spacetime
 import bhtrace.utils.units as bhU
 
+
 @MEDIUM_REGISTRY.register("volumetricshell")
 class VolumetricShell(Medium):
     """
@@ -62,11 +63,12 @@ class VolumetricShell(Medium):
     surface_flux(x)
         Calculates the surface flux within the shell.
     """
+
     def __init__(
         self,
         spacetime: Spacetime,
         mass: float = 1.0,
-        temperature = 1e6,
+        temperature=1e6,
         density: float = 1e-3,
         opacity: float = 5e-3,
         r_in: float = 6.0,
@@ -123,8 +125,7 @@ class VolumetricShell(Medium):
         self.omega = omega
         self._density = (density * bhU.density).to(self.units).f
         self._opacity = (opacity * bhU.area / bhU.mass).to(self.units).f
-        self._flux = (temperature ** 4 * bhU.K  * bhU.sigma_SB).to(self.units).f
-
+        self._flux = (temperature**4 * bhU.K * bhU.sigma_SB).to(self.units).f
 
     def signed_distance(self, x: torch.Tensor) -> torch.Tensor:
         r = x[..., 1]
@@ -135,7 +136,7 @@ class VolumetricShell(Medium):
     def hit_condition(self, s0: torch.Tensor, s1: torch.Tensor) -> torch.Tensor:
         # A hit occurs if the new point is inside the medium (signed distance <= 0).
         return s1 <= 0
-    
+
     def flux_density(self, x: torch.Tensor) -> torch.Tensor:
         return self.surface_flux(x)
 
@@ -157,7 +158,9 @@ class VolumetricShell(Medium):
     def velocity(self, x: torch.Tensor) -> torch.Tensor:
         # Assume purely azimuthal motion for the shell
         r = x[..., 1]
-        v_phi = self.omega * r # Simple linear velocity in coordinate system for constant omega
+        v_phi = (
+            self.omega * r
+        )  # Simple linear velocity in coordinate system for constant omega
         u = torch.zeros_like(x)
         u[..., 0] = (1 - v_phi).rsqrt()
         u[..., 3] = v_phi

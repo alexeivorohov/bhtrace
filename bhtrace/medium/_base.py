@@ -20,6 +20,7 @@ from bhtrace.geometry import Spacetime
 from bhtrace.utils import Registry
 import bhtrace.utils.units as bhU
 
+
 class Medium(ABC):
     R"""
     Abstract base class for a radiating medium in a spacetime.
@@ -91,7 +92,9 @@ class Medium(ABC):
         self.spacetime = spacetime
         self.units = bhU.GRRTUnitSystem(mass=mass, temperature=temperature)
         self._nu_scale = self.units.conversion_factor(bhU.Hz)
-        self._bb_scale = self.units.conversion_factor((bhU.h / bhU.c.pow(2)).to(self.units))
+        self._bb_scale = self.units.conversion_factor(
+            (bhU.h / bhU.c.pow(2)).to(self.units)
+        )
         self._bb_pow = self.units.conversion_factor((bhU.h / bhU.kB))
 
     @abstractmethod
@@ -236,7 +239,7 @@ class Medium(ABC):
             This method must be implemented by subclasses.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def flux_density(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -259,7 +262,7 @@ class Medium(ABC):
             This method must be implemented by subclasses.
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     def opacity(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -313,23 +316,23 @@ class Medium(ABC):
             This method must be implemented by subclasses.
         """
         raise NotImplementedError
-    
+
     def adjust_hit(
-            self, 
-            x0: torch.Tensor, 
-            x1: torch.Tensor,
-            p0: torch.Tensor,
-            p1: torch.Tensor,
-            s0: torch.Tensor, 
-            s1: torch.Tensor,
-        ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self,
+        x0: torch.Tensor,
+        x1: torch.Tensor,
+        p0: torch.Tensor,
+        p1: torch.Tensor,
+        s0: torch.Tensor,
+        s1: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Determines a better hit coordinate and interpolated impulse between
         two points along a trajectory segment.
 
         This method is used to refine the intersection point with the medium's
         boundary and can be useful when working with accretion disks.
-         
+
         By default, no adjustment is performed, and `x1`, `p1` are
         assumed to be the hit coordinate and impulse. This default behavior is
         natural for volumetric disks where the "hit" is considered to be
@@ -358,7 +361,7 @@ class Medium(ABC):
             - **p_hit** (`torch.Tensor`): The interpolated momentum at the hit position.
         """
         return x1, p1
-    
+
     @abstractmethod
     def signed_distance(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -372,12 +375,12 @@ class Medium(ABC):
           outside the cutoff radius.
         - For volumetric objects (like thick disks and tori), it typically
           returns negative if the point is inside the object.
-        
+
         Parameters
         ----------
         x : torch.Tensor
             Coordinates in spacetime (shape [..., 4]).
-        
+
         Returns
         -------
         torch.Tensor
@@ -389,7 +392,7 @@ class Medium(ABC):
             This method must be implemented by subclasses.
         """
         raise NotImplementedError
-    
+
     def __repr__(self):
         """
         Returns a string representation of the Medium object.
