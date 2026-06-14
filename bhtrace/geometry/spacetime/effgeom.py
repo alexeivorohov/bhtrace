@@ -83,14 +83,14 @@ class EffectiveGeometryLocalFS(SpacetimeLocal):
     @cached_property
     def ginv(self) -> torch.Tensor:
         return (
-           self.base_loc.ginv - self._xi.view(*self.batch, 1, 1) * self.f_loc.F_up
+           self.base_loc.ginv - self._xi.view(*self.batch, 1, 1) * self.f_loc.FF_up
         )
 
     @cached_property
     def g(self) -> torch.Tensor:
         return (
             self._eta.view(*self.batch, 1, 1) * self.base_loc.g + 
-            (self._xi * self._eta).view(*self.batch, 1, 1) * self.f_loc.F_dd
+            (self._xi * self._eta).view(*self.batch, 1, 1) * self.f_loc.FF_dd
         )
     
     @cached_property
