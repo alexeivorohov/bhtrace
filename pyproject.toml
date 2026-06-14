@@ -7,7 +7,7 @@ packages = ["bhtrace"]
 
 [project]
 name = "bhtrace"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
     "numpy",
     "matplotlib",
@@ -41,9 +41,6 @@ test = [
     "pytest",
     "pytest-mock"
 ]
-
-[project.scripts]
-bhtrace = "bhtrace.cli:main"
 
 [project.urls]
 Repository = "https://github.com/alexeivorohov/bhtrace.git"
