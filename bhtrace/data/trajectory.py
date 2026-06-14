@@ -284,7 +284,7 @@ class Trajectory:
 
     def join(self, others: List[Trajectory], fill_reprs: bool = False):
         from bhtrace.data.utils import join_trajectories
-        return join_trajectories([self].extend(others), fill_reprs=fill_reprs)
+        return join_trajectories([self, *others], fill_reprs=fill_reprs)
 
 
     def state(self) -> Dict[str, Any]:
