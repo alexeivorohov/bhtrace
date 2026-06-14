@@ -79,7 +79,7 @@ from .histogram import hist, ridge
 # --- Submodules ---
 from . import traj2d
 from . import traj3d
-# from . import lensing
+from . import lensing
 from . import horizons
 from . import coloring
 from . import presets

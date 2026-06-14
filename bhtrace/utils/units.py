@@ -44,7 +44,7 @@ from functools import cached_property
 import scipy.constants as constants
 import numpy as np
 
-from bhtrace.utils.registry import InstanceRegistry
+from .registry import InstanceRegistry
 
 _PRINCIPAL_UNITS = ["T", "M", "L", "K", "I", "N", "J", "i"]
 UNIT_EQ_TOLERANCE = 1e-8
