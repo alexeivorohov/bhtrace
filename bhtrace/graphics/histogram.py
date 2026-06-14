@@ -7,10 +7,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.collections import PolyCollection
 import numpy as np
-import uniplot as uplt
+import bhtrace.graphics.uniplot_wraps as uplt
 
 from bhtrace.graphics.utils import add_info_text, figure_handler
 from bhtrace.utils.registry import CallableRegistry
+from bhtrace.graphics.scaling import scale
 
 # TODO: promote args
 # TODO: enhance visuals
@@ -20,13 +21,8 @@ from bhtrace.utils.registry import CallableRegistry
 
 class HistogramBackend(Protocol):
     def __call__(
-        data: np.ndarray,
+        dist: np.ndarray,
         bins: Optional[int | np.ndarray],
-        weights: Optional[np.ndarray],
-        density: bool,
-        q_scale: str,
-        p_scale: str,
-        range: Tuple[float, float],
         label: Optional[str],
         info_text: Optional[str],
         ax: Optional[plt.Axes],
@@ -37,20 +33,10 @@ class HistogramBackend(Protocol):
         
         Parameters
         ----------
-        data : np.ndarray
-            Data to be histogrammed.
+        dist : np.ndarray
+            Probability density or bin count, optionally scaled
         bins : int or np.ndarray
-            Specification of histogram bins.
-        weights : np.ndarray, optional
-            Weights for data.
-        density : bool
-            Whether to return a probability density.
-        q_scale : Literal['linear', 'log']
-            Scale for the quantity (bin) axis.
-        p_scale : Literal['linear', 'log']
-            Scale for the probability/count axis.
-        range : tuple, optional
-            The lower and upper range of the bins.
+            Histogram bins
         label : str, optional
             Label for the plot.
         info_text : str, optional
@@ -66,12 +52,10 @@ class HistogramBackend(Protocol):
 class RidgeBackend(Protocol):
     def __call__(
         dist: List[np.ndarray],
-        parameter: List[float],
+        parameter: np.ndarray,
         bins: np.ndarray,
         label: str,
         info_text: str,
-        q_scale: str,
-        p_scale: str,
         ax: plt.Axes,
         fig: plt.Figure,
         density: bool,
@@ -93,16 +77,10 @@ class RidgeBackend(Protocol):
             label to place on the plot
         info_text : optional, str
             Additional text to display on the plot.
-        q_scale : Literal['linear', 'log']
-            Scale for the quantity (bin) axis.
-        p_scale : Literal['linear', 'log']
-            Scale for the probability/count axis.
         ax : optional, plt.Axes
             Matplotlib Axes object to plot diagram on.
         fig : optional, plt.Figure
             Matplotlib Figure object to plot diagram on.
-        density : bool
-            Whether the histogram represents a probability density.
         """
         pass
 
@@ -116,9 +94,8 @@ def hist(
     bins: Optional[int | np.ndarray] = 10,
     weights: Optional[np.ndarray] = None,
     density: bool = True,
-    q_scale: str = 'linear',
-    p_scale: str = 'linear',
-    range: Tuple[float, float] = None,
+    bin_scale: str = 'linear',
+    dist_scale: str = 'linear',
     label: Optional[str] = None,
     info_text: Optional[str] = None,
     backend: Literal["mpl", "uniplot"] = "mpl",
@@ -138,14 +115,15 @@ def hist(
         label to place on the plot
     weights: Optional[np.ndarray] = None,
         Label for the data series.
-    info_text : str, optional
-        Additional text to display on the plot.
-    q_scale : Literal['linear', 'log'] (default: 'linear')
-        A type of scale to apply to the bin axes.
-    p_scale : Literal['linear', 'log'] (default: 'linear')
+    bin_scale : Literal['linear', 'log'] (default: 'linear')
+        A type of scale to apply to the bin axes. 
+        Will be also applied to `bins`, if bins are passed 
+    dist_scale : Literal['linear', 'log'] (default: 'linear')
         A type of scale to apply to the evaluated counts/densities.
     backend : {'mpl', 'uniplot'}, default 'mpl'
         Plotting backend to use.
+    info_text : str, optional
+        Additional text to display on the plot.
     fig : plt.Figure, optional
         Existing figure to plot on.
     ax : plt.Axes, optional
@@ -159,18 +137,23 @@ def hist(
         Figure and Axes object, or (None, None) for uniplot backend.
     """
 
-    plotter = HISTOGRAM_BACKEND_REGISTRY.get(backend)
+    p_label = 'p' if density else 'N'
+    
+    data = scale(data, bin_scale)    
+    if isinstance(bins, np.ndarray):
+        bins = scale(bins, bin_scale)
 
-    return plotter(
+    p, bin_edges = np.histogram(data, bins=bins, density=density, weights=weights)
+    p = scale(p, dist_scale)
+
+
+    return HISTOGRAM_BACKEND_REGISTRY[backend](
         data=data,
         bins=bins,
         weights=weights,
         density=density,
-        range=range,
         label=label,
         info_text=info_text,
-        q_scale=q_scale,
-        p_scale=p_scale,
         ax=ax,
         fig=fig,
         **kwargs,
@@ -212,8 +195,9 @@ def ridge(
     weights: Optional[List[np.ndarray]] = None,
     bins: int | np.ndarray = 16,
     density: bool = True,
-    scale: Literal['linear', 'log'] = 'linear',
-    bin_scale: Literal['linear', 'log'] = 'linear',
+    bin_scale: str = 'linear',
+    dist_scale: str = 'linear',
+    par_scale: str = 'linear',
     label: Optional[str] = None,
     info_text: Optional[str] = None,
     backend: Literal["mpl", "uniplot"] = "mpl",
@@ -254,37 +238,15 @@ def ridge(
     if parameter is None:
         parameter = list(range(len(data)))
 
-    if isinstance(bins, int):
-        all_data = np.concatenate([d for d in data if d.size > 0])
-        if all_data.size == 0:
-            if backend == 'mpl':
-                fig, ax = figure_handler(fig, ax)
-                return fig, ax
-            else:
-                return None, None
-        
-        min_val = np.min(all_data)
-        max_val = np.max(all_data)
-
-        if bin_scale == 'log':
-            if min_val <= 0:
-                raise ValueError("Log scale for bins requires all data to be positive.")
-            bins = np.logspace(np.log10(min_val), np.log10(max_val), bins + 1)
-        else:
-            bins = np.linspace(min_val, max_val, bins + 1)
-
     dist = _process_ridge_data(data, bins=bins, weights=weights, density=density)
 
-    plotter = RIDGE_BACKEND_REGISTRY.get(backend)
 
-    return plotter(
+    return RIDGE_BACKEND_REGISTRY[backend](
         dist=dist,
         parameter=parameter,
         bins=bins,
         label=label,
         info_text=info_text,
-        q_scale=bin_scale,
-        p_scale=scale,
         ax=ax,
         fig=fig,
         density=density,
@@ -293,13 +255,8 @@ def ridge(
 
 @HISTOGRAM_BACKEND_REGISTRY.register("mpl", aliases=["matplotlib"])
 def _histogram_mpl_1d(
-    data: np.ndarray,
-    bins: Optional[int | np.ndarray],
-    weights: Optional[np.ndarray],
-    density: bool,
-    q_scale: str,
-    p_scale: str,
-    range: Tuple[float, float],
+    dist: np.ndarray,
+    bin_edges: np.ndarray,
     label: str,
     info_text: Optional[str],
     ax: Optional[plt.Axes],
@@ -310,13 +267,9 @@ def _histogram_mpl_1d(
     Plots a 1D histogram using matplotlib.
     """
     fig, ax = figure_handler(fig, ax)
-    
-    hist, bin_edges = np.histogram(data.flatten(), bins=bins, range=range, density=density, weights=weights)
 
-    ax.stairs(hist, bin_edges, fill=kwargs.pop('fill', True), label=label, **kwargs)
-    ax.set_xscale(q_scale)
-    ax.set_yscale(p_scale)
-    ax.grid(True)
+    ax.grid(kwargs.pop('grid', True))
+    ax.stairs(dist, bin_edges, fill=kwargs.pop('fill', True), label=label, **kwargs)
 
     if label:
         ax.legend()
@@ -388,92 +341,87 @@ def _ridge_mpl_3d(
     return fig, ax
 
 
-@HISTOGRAM_BACKEND_REGISTRY.register("uniplot")
-def _histogram_uniplot_1d(
-    data: np.ndarray,
-    bins: Optional[int | np.ndarray],
-    weights: Optional[np.ndarray],
-    density: bool,
-    q_scale: str,
-    p_scale: str,
-    range: Tuple[float, float],
-    label: Optional[str],
-    info_text: Optional[str],
-    ax: Optional[plt.Axes],
-    fig: Optional[plt.Figure],
-    **kwargs,
-) -> Tuple[None, None]:
-    """
-    Plots a 1D histogram using uniplot.
-    """
-    if label:
-        print(f"Histogram for: {label}")
-    else:
-        print("Histogram")
+# @HISTOGRAM_BACKEND_REGISTRY.register("uniplot")
+# def _histogram_uniplot_1d(
+#     dist: np.ndarray,
+#     bin_edges: np.ndarray,
+#     label: Optional[str],
+#     info_text: Optional[str],
+#     ax: Optional[plt.Axes],
+#     fig: Optional[plt.Figure],
+#     **kwargs,
+# ) -> Tuple[None, None]:
+#     """
+#     Plots a 1D histogram using uniplot.
+#     """
+#     if label:
+#         print(f"Histogram for: {label}")
+#     else:
+#         print("Histogram")
 
-    plot_quantity = data.flatten()
-    if q_scale == "log":
-        if np.any(plot_quantity <= 0):
-            print(
-                "Warning: non-positive values present in data. Log scale can't be applied to them. They will be ignored."
-            )
-            plot_quantity = plot_quantity[plot_quantity > 0]
-        plot_quantity = np.log10(plot_quantity)
-        kwargs["xlabel"] = kwargs.get("xlabel", "value") + " (log10 scale)"
+#     plot_quantity = dist.flatten()
+#     if q_scale == "log":
+#         if np.any(plot_quantity <= 0):
+#             print(
+#                 "Warning: non-positive values present in data. Log scale can't be applied to them. They will be ignored."
+#             )
+#             plot_quantity = plot_quantity[plot_quantity > 0]
+#         plot_quantity = np.log10(plot_quantity)
+#         kwargs["xlabel"] = kwargs.get("xlabel", "value") + " (log10 scale)"
 
-    if not isinstance(bins, int):
-        print("Warning: uniplot backend only supports integer number of bins. Ignoring provided bin edges.")
-        bins = 20
+#     if not isinstance(bin_edges, int):
+#         print("Warning: uniplot backend only supports integer number of bins. Ignoring provided bin edges.")
+#         bin_edges = 20
         
-    uniplot_kwargs = kwargs.copy()
-    if 'bins' not in uniplot_kwargs:
-        uniplot_kwargs['bins'] = bins
+#     uniplot_kwargs = kwargs.copy()
+#     if 'bins' not in uniplot_kwargs:
+#         uniplot_kwargs['bins'] = bin_edges
 
-    uplt.histogram(plot_quantity, **uniplot_kwargs)
+#     uplt.histogram(plot_quantity, **uniplot_kwargs)
 
-    if info_text:
-        print(info_text)
+#     if info_text:
+#         print(info_text)
 
-    return None, None
+#     return None, None
 
 
-@RIDGE_BACKEND_REGISTRY.register("uniplot")
-def _ridge_uniplot(
-    dist: List[np.ndarray],
-    parameter: List[float],
-    bins: np.ndarray,
-    label: str,
-    info_text: str,
-    q_scale: str,
-    p_scale: str,
-    ax: plt.Axes,
-    fig: plt.Figure,
-    density: bool,
-    **kwargs,
-) -> Tuple[None, None]:
-    """
-    Plots an evolution 2D histogram using uniplot, with one histogram per column.
-    """
-    print("Warning: uniplot backend for ridge plots is not fully supported and may produce misleading results.")
+# @RIDGE_BACKEND_REGISTRY.register("uniplot")
+# def _ridge_uniplot(
+#     dist: List[np.ndarray],
+#     parameter: List[float],
+#     bins: np.ndarray,
+#     label: str,
+#     info_text: str,
+#     q_scale: str,
+#     p_scale: str,
+#     ax: plt.Axes,
+#     fig: plt.Figure,
+#     density: bool,
+#     **kwargs,
+# ) -> Tuple[None, None]:
+#     """
+#     Plots an evolution 2D histogram using uniplot, with one histogram per column.
+#     """
+#     print("Warning: uniplot backend for ridge plots is not fully supported and may produce misleading results.")
     
-    for i, p in enumerate(parameter):
-        hist = dist[i]
+#     for i, p in enumerate(parameter):
+#         hist = dist[i]
         
-        # We need to "un-histogram" the data for uniplot, which is not ideal.
-        # This is a crude approximation. Scale to make sure values are not truncated to 0
-        plot_quantity = np.repeat(bins[:-1], (hist * 1000).astype(int))
+#         # We need to "un-histogram" the data for uniplot, which is not ideal.
+#         # This is a crude approximation. Scale to make sure values are not truncated to 0
+#         plot_quantity = np.repeat(bins[:-1], (hist * 1000).astype(int))
 
-        current_kwargs = kwargs.copy()
+#         current_kwargs = kwargs.copy()
         
-        if label:
-            print(f"Histogram for: {label} at parameter {p}")
-        else:
-            print(f"Histogram at parameter {p}")
+#         if label:
+#             print(f"Histogram for: {label} at parameter {p}")
+#         else:
+#             print(f"Histogram at parameter {p}")
 
-        uplt.histogram(plot_quantity, **current_kwargs)
+#         uplt.histogram(plot_quantity, **current_kwargs)
 
-    if info_text:
-        print(info_text)
+#     if info_text:
+#         print(info_text)
 
     return None, None
 

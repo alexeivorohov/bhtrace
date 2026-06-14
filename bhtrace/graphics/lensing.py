@@ -117,7 +117,6 @@ def _lensing_backend_mpl(
     ax: plt.Axes = None,
     fig: plt.Figure = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
-    print('Plotter called')
 
     fig, ax = figure_handler(fig, ax)
 
