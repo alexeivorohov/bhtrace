@@ -6,49 +6,24 @@ import inspect
 import sys
 import os
 
-root_path = '/home/alexey/Work/bhtrace-dev'
-sys.path.append(root_path)
-sys.path.append(os.getcwd())
-
 from bhtrace.geometry.spacetime import MinkowskiCart, MinkowskiSph
-from bhtrace.geometry.electrodynamics import Electrodynamics, ELECTRODYNAMICS_REGISTRY
+import bhtrace.physics.electrodynamics as bhE
+import bhtrace.utils.units as bhU
 
 
-class TestElectrodynamics(unittest.TestCase):
-    def setUp(self):
-        '''
-        Collect all subclasses of Electrodynamics and instantate tests
-        '''
-        self.base_class = Electrodynamics
+MODELS = [
+    bhE.Maxwell(bhU.si),
+]
 
-        self.impls = {}
+FIELDS = [
+    bhE.PointCharge(0.1)
+]
 
-        all_impls = inspect.getmembers(
-            sys.modules['bhtrace.geometry.electrodynamics.models'], inspect.isclass
-        )
+COORDS = [
+    bhE.PointCharge(0.1)
+]
 
-        for name, obj in all_impls:
-            if issubclass(obj, self.base_class) and obj is not self.base_class:
-                self.impls[name] = obj
-        
-        keys_all = self.impls.keys()
-        print(f'All impls: {keys_all}')
-
-        keys_cross = (ELECTRODYNAMICS_REGISTRY.keys() &
-                      self.impls.keys())
-        print(f'Supported impls: {keys_cross}')
-
-        self.instance_to_test = {}
-        for key in keys_all:
-            try:
-                self.instance_to_test[key] = self.impls[key]()
-            except Exception as e:
-                print(f'Cannot instantiate ED model {key}')
-    
-                
-        self.atol = 1e-4
-        self.rtol = 1e-4
-
+def test_output_shapes():
     
     def test_init(self):
         '''
