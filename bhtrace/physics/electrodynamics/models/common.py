@@ -5,7 +5,7 @@ from bhtrace.physics.electrodynamics.models._base import Electrodynamics, bhU
 from bhtrace.physics.electrodynamics.models.classic import Maxwell
 
 
-class ModMaxGeneralized(Maxwell):
+class ModMax(Maxwell):
     """
     Generalized model of ModMax electrodynamics
     
